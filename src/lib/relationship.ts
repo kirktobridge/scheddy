@@ -1,12 +1,14 @@
 import { addDays, differenceInCalendarDays, format, isWeekend, startOfDay, startOfWeek } from 'date-fns'
 import type { GEvent } from '../api/calendar'
 import {
+  atTime,
   blockedDates,
   dayIsolation,
   daySpan,
   freeGaps,
   mergeIntervals,
   type BusyInterval,
+  type WindowKey,
   type Windows,
 } from './availability'
 
@@ -51,6 +53,20 @@ export function overlapLongestMs(
   const span = daySpan(windows, date, dayStart)
   if (!span) return 0
   return longestGapMs(overlapFreeGaps(myBusy, partnerBusy, span.start, span.end))
+}
+
+/** Longest mutual free stretch (ms) inside one named window on a date (0 if the window is missing). */
+export function overlapInWindowMs(
+  myBusy: BusyInterval[],
+  partnerBusy: BusyInterval[],
+  windows: Windows,
+  windowKey: WindowKey,
+  date: string,
+): number {
+  const win = windows[windowKey]
+  if (!win) return 0
+  const day = new Date(date + 'T00:00:00')
+  return longestGapMs(overlapFreeGaps(myBusy, partnerBusy, atTime(day, win.start), atTime(day, win.end)))
 }
 
 /** Map of date → longest mutual free stretch (ms), for each requested date. */

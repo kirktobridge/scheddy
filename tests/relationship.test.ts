@@ -6,6 +6,7 @@ import {
   overlapByDate,
   overlapDates,
   overlapFreeGaps,
+  overlapInWindowMs,
   overlapLongestMs,
   rankDateCandidates,
   weekKey,
@@ -59,6 +60,21 @@ describe('overlapLongestMs', () => {
   it('is 0 when one partner is busy the whole span', () => {
     const mine = [busy('2026-06-15T08:00', '2026-06-15T22:00')]
     expect(overlapLongestMs(mine, [], windows, '2026-06-15')).toBe(0)
+  })
+})
+
+describe('overlapInWindowMs', () => {
+  it('measures mutual free time inside one window only', () => {
+    // Mine busy all morning + afternoon; partner free. Evening (17-22) fully mutual = 5h.
+    const mine = [busy('2026-06-15T08:00', '2026-06-15T17:00')]
+    expect(overlapInWindowMs(mine, [], windows, 'evening', '2026-06-15')).toBe(5 * HOUR)
+    // A partner block trims the evening to 17-19 = 2h.
+    const partner = [busy('2026-06-15T19:00', '2026-06-15T22:00')]
+    expect(overlapInWindowMs(mine, partner, windows, 'evening', '2026-06-15')).toBe(2 * HOUR)
+  })
+
+  it('returns 0 for an unknown window', () => {
+    expect(overlapInWindowMs([], [], windows, 'midnight', '2026-06-15')).toBe(0)
   })
 })
 

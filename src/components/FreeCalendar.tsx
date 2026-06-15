@@ -49,6 +49,8 @@ interface Props {
   overlapBusy?: BusyInterval[]
   /** Color for the mutual-free overlap shading. */
   overlapShadeColor?: string
+  /** Limit the overlap shading to these dates (omit = all days). */
+  overlapShadeDates?: Set<string>
   /** Month whose card is selected (drives the Metrics section). */
   selectedMonth: Date
   onSelectMonth: (month: Date) => void
@@ -128,6 +130,7 @@ export default function FreeCalendar({
   layers,
   overlapBusy,
   overlapShadeColor,
+  overlapShadeDates,
   selectedMonth,
   onSelectMonth,
 }: Props) {
@@ -233,7 +236,7 @@ export default function FreeCalendar({
                           date={dateStr}
                           now={now}
                           dayStart={dayStart}
-                          overlapBusy={overlapBusy}
+                          overlapBusy={overlapShadeDates && !overlapShadeDates.has(dateStr) ? undefined : overlapBusy}
                           overlapShadeColor={overlapShadeColor}
                         />
                       )}
@@ -282,7 +285,7 @@ export default function FreeCalendar({
           windowOrder={windowOrder}
           dayInfo={dayInfo}
           slotInfo={slotInfo}
-          overlapBusy={overlapBusy}
+          overlapBusy={overlapShadeDates && selected && !overlapShadeDates.has(selected) ? undefined : overlapBusy}
           overlapShadeColor={overlapShadeColor}
         />
       )}
