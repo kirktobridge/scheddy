@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from 'react'
-import { addDays, endOfDay, isWeekend, startOfDay, startOfMonth } from 'date-fns'
-import { blockedDates, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
+import { addDays, differenceInCalendarDays, endOfDay, isWeekend, startOfDay, startOfMonth } from 'date-fns'
+import { blockedDates, dayIsolation, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, matchRule } from '../lib/metrics'
 import {
   datesInRange,
+  lastDateEvent,
+  nextDateEvent,
   notWorkingDates,
   overlapByDate,
   overlapDates,
@@ -23,6 +25,9 @@ import { ErrorBanner, Spinner } from '../components/Banner'
 import MetricsStats from '../components/MetricsStats'
 import { useMetrics } from '../hooks/useMetrics'
 
+/** How far back to scan for the most recent past date (cadence nudge). */
+const DATE_LOOKBACK_DAYS = 365
+
 export default function FreePage() {
   const [settings, setSettings] = useSettings()
   const lookahead = settings.lookaheadDays
@@ -36,6 +41,7 @@ export default function FreePage() {
   const [highlightPicks, setHighlightPicks] = useState(true)
   const rel = settings.relationshipMode
   const partnerName = settings.partnerName || 'Partner'
+  const relOpen = settings.relationshipPanelOpen
   const [showNotWorking, setShowNotWorking] = useState(false)
   const [showOverlap, setShowOverlap] = useState(false)
   const [showOverlapWeekends, setShowOverlapWeekends] = useState(false)
@@ -64,6 +70,34 @@ export default function FreePage() {
   const partner = useEvents(startMs, endMs, rel ? settings.partnerBlockingCalendarIds : [])
   const partnerWork = useEvents(startMs, endMs, rel ? settings.partnerWorkCalendarIds : [])
   const joint = useEvents(startMs, endMs, rel ? settings.jointCalendarIds : [])
+
+  // Date detection (last/next date, booked-week exclusion) gets its own scan: it
+  // spans a year back through the lookahead, and covers the date rule's scoped
+  // calendars (e.g. "Us") even when they aren't marked blocking/joint/partner.
+  const dateRule = useMemo(
+    () => settings.metricRules.find((r) => r.id === settings.dateRuleId),
+    [settings.metricRules, settings.dateRuleId],
+  )
+  const dateScanCalendarIds = useMemo(
+    () =>
+      rel
+        ? [
+            ...new Set([
+              ...(dateRule?.calendarIds ?? []),
+              ...settings.blockingCalendarIds,
+              ...settings.jointCalendarIds,
+              ...settings.partnerBlockingCalendarIds,
+            ]),
+          ]
+        : [],
+    [rel, dateRule, settings.blockingCalendarIds, settings.jointCalendarIds, settings.partnerBlockingCalendarIds],
+  )
+  const pastStartMs = addDays(new Date(startMs), -DATE_LOOKBACK_DAYS).getTime()
+  const dateScan = useEvents(pastStartMs, endMs, dateScanCalendarIds)
+  const dateMatches = useMemo(
+    () => (dateRule ? matchRule(dateScan.events ?? [], dateRule) : []),
+    [dateRule, dateScan.events],
+  )
 
   // Work events don't count toward "partly booked" — they get a "free after
   // work" label instead. Split them out before computing availability.
@@ -146,7 +180,9 @@ export default function FreePage() {
       overlapWeeknightSet: new Set<string>(),
       bothOffSet: new Set<string>(),
       dateSet: new Set<string>(),
+      dateReasons: new Map<string, string[]>(),
       overlapBusy: [] as ReturnType<typeof mergeIntervals>,
+      partnerBusy: [] as ReturnType<typeof mergeIntervals>,
     }
     if (!rel) return empty
     const HOUR = 60 * 60 * 1000
@@ -174,11 +210,7 @@ export default function FreePage() {
     // already have a date booked, ranked by isolation from either partner's
     // commitments, then weekends, then most mutual free time.
     const eligible = [...overlapDates(overlap, settings.dateMinHours * HOUR)]
-    const dateRule = settings.metricRules.find((r) => r.id === settings.dateRuleId)
-    const dateEvents = dateRule
-      ? matchRule([...(events ?? []), ...(joint.events ?? []), ...(partner.events ?? [])], dateRule)
-      : []
-    const bookedWeeks = weeksWithDateEvent(dateEvents)
+    const bookedWeeks = weeksWithDateEvent(dateMatches)
     const candidates = eligible.filter((d) => !bookedWeeks.has(weekKey(d)))
     const overlapBusy = mergeIntervals([...myBusy, ...partnerBusy])
     const blocked = blockedDates(overlapBusy)
@@ -189,7 +221,28 @@ export default function FreePage() {
         preference: settings.datePreference,
       }),
     )
-    return { notWorkingSet, overlapWeekendSet, overlapWeeknightSet, bothOffSet, dateSet, overlapBusy }
+
+    // Human-readable reasons a day was picked, shown as chips on the detail card.
+    const dateReasons = new Map<string, string[]>()
+    for (const dstr of dateSet) {
+      const reasons: string[] = []
+      if (isWknd(dstr)) reasons.push('Weekend')
+      const hrs = (overlap.get(dstr) ?? 0) / HOUR
+      if (hrs > 0) reasons.push(`${Math.round(hrs * 10) / 10}h free together`)
+      const iso = dayIsolation(dstr, blocked, settings.isolationWindowDays)
+      if (iso > 0) reasons.push(`${iso}+ day${iso === 1 ? '' : 's'} clear`)
+      dateReasons.set(dstr, reasons)
+    }
+    return {
+      notWorkingSet,
+      overlapWeekendSet,
+      overlapWeeknightSet,
+      bothOffSet,
+      dateSet,
+      dateReasons,
+      overlapBusy,
+      partnerBusy,
+    }
   }, [
     rel,
     allDay,
@@ -198,7 +251,7 @@ export default function FreePage() {
     joint.events,
     combinedBusy,
     workBusy,
-    events,
+    dateMatches,
     settings.windows,
     settings.dayStart,
     settings.overlapMinHours,
@@ -206,8 +259,6 @@ export default function FreePage() {
     settings.dateCandidateCount,
     settings.isolationWindowDays,
     settings.datePreference,
-    settings.dateRuleId,
-    settings.metricRules,
     startMs,
     lookahead,
   ])
@@ -233,6 +284,32 @@ export default function FreePage() {
     if (showDates) out.push({ key: 'dates', dates: relationship.dateSet, color: getColor(settings, 'relationship.dateMarker'), style: 'marker', mark: '❤️' })
     return out
   }, [rel, showNotWorking, showOverlap, showDates, overlapHighlight, relationship, settings, overlapColor])
+
+  // Cadence nudge: how long since the last date and when the next one is, from
+  // the dedicated date scan (spans a year back through the lookahead).
+  const dateNudge = useMemo(() => {
+    if (!rel) return null
+    const now = new Date(nowMs)
+    const last = lastDateEvent(dateMatches, now)
+    const next = nextDateEvent(dateMatches, now)
+    const daysSince = last ? differenceInCalendarDays(now, new Date(last + 'T12:00:00')) : null
+    const overdue = settings.dateCadenceDays > 0 && (daysSince === null || daysSince > settings.dateCadenceDays)
+    return { last, next, overdue }
+  }, [rel, nowMs, dateMatches, settings.dateCadenceDays])
+
+  // relativeDayLabel only phrases future dates; add past phrasing for "last date".
+  const relDayLabel = useCallback(
+    (dateStr: string) => {
+      const target = new Date(dateStr + 'T12:00:00')
+      const diff = differenceInCalendarDays(target, new Date(nowMs))
+      if (diff >= 0) return relativeDayLabel(target, new Date(nowMs))
+      const n = -diff
+      if (n < 14) return `${n} day${n === 1 ? '' : 's'} ago`
+      if (n < 60) return `${Math.round(n / 7)} weeks ago`
+      return `${Math.round(n / 30)} months ago`
+    },
+    [nowMs],
+  )
 
   const dayInfo = useCallback(
     (date: string): DayInfo => ({
@@ -268,10 +345,44 @@ export default function FreePage() {
           >
             ★ Top {settings.freeSlotCount}
           </button>
-          {rel && (
-            <div className="flex flex-col gap-1 rounded-lg border border-slate-200 px-2 py-1 dark:border-slate-700">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-medium text-slate-400 dark:text-slate-500">Me &amp; {partnerName}</span>
+          <button
+            onClick={() => {
+              setNowMs(Date.now())
+              void refresh()
+            }}
+            className="rounded-lg bg-slate-200 px-3 py-1.5 text-sm text-slate-700 active:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:active:bg-slate-700"
+          >
+            ↻ Refresh
+          </button>
+        </div>
+      </header>
+      {rel && (
+        <section className="rounded-xl border border-slate-200 dark:border-slate-700">
+          <button
+            type="button"
+            onClick={() => setSettings({ relationshipPanelOpen: !relOpen })}
+            aria-expanded={relOpen}
+            className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-left text-sm"
+          >
+            <span className="font-semibold text-slate-800 dark:text-slate-100">Me &amp; {partnerName}</span>
+            {dateNudge && (
+              <span className="text-slate-500 dark:text-slate-400">
+                Last date: {dateNudge.last ? relDayLabel(dateNudge.last) : 'none yet'}
+              </span>
+            )}
+            {dateNudge?.overdue && (
+              <span className="rounded-full bg-pink-500 px-2 py-0.5 text-xs font-medium text-pink-950">Overdue</span>
+            )}
+            {dateNudge && (
+              <span className="text-slate-500 dark:text-slate-400">
+                · Next: {dateNudge.next ? relDayLabel(dateNudge.next) : 'none scheduled'}
+              </span>
+            )}
+            <span className="ml-auto text-slate-400 dark:text-slate-500">{relOpen ? '▴' : '▾'}</span>
+          </button>
+          {relOpen && (
+            <div className="space-y-2 border-t border-slate-200 px-3 py-2 dark:border-slate-700">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <RelToggle active={showNotWorking} onClick={() => setShowNotWorking((v) => !v)} title={`Days ${partnerName} isn't working`} color="bg-blue-500 text-blue-950">
                   {partnerName}'s Off Days
                 </RelToggle>
@@ -283,7 +394,7 @@ export default function FreePage() {
                 </RelToggle>
               </div>
               {showOverlap && (
-                <div className="flex items-center gap-1.5 border-t border-slate-200 pt-1 dark:border-slate-700">
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-200 pt-2 dark:border-slate-700">
                   <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Overlap</span>
                   <RelToggle
                     active={showOverlapWeekends}
@@ -308,17 +419,8 @@ export default function FreePage() {
               )}
             </div>
           )}
-          <button
-            onClick={() => {
-              setNowMs(Date.now())
-              void refresh()
-            }}
-            className="rounded-lg bg-slate-200 px-3 py-1.5 text-sm text-slate-700 active:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:active:bg-slate-700"
-          >
-            ↻ Refresh
-          </button>
-        </div>
-      </header>
+        </section>
+      )}
       {error && <ErrorBanner message={error} />}
       {loading && <Spinner />}
       {!loading && !error && days.length === 0 && (
@@ -345,6 +447,9 @@ export default function FreePage() {
           overlapBusy={showOverlap ? relationship.overlapBusy : undefined}
           overlapShadeColor={overlapColor}
           overlapShadeDates={overlapHighlight}
+          partnerBusy={rel ? relationship.partnerBusy : undefined}
+          partnerName={rel ? partnerName : undefined}
+          dateReasons={rel ? relationship.dateReasons : undefined}
           selectedMonth={selectedMonth}
           onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
         />

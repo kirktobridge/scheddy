@@ -51,6 +51,12 @@ interface Props {
   overlapShadeColor?: string
   /** Limit the overlap shading to these dates (omit = all days). */
   overlapShadeDates?: Set<string>
+  /** Partner's merged busy — drives the partner lane in the detail card. */
+  partnerBusy?: BusyInterval[]
+  /** Partner's display name for the detail card lane label. */
+  partnerName?: string
+  /** Reason chips per date-candidate, shown on the detail card. */
+  dateReasons?: Map<string, string[]>
   /** Month whose card is selected (drives the Metrics section). */
   selectedMonth: Date
   onSelectMonth: (month: Date) => void
@@ -131,6 +137,9 @@ export default function FreeCalendar({
   overlapBusy,
   overlapShadeColor,
   overlapShadeDates,
+  partnerBusy,
+  partnerName,
+  dateReasons,
   selectedMonth,
   onSelectMonth,
 }: Props) {
@@ -287,6 +296,9 @@ export default function FreeCalendar({
           slotInfo={slotInfo}
           overlapBusy={overlapShadeDates && selected && !overlapShadeDates.has(selected) ? undefined : overlapBusy}
           overlapShadeColor={overlapShadeColor}
+          partnerBusy={partnerBusy}
+          partnerName={partnerName}
+          reasons={selected ? dateReasons?.get(selected) : undefined}
         />
       )}
     </div>

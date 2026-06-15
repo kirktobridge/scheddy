@@ -102,16 +102,44 @@ export function weekKey(date: string): string {
   return format(startOfWeek(new Date(date + 'T12:00:00')), 'yyyy-MM-dd')
 }
 
+/** An event's start as a Date (timed or all-day), or null if it has no start. */
+function eventStart(ev: GEvent): Date | null {
+  if (ev.status === 'cancelled') return null
+  const iso = ev.start?.dateTime ?? (ev.start?.date ? ev.start.date + 'T00:00:00' : null)
+  return iso ? new Date(iso) : null
+}
+
 /** Week buckets that already contain at least one scheduled date event. */
 export function weeksWithDateEvent(dateEvents: GEvent[]): Set<string> {
   const out = new Set<string>()
   for (const ev of dateEvents) {
-    if (ev.status === 'cancelled') continue
-    const iso = ev.start?.dateTime ?? (ev.start?.date ? ev.start.date + 'T00:00:00' : null)
-    if (!iso) continue
-    out.add(format(startOfWeek(new Date(iso)), 'yyyy-MM-dd'))
+    const start = eventStart(ev)
+    if (!start) continue
+    out.add(format(startOfWeek(start), 'yyyy-MM-dd'))
   }
   return out
+}
+
+/** Most recent date event at or before `now` (yyyy-MM-dd), or null if none. */
+export function lastDateEvent(dateEvents: GEvent[], now: Date): string | null {
+  let best: Date | null = null
+  for (const ev of dateEvents) {
+    const start = eventStart(ev)
+    if (!start || start.getTime() > now.getTime()) continue
+    if (!best || start.getTime() > best.getTime()) best = start
+  }
+  return best ? format(best, 'yyyy-MM-dd') : null
+}
+
+/** Soonest date event strictly after `now` (yyyy-MM-dd), or null if none. */
+export function nextDateEvent(dateEvents: GEvent[], now: Date): string | null {
+  let best: Date | null = null
+  for (const ev of dateEvents) {
+    const start = eventStart(ev)
+    if (!start || start.getTime() <= now.getTime()) continue
+    if (!best || start.getTime() < best.getTime()) best = start
+  }
+  return best ? format(best, 'yyyy-MM-dd') : null
 }
 
 export interface DateRankOpts {

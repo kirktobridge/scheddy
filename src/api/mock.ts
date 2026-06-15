@@ -13,6 +13,8 @@ export const MOCK_CALENDARS: GCalendar[] = [
   { id: 'mock-personal', summary: 'Personal (mock)', backgroundColor: '#10b981', primary: true, accessRole: 'owner' },
   { id: 'mock-work', summary: 'Work (mock)', backgroundColor: '#6366f1', accessRole: 'owner' },
   { id: 'mock-holidays', summary: 'Holidays (mock)', backgroundColor: '#f59e0b', accessRole: 'reader' },
+  { id: 'mock-us', summary: 'Us (mock)', backgroundColor: '#ec4899', accessRole: 'owner' },
+  { id: 'mock-partner', summary: 'Ana (mock)', backgroundColor: '#a855f7', accessRole: 'reader' },
 ]
 
 const MOCK_SETTINGS: Partial<Settings> = {
@@ -21,9 +23,18 @@ const MOCK_SETTINGS: Partial<Settings> = {
   holidayCalendarIds: ['mock-holidays'],
   metricRules: [
     { id: 'trips', name: 'Trips', keyword: 'trip', icon: '✈️', matchDescription: false },
-    { id: 'date-nights', name: 'Date nights', keyword: 'date', icon: '❤️', matchDescription: false },
+    // Dates live on the shared "Us" calendar — scoped so only those count.
+    { id: 'date-nights', name: 'Date nights', keyword: 'Date,date', icon: '❤️', matchDescription: false, calendarIds: ['mock-us'] },
     { id: 'gym', name: 'Gym', keyword: 'gym,workout', icon: '🏋️', matchDescription: false },
   ],
+  // Relationship mode wired up so the Free page's "Me & Ana" card is demoable.
+  relationshipMode: true,
+  partnerName: 'Ana',
+  partnerBlockingCalendarIds: ['mock-partner'],
+  partnerWorkCalendarIds: ['mock-partner'],
+  jointCalendarIds: ['mock-us'],
+  dateRuleId: 'date-nights',
+  relationshipPanelOpen: true,
 }
 
 export function isMockMode(): boolean {
@@ -88,9 +99,20 @@ function buildEvents(): GEvent[] {
   allDay('mock-personal', 'Trip to Portland', addDays(monthStart, 2), 4)
   allDay('mock-personal', 'Trip to Tokyo', addDays(today, 10), 5)
 
-  // Date-night rule matches.
-  timed('mock-personal', 'Date night 🍷', addDays(today, 3), 18, 22)
+  // Date-night rule matches. Dates live on the shared "Us" calendar; one in the
+  // past (exercises the "last date" look-back) and one upcoming (the "next").
+  timed('mock-us', 'Date night 🍷', addDays(today, -17), 18, 22)
+  timed('mock-us', 'Dinner date', addDays(today, 18), 19, 22)
+  // A personal "date" that must NOT count — it's off the scoped calendar.
   timed('mock-personal', 'Coffee date', addDays(today, 12), 15, 16)
+
+  // Ana's calendar: weekday work + a weekend away, so overlap/off-days have signal.
+  for (let d = -21; d < 56; d++) {
+    const day = addDays(today, d)
+    const dow = day.getDay()
+    if (dow >= 1 && dow <= 5) timed('mock-partner', 'Ana — work', day, 9, 17)
+  }
+  allDay('mock-partner', 'Ana — visiting family', addDays(today, 24), 2)
 
   // Gym rule matches (comma keyword: gym OR workout).
   timed('mock-personal', 'Morning gym', addDays(today, 1), 7, 8)

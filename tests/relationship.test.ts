@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   datesInRange,
+  lastDateEvent,
   longestGapMs,
+  nextDateEvent,
   notWorkingDates,
   overlapByDate,
   overlapDates,
@@ -13,6 +15,7 @@ import {
   weeksWithDateEvent,
 } from '../src/lib/relationship'
 import { type BusyInterval, type Windows } from '../src/lib/availability'
+import { matchRule } from '../src/lib/metrics'
 import type { GEvent } from '../src/api/calendar'
 
 const windows: Windows = {
@@ -123,6 +126,55 @@ describe('weeksWithDateEvent / weekKey', () => {
 
   it('ignores cancelled date events', () => {
     expect(weeksWithDateEvent([dateEvent({ status: 'cancelled' })]).size).toBe(0)
+  })
+})
+
+describe('lastDateEvent / nextDateEvent', () => {
+  const now = d('2026-06-15T12:00')
+  const ev = (iso: string, extra: Partial<GEvent> = {}): GEvent => ({
+    id: iso,
+    summary: 'Date',
+    start: { dateTime: iso },
+    end: { dateTime: iso },
+    ...extra,
+  })
+
+  it('finds the most recent past date and the soonest future date', () => {
+    const events = [ev('2026-05-30T19:00'), ev('2026-06-10T19:00'), ev('2026-06-20T19:00'), ev('2026-07-01T19:00')]
+    expect(lastDateEvent(events, now)).toBe('2026-06-10')
+    expect(nextDateEvent(events, now)).toBe('2026-06-20')
+  })
+
+  it('returns null when there is no past / future date', () => {
+    expect(lastDateEvent([ev('2026-06-20T19:00')], now)).toBeNull()
+    expect(nextDateEvent([ev('2026-06-10T19:00')], now)).toBeNull()
+  })
+
+  it('handles all-day date events and skips cancelled ones', () => {
+    const events = [
+      { id: 'a', summary: 'Date', start: { date: '2026-06-12' }, end: { date: '2026-06-13' } },
+      ev('2026-06-13T19:00', { status: 'cancelled' }),
+    ]
+    expect(lastDateEvent(events, now)).toBe('2026-06-12')
+  })
+})
+
+// Mirrors the Free page's "last date" pipeline: a keyword rule (comma keyword,
+// scoped to one calendar) → matchRule → lastDateEvent.
+describe('last-date pipeline (matchRule → lastDateEvent)', () => {
+  const now = d('2026-06-15T12:00')
+  const rule = { id: 'd', name: 'Date', keyword: 'Date,date', icon: '❤️', matchDescription: false, calendarIds: ['us'] }
+
+  it('finds a past "Date" on the rule-scoped calendar', () => {
+    const events: GEvent[] = [
+      { id: '1', summary: 'Date night', calendarId: 'us', start: { dateTime: '2026-05-29T18:00' }, end: { dateTime: '2026-05-29T22:00' } },
+      { id: '2', summary: 'Standup', calendarId: 'work', start: { dateTime: '2026-06-01T09:00' }, end: { dateTime: '2026-06-01T10:00' } },
+      { id: '3', summary: 'Dinner Date', calendarId: 'personal', start: { dateTime: '2026-06-05T19:00' }, end: { dateTime: '2026-06-05T21:00' } },
+    ]
+    const matches = matchRule(events, rule)
+    // Only the 'us' event is in scope; the 'personal' Date is excluded by scope.
+    expect(matches.map((e) => e.id)).toEqual(['1'])
+    expect(lastDateEvent(matches, now)).toBe('2026-05-29')
   })
 })
 

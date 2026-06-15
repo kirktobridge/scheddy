@@ -62,6 +62,10 @@ export interface Settings {
   dateCandidateCount: number
   /** Which metric rule's matches count as an already-scheduled date (excludes that week). */
   dateRuleId: string
+  /** Flag dates as "overdue" when this many days have passed since the last one (0 disables). */
+  dateCadenceDays: number
+  /** Whether the Free-page relationship card is expanded (remembered across reloads). */
+  relationshipPanelOpen: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -93,6 +97,8 @@ export const DEFAULT_SETTINGS: Settings = {
   dateMinHours: 3,
   dateCandidateCount: 3,
   dateRuleId: 'date-nights',
+  dateCadenceDays: 14,
+  relationshipPanelOpen: false,
 }
 
 const STORAGE_KEY = 'scheddy.settings'
