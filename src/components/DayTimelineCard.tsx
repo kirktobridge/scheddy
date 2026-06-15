@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { dayTimeline, daySpan, freeGaps, mergeIntervals, type BusyInterval, type Slot, type WindowKey, type Windows } from '../lib/availability'
 import { summarizeDay } from '../lib/annotate'
 import { fmtDay, fmtTime } from '../lib/format'
@@ -31,6 +32,32 @@ interface Props {
 
 const HALF_HOUR = 30 * 60 * 1000
 
+function Chip({
+  icon,
+  tone = 'default',
+  title,
+  children,
+}: {
+  icon: string
+  tone?: 'default' | 'warn'
+  title?: string
+  children: ReactNode
+}) {
+  const tones = {
+    default: 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
+    warn: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+  }
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${tones[tone]}`}
+    >
+      <span aria-hidden>{icon}</span>
+      {children}
+    </span>
+  )
+}
+
 export default function DayTimelineCard({ date, slots, windows, busy, now, dayStart, windowOrder, dayInfo, slotInfo, overlapBusy, overlapShadeColor, partnerBusy, partnerName, reasons }: Props) {
   const info = dayInfo(date)
   const { segments, nowFrac, ticks } = dayTimeline(busy, windows, date, now, dayStart)
@@ -43,7 +70,6 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
   const warning = slots.map((s) => slotInfo(s).warning).find(Boolean)
 
   // Relationship insight: partner lane + the times you're both free.
-  const accent = overlapShadeColor ?? '#ec4899'
   const partnerSegments = partnerBusy ? dayTimeline(partnerBusy, windows, date, now, dayStart).segments : []
   const span = partnerBusy ? daySpan(windows, date, dayStart) : null
   const mutualGaps = span
@@ -53,33 +79,20 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
     : []
   const fmtDur = (ms: number) => `${Math.round((ms / 3_600_000) * 10) / 10}h`
 
+  const freeTotal = slots.reduce((ms, s) => ms + (s.freeTo.getTime() - s.freeFrom.getTime()), 0)
+  const mutualTotal = mutualGaps.reduce((ms, g) => ms + (g.end.getTime() - g.start.getTime()), 0)
+  const mutualRanges = mutualGaps.map((g) => `${fmtTime(g.start)}–${fmtTime(g.end)}`).join('  ·  ')
+  // Short chip label + full detail (tooltip) for the next-day warning.
+  const warnLabel = warning?.startsWith('next day:') ? 'next day busy' : warning ? 'early start tomorrow' : undefined
+  // Together chip already conveys mutual time, so drop any "together" reason.
+  const factReasons = (reasons ?? []).filter((r) => !/together/i.test(r))
+
   return (
     <div className="break-inside-avoid rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800 dark:shadow-none">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-base font-semibold text-slate-800 dark:text-slate-100">{fmtDay(date)}</p>
-          {info.label && <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{info.label}</p>}
-        </div>
-        {info.note && (
-          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-            🎉 {info.note}
-          </span>
-        )}
+      <div>
+        <p className="text-base font-semibold text-slate-800 dark:text-slate-100">{fmtDay(date)}</p>
+        {info.label && <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{info.label}</p>}
       </div>
-
-      {reasons && reasons.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {reasons.map((r, i) => (
-            <span
-              key={i}
-              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-              style={{ backgroundColor: `${accent}22`, color: accent }}
-            >
-              ❤️ {r}
-            </span>
-          ))}
-        </div>
-      )}
 
       <div className="mt-4">
         {partnerBusy && (
@@ -159,18 +172,30 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
         </div>
       </div>
 
-      <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">
-        {slots.length === 0 ? 'Fully booked' : allDay ? 'Free all day' : ranges.join('  ·  ')}
-        {afterWork && <span className="ml-2 text-xs text-emerald-600 dark:text-emerald-400">free after work</span>}
-      </p>
-      {partnerBusy && (
-        <p className="mt-1 text-xs font-medium" style={{ color: accent }}>
-          {mutualGaps.length > 0
-            ? `Both free ${mutualGaps.map((g) => `${fmtTime(g.start)}–${fmtTime(g.end)} (${fmtDur(g.end.getTime() - g.start.getTime())})`).join('  ·  ')}`
-            : 'No shared free time'}
-        </p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <Chip icon="●">{slots.length === 0 ? 'Fully booked' : allDay ? 'Free all day' : `${fmtDur(freeTotal)} free`}</Chip>
+        {partnerBusy &&
+          (mutualGaps.length > 0 ? (
+            <Chip icon="🤝" title={mutualRanges}>{`${fmtDur(mutualTotal)} together`}</Chip>
+          ) : (
+            <Chip icon="🤝">no shared time</Chip>
+          ))}
+        {afterWork && <Chip icon="🌙">free after work</Chip>}
+        {warning && (
+          <Chip icon="⚠" tone="warn" title={warning}>
+            {warnLabel}
+          </Chip>
+        )}
+        {info.note && <Chip icon="🎉">{info.note}</Chip>}
+        {factReasons.map((r, i) => (
+          <Chip key={i} icon="❤️">
+            {r}
+          </Chip>
+        ))}
+      </div>
+      {!allDay && slots.length > 0 && (
+        <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">{ranges.join('  ·  ')}</p>
       )}
-      {warning && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">⚠ {warning}</p>}
     </div>
   )
 }
