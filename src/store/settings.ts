@@ -7,6 +7,10 @@ export interface MetricRule {
   keyword: string
   icon: string
   matchDescription: boolean
+  /** Calendars this rule counts on. Empty/undefined = all blocking calendars. */
+  calendarIds?: string[]
+  /** When true, matched events block time on the Free/Check views even if marked "Free". */
+  blocking?: boolean
 }
 
 export interface Settings {

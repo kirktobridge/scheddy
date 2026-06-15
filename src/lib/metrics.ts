@@ -11,7 +11,9 @@ import type { MetricRule } from '../store/settings'
 /**
  * Events matching a keyword rule (case-insensitive substring on the title,
  * optionally also the description). The keyword field is comma-separated and
- * matches if the event contains ANY of the keywords. Cancelled events never match.
+ * matches if the event contains ANY of the keywords. Cancelled events never
+ * match. A rule's `calendarIds` scope (when non-empty) limits matching to those
+ * calendars; empty/undefined means all calendars.
  */
 export function matchRule(events: GEvent[], rule: MetricRule): GEvent[] {
   const kws = rule.keyword
@@ -19,13 +21,34 @@ export function matchRule(events: GEvent[], rule: MetricRule): GEvent[] {
     .map((k) => k.trim().toLowerCase())
     .filter(Boolean)
   if (!kws.length) return []
+  const scope = rule.calendarIds
+  const scoped = scope && scope.length ? new Set(scope) : null
   return events.filter((ev) => {
     if (ev.status === 'cancelled') return false
+    if (scoped && !(ev.calendarId && scoped.has(ev.calendarId))) return false
     const hay = (
       (ev.summary ?? '') + (rule.matchDescription ? '\n' + (ev.description ?? '') : '')
     ).toLowerCase()
     return kws.some((kw) => hay.includes(kw))
   })
+}
+
+const eventKey = (ev: GEvent): string => ev.iCalUID ?? `${ev.calendarId}/${ev.id}`
+
+/**
+ * Events matched by any `blocking` rule get their "transparent" (Free) flag
+ * cleared so they count as busy time in availability calcs. Other events pass
+ * through untouched. Returns the same array reference when nothing changes.
+ */
+export function applyBlockingRules(events: GEvent[], rules: MetricRule[]): GEvent[] {
+  const blockingRules = rules.filter((r) => r.blocking)
+  if (!blockingRules.length) return events
+  const forced = new Set<string>()
+  for (const rule of blockingRules) for (const ev of matchRule(events, rule)) forced.add(eventKey(ev))
+  if (!forced.size) return events
+  return events.map((ev) =>
+    ev.transparency === 'transparent' && forced.has(eventKey(ev)) ? { ...ev, transparency: undefined } : ev,
+  )
 }
 
 /**

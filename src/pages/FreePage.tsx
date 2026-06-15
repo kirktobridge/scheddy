@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { addDays, endOfDay, startOfDay, startOfMonth } from 'date-fns'
 import { eventsToBusy, findFreeSlots, windowKeys, type Slot } from '../lib/availability'
+import { applyBlockingRules } from '../lib/metrics'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
 import { useSettings } from '../store/settings'
 import { useEvents } from '../hooks/useEvents'
@@ -23,7 +24,13 @@ export default function FreePage() {
   // Fetch one day past the lookahead so next-day warnings work on the last slot.
   const endMs = addDays(new Date(startMs), lookahead + 1).getTime()
 
-  const { events, loading, error, refresh } = useEvents(startMs, endMs)
+  const { events: rawEvents, loading, error, refresh } = useEvents(startMs, endMs)
+  // Events matched by a "blocking" keyword rule lose their Free flag so they
+  // count against availability below.
+  const events = useMemo(
+    () => (rawEvents ? applyBlockingRules(rawEvents, settings.metricRules) : rawEvents),
+    [rawEvents, settings.metricRules],
+  )
   const holidays = useEvents(startMs, endMs, settings.holidayCalendarIds)
 
   // Work events don't count toward "partly booked" — they get a "free after

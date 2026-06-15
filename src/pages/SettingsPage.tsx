@@ -317,6 +317,20 @@ export default function SettingsPage() {
                 + description
               </label>
             </div>
+            <RuleScope
+              rule={rule}
+              calendars={blockingCalendars}
+              onChange={(calendarIds) => updateRule(rule.id, { calendarIds })}
+            />
+            <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <input
+                type="checkbox"
+                checked={!!rule.blocking}
+                onChange={(e) => updateRule(rule.id, { blocking: e.target.checked })}
+                className="h-3.5 w-3.5 accent-emerald-500"
+              />
+              Matching events block time (even if marked "Free")
+            </label>
           </div>
         ))}
         <button
@@ -365,6 +379,70 @@ function CalendarChecklist({
         </label>
       ))}
     </>
+  )
+}
+
+/** Per-rule "scope" disclosure: which calendars the rule counts on (empty = all). */
+function RuleScope({
+  rule,
+  calendars,
+  onChange,
+}: {
+  rule: MetricRule
+  calendars: GCalendar[] | null
+  onChange: (calendarIds: string[] | undefined) => void
+}) {
+  const selected = rule.calendarIds ?? []
+  const all = selected.length === 0
+  const summary = all
+    ? 'All calendars'
+    : `${selected.length} calendar${selected.length === 1 ? '' : 's'}`
+
+  const toggle = (id: string) => {
+    const next = selected.includes(id) ? selected.filter((c) => c !== id) : [...selected, id]
+    onChange(next.length ? next : undefined)
+  }
+
+  return (
+    <details className="text-xs">
+      <summary className="cursor-pointer text-slate-500 dark:text-slate-400">
+        Scope: <span className="text-slate-700 dark:text-slate-300">{summary}</span>
+      </summary>
+      <div className="mt-1 space-y-1 pl-1">
+        {calendars === null ? (
+          <p className="text-slate-500">Loading calendars…</p>
+        ) : calendars.length === 0 ? (
+          <p className="text-slate-500">Check a blocking calendar above first.</p>
+        ) : (
+          <>
+            <label className="flex items-center gap-2 py-0.5">
+              <input
+                type="checkbox"
+                checked={all}
+                onChange={() => onChange(undefined)}
+                className="h-3.5 w-3.5 accent-emerald-500"
+              />
+              <span className="text-slate-700 dark:text-slate-300">All calendars</span>
+            </label>
+            {calendars.map((cal) => (
+              <label key={cal.id} className="flex items-center gap-2 py-0.5">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(cal.id)}
+                  onChange={() => toggle(cal.id)}
+                  className="h-3.5 w-3.5 accent-emerald-500"
+                />
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: cal.backgroundColor ?? '#64748b' }}
+                />
+                <span className="text-slate-700 dark:text-slate-300">{cal.summary}</span>
+              </label>
+            ))}
+          </>
+        )}
+      </div>
+    </details>
   )
 }
 

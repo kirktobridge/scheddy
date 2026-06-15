@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dedupeEvents, matchRule, unbookedEvenings, unbookedWeekendDays } from '../src/lib/metrics'
+import { applyBlockingRules, dedupeEvents, matchRule, unbookedEvenings, unbookedWeekendDays } from '../src/lib/metrics'
 import { eventsToBusy, type Windows } from '../src/lib/availability'
 import type { GEvent } from '../src/api/calendar'
 import type { MetricRule } from '../src/store/settings'
@@ -53,6 +53,37 @@ describe('matchRule', () => {
   it('skips cancelled events and empty keywords', () => {
     expect(matchRule([ev('Date night', { status: 'cancelled' })], rule())).toHaveLength(0)
     expect(matchRule([ev('Date night')], rule({ keyword: '  ' }))).toHaveLength(0)
+  })
+
+  it('limits matching to the rule\'s calendar scope (empty = all)', () => {
+    const events = [ev('Date A', { calendarId: 'mine' }), ev('Date B', { calendarId: 'wife' })]
+    expect(matchRule(events, rule()).map((e) => e.summary)).toEqual(['Date A', 'Date B'])
+    expect(matchRule(events, rule({ calendarIds: ['wife'] })).map((e) => e.summary)).toEqual(['Date B'])
+    expect(matchRule(events, rule({ calendarIds: [] })).map((e) => e.summary)).toEqual(['Date A', 'Date B'])
+  })
+})
+
+describe('applyBlockingRules', () => {
+  it('clears the Free flag on events matched by a blocking rule', () => {
+    const events = [ev('Date night', { transparency: 'transparent' }), ev('Gym', { transparency: 'transparent' })]
+    const out = applyBlockingRules(events, [rule({ blocking: true })])
+    expect(out[0].transparency).toBeUndefined()
+    expect(out[1].transparency).toBe('transparent')
+  })
+
+  it('leaves events untouched when no rule is blocking', () => {
+    const events = [ev('Date night', { transparency: 'transparent' })]
+    expect(applyBlockingRules(events, [rule()])).toBe(events)
+  })
+
+  it('respects the calendar scope when forcing blocking', () => {
+    const events = [
+      ev('Date A', { transparency: 'transparent', calendarId: 'mine' }),
+      ev('Date B', { transparency: 'transparent', calendarId: 'wife' }),
+    ]
+    const out = applyBlockingRules(events, [rule({ blocking: true, calendarIds: ['wife'] })])
+    expect(out[0].transparency).toBe('transparent')
+    expect(out[1].transparency).toBeUndefined()
   })
 })
 
