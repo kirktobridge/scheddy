@@ -1,8 +1,9 @@
 import { addDays, format, startOfDay } from 'date-fns'
 import type { GEvent } from '../api/calendar'
+import { fmtTime } from './format'
 
-export type WindowKey = 'morning' | 'afternoon' | 'evening'
-export const WINDOW_KEYS: WindowKey[] = ['morning', 'afternoon', 'evening']
+/** A window's name doubles as its identity and display label. */
+export type WindowKey = string
 
 export interface TimeWindow {
   /** "HH:mm" */
@@ -11,6 +12,19 @@ export interface TimeWindow {
 }
 
 export type Windows = Record<WindowKey, TimeWindow>
+
+export const DEFAULT_WINDOWS: Windows = {
+  morning: { start: '08:00', end: '12:00' },
+  afternoon: { start: '12:00', end: '17:00' },
+  evening: { start: '17:00', end: '22:00' },
+}
+
+/** Window names ordered by start time (then name) for stable display. */
+export function windowKeys(windows: Windows): WindowKey[] {
+  return Object.keys(windows).sort(
+    (a, b) => windows[a].start.localeCompare(windows[b].start) || a.localeCompare(b),
+  )
+}
 
 export interface BusyInterval {
   start: Date
@@ -27,6 +41,8 @@ export interface Slot {
   fullyFree: boolean
   /** Longest free stretch as a fraction of the full window length. */
   freeRatio: number
+  /** Set when a work event trims the front of the free stretch (see adjustForWork). */
+  freeAfterWork?: boolean
 }
 
 export function mergeIntervals(intervals: BusyInterval[]): BusyInterval[] {
@@ -62,7 +78,7 @@ export function eventsToBusy(events: GEvent[]): BusyInterval[] {
   return mergeIntervals(busy)
 }
 
-function atTime(day: Date, hm: string): Date {
+export function atTime(day: Date, hm: string): Date {
   const [h, m] = hm.split(':').map(Number)
   const out = new Date(day)
   out.setHours(h, m, 0, 0)
@@ -70,7 +86,7 @@ function atTime(day: Date, hm: string): Date {
 }
 
 /** Free sub-intervals of [from, to) after removing merged busy intervals. */
-function freeGaps(busy: BusyInterval[], from: Date, to: Date): BusyInterval[] {
+export function freeGaps(busy: BusyInterval[], from: Date, to: Date): BusyInterval[] {
   const gaps: BusyInterval[] = []
   let cursor = from
   for (const b of busy) {
@@ -107,12 +123,13 @@ export function findFreeSlots(
 ): Slot[] {
   const threshold = opts.threshold ?? 0.75
   const now = opts.now ?? rangeStart
-  const keys = opts.windowFilter ?? WINDOW_KEYS
+  const keys = opts.windowFilter ?? windowKeys(windows)
   const slots: Slot[] = []
 
   for (let day = startOfDay(rangeStart); day.getTime() <= rangeEnd.getTime(); day = addDays(day, 1)) {
     for (const key of keys) {
       const win = windows[key]
+      if (!win) continue
       const ws = atTime(day, win.start)
       const we = atTime(day, win.end)
       const windowLen = we.getTime() - ws.getTime()
@@ -142,4 +159,76 @@ export function findFreeSlots(
     }
   }
   return slots
+}
+
+export interface TimelineSeg {
+  kind: 'free' | 'busy'
+  /** Position within the day span, 0–1. */
+  startFrac: number
+  endFrac: number
+}
+
+export interface DayTimeline {
+  /** Ordered, non-overlapping segments covering [0, 1] of the day span. */
+  segments: TimelineSeg[]
+  /** Fraction already past (0 unless `now` falls inside today's span). */
+  nowFrac: number
+  /** Window-boundary times for the axis, e.g. 8a / 12p / 5p / 10p. */
+  ticks: { frac: number; label: string }[]
+}
+
+/**
+ * Builds the availability-bar geometry for one day: free vs busy stretches
+ * across the span from the earliest window start to the latest window end.
+ * `busy` should be the combined merged busy (non-work ∪ work) — work counts
+ * as busy so "free after work" evenings render as busy-then-free.
+ */
+export function dayTimeline(
+  busy: BusyInterval[],
+  windows: Windows,
+  date: string,
+  now?: Date,
+  /** Earliest clock time ("HH:mm") to show; extends the span earlier (never clips a window). */
+  dayStart?: string,
+): DayTimeline {
+  const keys = windowKeys(windows)
+  const day = new Date(date + 'T00:00:00')
+  const empty: DayTimeline = { segments: [], nowFrac: 0, ticks: [] }
+  if (keys.length === 0) return empty
+
+  const firstStart = windows[keys[0]].start
+  // Only let dayStart pull the span earlier — never later, so no window is hidden.
+  const startHM = dayStart && dayStart < firstStart ? dayStart : firstStart
+  const spanStart = atTime(day, startHM)
+  const spanEnd = atTime(day, windows[keys[keys.length - 1]].end)
+  const spanLen = spanEnd.getTime() - spanStart.getTime()
+  if (spanLen <= 0) return empty
+
+  const frac = (d: Date) => Math.min(1, Math.max(0, (d.getTime() - spanStart.getTime()) / spanLen))
+
+  // Free stretches → emit alternating busy/free segments covering the span.
+  const free = freeGaps(busy, spanStart, spanEnd)
+  const segments: TimelineSeg[] = []
+  let cursor = 0
+  for (const gap of free) {
+    const s = frac(gap.start)
+    const e = frac(gap.end)
+    if (s > cursor) segments.push({ kind: 'busy', startFrac: cursor, endFrac: s })
+    if (e > s) segments.push({ kind: 'free', startFrac: s, endFrac: e })
+    cursor = e
+  }
+  if (cursor < 1) segments.push({ kind: 'busy', startFrac: cursor, endFrac: 1 })
+
+  const nowFrac = now ? frac(now) : 0
+
+  // Tick at the span start (when earlier than the first window), each window start, then span end.
+  const ticks: { frac: number; label: string }[] = []
+  if (startHM < firstStart) ticks.push({ frac: 0, label: fmtTime(spanStart) })
+  for (const k of keys) {
+    const t = atTime(day, windows[k].start)
+    ticks.push({ frac: frac(t), label: fmtTime(t) })
+  }
+  ticks.push({ frac: 1, label: fmtTime(spanEnd) })
+
+  return { segments, nowFrac, ticks }
 }
