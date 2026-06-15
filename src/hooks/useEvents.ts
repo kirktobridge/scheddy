@@ -9,17 +9,24 @@ interface EventsState {
 }
 
 /**
- * Fetches events from all blocking calendars for [startMs, endMs].
+ * Fetches events for [startMs, endMs] from `calendarIds`, defaulting to the
+ * blocking calendars from settings (in which case an empty selection is an
+ * error; an explicitly passed empty list just yields no events).
  * Pass timestamps (not Dates) so the dependency check is by value.
  */
-export function useEvents(startMs: number, endMs: number) {
+export function useEvents(startMs: number, endMs: number, calendarIds?: string[]) {
   const [settings] = useSettings()
-  const calendarKey = settings.blockingCalendarIds.join(',')
+  const required = calendarIds === undefined
+  const calendarKey = (calendarIds ?? settings.blockingCalendarIds).join(',')
   const [state, setState] = useState<EventsState>({ events: null, loading: true, error: null })
 
   const refresh = useCallback(async () => {
     if (!calendarKey) {
-      setState({ events: null, loading: false, error: 'Pick your calendars in Settings first.' })
+      setState(
+        required
+          ? { events: null, loading: false, error: 'Pick your calendars in Settings first.' }
+          : { events: [], loading: false, error: null },
+      )
       return
     }
     setState((s) => ({ ...s, loading: true, error: null }))
@@ -29,7 +36,7 @@ export function useEvents(startMs: number, endMs: number) {
     } catch (err) {
       setState({ events: null, loading: false, error: err instanceof Error ? err.message : String(err) })
     }
-  }, [calendarKey, startMs, endMs])
+  }, [calendarKey, required, startMs, endMs])
 
   useEffect(() => {
     void refresh()

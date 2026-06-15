@@ -12,7 +12,7 @@ import {
   startOfDay,
   startOfMonth,
 } from 'date-fns'
-import { eventsToBusy, findFreeSlots, WINDOW_KEYS, type WindowKey } from '../lib/availability'
+import { eventsToBusy, findFreeSlots, windowKeys, type WindowKey } from '../lib/availability'
 import { useSettings } from '../store/settings'
 import { useEvents } from '../hooks/useEvents'
 import SlotList from '../components/SlotList'
@@ -59,7 +59,8 @@ export default function CheckPage() {
   const [mode, setMode] = useState<Mode>({ kind: 'preset', preset: 'weekend' })
   const [customStart, setCustomStart] = useState(format(now, 'yyyy-MM-dd'))
   const [customEnd, setCustomEnd] = useState(format(addDays(now, 7), 'yyyy-MM-dd'))
-  const [windowFilter, setWindowFilter] = useState<WindowKey[]>([...WINDOW_KEYS])
+  const winKeys = useMemo(() => windowKeys(settings.windows), [settings.windows])
+  const [windowFilter, setWindowFilter] = useState<WindowKey[]>(() => windowKeys(settings.windows))
 
   const monthOptions = useMemo(
     () =>
@@ -104,7 +105,7 @@ export default function CheckPage() {
   const toggleWindow = (key: WindowKey) =>
     setWindowFilter((cur) => {
       const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]
-      return next.length === 0 ? cur : WINDOW_KEYS.filter((k) => next.includes(k))
+      return next.length === 0 ? cur : winKeys.filter((k) => next.includes(k))
     })
 
   return (
@@ -119,7 +120,7 @@ export default function CheckPage() {
             className={`rounded-full px-3 py-1.5 text-sm ${
               mode.kind === 'preset' && mode.preset === p.id
                 ? 'bg-emerald-500 font-medium text-emerald-950'
-                : 'bg-slate-800 text-slate-300'
+                : 'bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300 dark:shadow-none'
             }`}
           >
             {p.label}
@@ -131,8 +132,8 @@ export default function CheckPage() {
         <select
           value={mode.kind === 'month' ? mode.iso : ''}
           onChange={(e) => e.target.value && setMode({ kind: 'month', iso: e.target.value })}
-          className={`flex-1 rounded-lg border border-slate-700 px-3 py-2 text-sm ${
-            mode.kind === 'month' ? 'bg-emerald-500 font-medium text-emerald-950' : 'bg-slate-800 text-slate-300'
+          className={`flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 ${
+            mode.kind === 'month' ? 'bg-emerald-500 font-medium text-emerald-950' : 'bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300 dark:shadow-none'
           }`}
         >
           <option value="">Pick a month…</option>
@@ -145,7 +146,7 @@ export default function CheckPage() {
         <button
           onClick={() => setMode({ kind: 'custom' })}
           className={`rounded-lg px-3 py-2 text-sm ${
-            mode.kind === 'custom' ? 'bg-emerald-500 font-medium text-emerald-950' : 'bg-slate-800 text-slate-300'
+            mode.kind === 'custom' ? 'bg-emerald-500 font-medium text-emerald-950' : 'bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300 dark:shadow-none'
           }`}
         >
           Custom…
@@ -158,25 +159,27 @@ export default function CheckPage() {
             type="date"
             value={customStart}
             onChange={(e) => setCustomStart(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-slate-200"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-2 text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
           />
           <span className="text-slate-500">to</span>
           <input
             type="date"
             value={customEnd}
             onChange={(e) => setCustomEnd(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-2 text-slate-200"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-2 text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
           />
         </div>
       )}
 
-      <div className="flex gap-2">
-        {WINDOW_KEYS.map((key) => (
+      <div className="flex flex-wrap gap-2">
+        {winKeys.map((key) => (
           <button
             key={key}
             onClick={() => toggleWindow(key)}
             className={`flex-1 rounded-full px-2 py-1.5 text-sm capitalize ${
-              windowFilter.includes(key) ? 'bg-slate-700 font-medium text-slate-100' : 'bg-slate-800/50 text-slate-500'
+              windowFilter.includes(key)
+                ? 'bg-slate-300 font-medium text-slate-900 dark:bg-slate-700 dark:text-slate-100'
+                : 'bg-slate-200/60 text-slate-500 dark:bg-slate-800/50'
             }`}
           >
             {key}
@@ -184,23 +187,23 @@ export default function CheckPage() {
         ))}
       </div>
 
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
         Showing {format(rangeStart, 'EEE, MMM d')} – {format(rangeEnd, 'EEE, MMM d')}
       </p>
 
       {error && <ErrorBanner message={error} />}
       {loading && <Spinner />}
       {!loading && !error && (
-        <>
+        <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
           <section>
-            <h2 className="mb-2 text-sm font-semibold tracking-wide text-emerald-400 uppercase">Free</h2>
-            <SlotList slots={slots} emptyText="No free slots in this range." />
+            <h2 className="mb-2 text-sm font-semibold tracking-wide text-emerald-600 uppercase dark:text-emerald-400">Free</h2>
+            <SlotList slots={slots} emptyText="No free slots in this range." windowOrder={winKeys} />
           </section>
           <section>
-            <h2 className="mb-2 text-sm font-semibold tracking-wide text-rose-400 uppercase">Already booked</h2>
+            <h2 className="mb-2 text-sm font-semibold tracking-wide text-rose-600 uppercase dark:text-rose-400">Already booked</h2>
             <EventList events={booked} />
           </section>
-        </>
+        </div>
       )}
     </div>
   )

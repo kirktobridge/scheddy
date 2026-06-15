@@ -9,9 +9,12 @@ export default function EventList({ events }: { events: GEvent[] }) {
   return (
     <ul className="space-y-1.5">
       {sorted.map((ev) => (
-        <li key={`${ev.calendarId}/${ev.id}`} className="rounded-lg bg-slate-800/60 px-3 py-2">
-          <p className="text-sm text-slate-200">{ev.summary ?? '(no title)'}</p>
-          <p className="text-xs text-slate-400">{fmtEventWhen(ev)}</p>
+        <li
+          key={`${ev.calendarId}/${ev.id}`}
+          className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-slate-800/60 dark:shadow-none"
+        >
+          <p className="text-sm text-slate-800 dark:text-slate-200">{ev.summary ?? '(no title)'}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{fmtEventWhen(ev)}</p>
         </li>
       ))}
     </ul>
