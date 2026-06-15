@@ -1,9 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { dayTimeline, daySpan, freeGaps, mergeIntervals, type BusyInterval, type Slot, type WindowKey, type Windows } from '../lib/availability'
 import { summarizeDay } from '../lib/annotate'
 import { eventStart, fmtDay, fmtTime } from '../lib/format'
+import { conflicts, initialWindow, moveWindow, resizeWindow, type Win } from '../lib/planWindow'
 import type { GEvent } from '../api/calendar'
 import type { DayInfo, SlotInfo } from './SlotList'
+import ActionButton from './ActionButton'
 
 interface Props {
   date: string
@@ -80,12 +82,13 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
 
   // Relationship insight: partner lane + the times you're both free.
   const partnerSegments = partnerBusy ? dayTimeline(partnerBusy, windows, date, now, dayStart).segments : []
-  const span = partnerBusy ? daySpan(windows, date, dayStart) : null
-  const mutualGaps = span
-    ? freeGaps(mergeIntervals([...busy, ...partnerBusy!]), span.start, span.end).filter(
-        (g) => g.end.getTime() - g.start.getTime() >= HALF_HOUR,
-      )
-    : []
+  const span = daySpan(windows, date, dayStart)
+  const mutualGaps =
+    span && partnerBusy
+      ? freeGaps(mergeIntervals([...busy, ...partnerBusy]), span.start, span.end).filter(
+          (g) => g.end.getTime() - g.start.getTime() >= HALF_HOUR,
+        )
+      : []
   const fmtDur = (ms: number) => `${Math.round((ms / 3_600_000) * 10) / 10}h`
 
   const freeTotal = slots.reduce((ms, s) => ms + (s.freeTo.getTime() - s.freeFrom.getTime()), 0)
@@ -96,47 +99,85 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
   // Together chip already conveys mutual time, so drop any "together" reason.
   const factReasons = (reasons ?? []).filter((r) => !/together/i.test(r))
 
-  // Booking: propose the longest mutual-free window, sized to the min date length.
-  const longestMutual = mutualGaps.reduce<BusyInterval | null>(
-    (best, g) => (!best || g.end.getTime() - g.start.getTime() > best.end.getTime() - best.start.getTime() ? g : best),
-    null,
-  )
-  const propStart = longestMutual?.start
-  const propEnd =
-    longestMutual && propStart
-      ? new Date(Math.min(propStart.getTime() + (dateMinHours ?? 3) * 3_600_000, longestMutual.end.getTime()))
-      : undefined
-  const canPlan = !!onPlanDate && !!propStart && !!propEnd
-  const [confirming, setConfirming] = useState(false)
-  const [planning, setPlanning] = useState(false)
-  const [planned, setPlanned] = useState(false)
+  // Booking: a draggable/resizable window over the bars (relationship mode).
+  const canPlan = !!onPlanDate && !!span
+  const unionBusy = mergeIntervals([...busy, ...(partnerBusy ?? [])])
+  const barsRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ mode: 'move' | 'start' | 'end'; startX: number; orig: Win } | null>(null)
+  const [win, setWin] = useState<Win | null>(null)
+  const [booking, setBooking] = useState(false)
   const [planError, setPlanError] = useState<string | null>(null)
-  const confirmPlan = async () => {
-    if (!onPlanDate || !propStart || !propEnd) return
-    setPlanning(true)
+
+  const spanStart = span ? span.start.getTime() : 0
+  const spanLen = span ? span.end.getTime() - spanStart : 1
+  const frac = (ms: number) => Math.min(1, Math.max(0, (ms - spanStart) / spanLen))
+  const pxToMs = (clientX: number) => {
+    const r = barsRef.current?.getBoundingClientRect()
+    if (!r || r.width === 0) return spanStart
+    return spanStart + Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * spanLen
+  }
+
+  const openPlanner = () => {
+    if (!span) return
+    setPlanError(null)
+    setWin(initialWindow(mutualGaps, span, (dateMinHours ?? 3) * 3_600_000))
+  }
+  const startDrag = (mode: 'move' | 'start' | 'end') => (e: ReactPointerEvent) => {
+    if (!win) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragRef.current = { mode, startX: e.clientX, orig: win }
+  }
+  const onDragMove = (e: ReactPointerEvent) => {
+    const d = dragRef.current
+    if (!d || !span) return
+    if (d.mode === 'move') setWin(moveWindow(d.orig, pxToMs(e.clientX) - pxToMs(d.startX), span))
+    else setWin(resizeWindow(d.orig, d.mode, pxToMs(e.clientX), span))
+  }
+  const endDrag = (e: ReactPointerEvent) => {
+    dragRef.current = null
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+  const book = async () => {
+    if (!onPlanDate || !win) return
+    setBooking(true)
     setPlanError(null)
     try {
-      await onPlanDate(propStart, propEnd)
-      setPlanned(true)
-      setConfirming(false)
-    } catch (e) {
-      setPlanError(e instanceof Error ? e.message : String(e))
+      await onPlanDate(win.start, win.end)
+      setWin(null)
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : String(err))
     } finally {
-      setPlanning(false)
+      setBooking(false)
     }
   }
+  const winConflicts = win ? conflicts(win, unionBusy) : []
+  const dragHandlers = { onPointerMove: onDragMove, onPointerUp: endDrag, onPointerCancel: endDrag }
 
   return (
     <div className="break-inside-avoid rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800 dark:shadow-none">
-      <div>
-        <p className="text-base font-semibold text-slate-800 dark:text-slate-100">{fmtDay(date)}</p>
-        {info.label && <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{info.label}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-base font-semibold text-slate-800 dark:text-slate-100">{fmtDay(date)}</p>
+          {info.label && <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{info.label}</p>}
+        </div>
+        {canPlan && (
+          <div className="flex shrink-0 gap-1.5">
+            {!win && (
+              <ActionButton variant="accent" onClick={openPlanner}>
+                Plan date
+              </ActionButton>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-4">
         {partnerBusy && (
           <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">You</p>
         )}
+        <div ref={barsRef} className="relative">
         <div className="relative h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
           {segments
             .filter((s) => s.kind === 'free')
@@ -195,6 +236,37 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
             </div>
           </div>
         )}
+        {win && span && (
+          <>
+            {winConflicts.map((c, i) => (
+              <div
+                key={`c${i}`}
+                className="pointer-events-none absolute inset-y-0 z-10 bg-rose-500/40"
+                style={{ left: `${frac(c.start.getTime()) * 100}%`, width: `${(frac(c.end.getTime()) - frac(c.start.getTime())) * 100}%` }}
+              />
+            ))}
+            <div
+              {...dragHandlers}
+              onPointerDown={startDrag('move')}
+              className="absolute inset-y-0 z-20 cursor-grab touch-none rounded-md border-2 border-pink-500 bg-pink-500/20 active:cursor-grabbing"
+              style={{ left: `${frac(win.start.getTime()) * 100}%`, width: `${(frac(win.end.getTime()) - frac(win.start.getTime())) * 100}%` }}
+            >
+              <span
+                {...dragHandlers}
+                onPointerDown={startDrag('start')}
+                className="absolute -left-1 inset-y-0 z-30 w-2 cursor-ew-resize touch-none rounded-full bg-pink-500"
+                aria-label="Adjust start"
+              />
+              <span
+                {...dragHandlers}
+                onPointerDown={startDrag('end')}
+                className="absolute -right-1 inset-y-0 z-30 w-2 cursor-ew-resize touch-none rounded-full bg-pink-500"
+                aria-label="Adjust end"
+              />
+            </div>
+          </>
+        )}
+        </div>
         <div className="relative mt-1 h-3">
           {ticks.map((t, i) => (
             <span
@@ -236,41 +308,20 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
         <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">{ranges.join('  ·  ')}</p>
       )}
 
-      {canPlan && (
-        <div className="mt-3 text-xs">
-          {planned ? (
-            <p className="font-medium text-emerald-600 dark:text-emerald-400">
-              ❤️ Date booked — {fmtTime(propStart!)}–{fmtTime(propEnd!)}
-            </p>
-          ) : confirming ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-slate-600 dark:text-slate-300">
-                Book {fmtTime(propStart!)}–{fmtTime(propEnd!)}?
-              </span>
-              <button
-                onClick={confirmPlan}
-                disabled={planning}
-                className="rounded-md bg-pink-500 px-2.5 py-1 font-medium text-pink-950 disabled:opacity-50"
-              >
-                {planning ? 'Booking…' : 'Confirm'}
-              </button>
-              <button
-                onClick={() => setConfirming(false)}
-                disabled={planning}
-                className="rounded-md bg-slate-200 px-2.5 py-1 text-slate-700 disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200"
-              >
-                Cancel
-              </button>
-              {planError && <span className="text-rose-600 dark:text-rose-400">{planError}</span>}
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirming(true)}
-              className="rounded-md bg-pink-500/90 px-2.5 py-1 font-medium text-pink-950"
-            >
-              ❤️ Plan date
-            </button>
-          )}
+      {win && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-medium text-slate-700 dark:text-slate-200">
+            {fmtTime(win.start)}–{fmtTime(win.end)}{' '}
+            <span className="text-slate-400 dark:text-slate-500">({fmtDur(win.end.getTime() - win.start.getTime())})</span>
+          </span>
+          {winConflicts.length > 0 && <span className="text-rose-600 dark:text-rose-400">overlaps busy</span>}
+          <ActionButton variant="accent" onClick={book} disabled={booking}>
+            {booking ? 'Booking…' : 'Book'}
+          </ActionButton>
+          <ActionButton variant="ghost" onClick={() => setWin(null)} disabled={booking}>
+            Cancel
+          </ActionButton>
+          {planError && <span className="text-rose-600 dark:text-rose-400">{planError}</span>}
         </div>
       )}
 
