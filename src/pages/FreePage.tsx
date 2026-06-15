@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { addDays, differenceInCalendarDays, endOfDay, isWeekend, startOfDay, startOfMonth } from 'date-fns'
+import { addDays, differenceInCalendarDays, endOfDay, format, isWeekend, startOfDay, startOfMonth } from 'date-fns'
 import { blockedDates, dayIsolation, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, matchRule } from '../lib/metrics'
 import {
@@ -303,11 +303,16 @@ export default function FreePage() {
     (dateStr: string) => {
       const target = new Date(dateStr + 'T12:00:00')
       const diff = differenceInCalendarDays(target, new Date(nowMs))
-      if (diff >= 0) return relativeDayLabel(target, new Date(nowMs))
-      const n = -diff
-      if (n < 14) return `${n} day${n === 1 ? '' : 's'} ago`
-      if (n < 60) return `${Math.round(n / 7)} weeks ago`
-      return `${Math.round(n / 30)} months ago`
+      const rel =
+        diff >= 0
+          ? relativeDayLabel(target, new Date(nowMs))
+          : (() => {
+              const n = -diff
+              if (n < 14) return `${n} day${n === 1 ? '' : 's'} ago`
+              if (n < 60) return `${Math.round(n / 7)} weeks ago`
+              return `${Math.round(n / 30)} months ago`
+            })()
+      return `${rel} (${format(target, 'M/d')})`
     },
     [nowMs],
   )
