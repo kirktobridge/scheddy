@@ -6,6 +6,7 @@ import { getSettings, useSettings, type MetricRule, type Settings } from '../sto
 import { ErrorBanner } from '../components/Banner'
 import ColorField from '../components/ColorField'
 import { COLOR_GROUPS, getColor } from '../lib/colorConfig'
+import { resolveDateRule } from '../lib/relationship'
 
 const INPUT =
   'rounded-lg border border-slate-300 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
@@ -958,7 +959,7 @@ function RelationshipPanel({ settings, update }: { settings: Settings; update: U
           <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
             "Date" events come from
             <select
-              value={settings.dateRuleId}
+              value={resolveDateRule(settings.metricRules, settings.dateRuleId)?.id ?? ''}
               onChange={(e) => update({ dateRuleId: e.target.value })}
               className={`px-2 py-1 ${INPUT}`}
             >

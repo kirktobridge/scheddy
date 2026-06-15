@@ -1,5 +1,6 @@
 import { addDays, differenceInCalendarDays, format, isWeekend, startOfDay, startOfWeek } from 'date-fns'
 import type { GEvent } from '../api/calendar'
+import type { MetricRule } from '../store/settings'
 import {
   atTime,
   blockedDates,
@@ -100,6 +101,21 @@ export function notWorkingDates(partnerWorkBusy: BusyInterval[], dates: string[]
 /** Week bucket (the week's Sunday, yyyy-MM-dd) a date falls in. */
 export function weekKey(date: string): string {
   return format(startOfWeek(new Date(date + 'T12:00:00')), 'yyyy-MM-dd')
+}
+
+/**
+ * The metric rule used for date detection. When the configured id is missing
+ * (e.g. the rule was recreated with a new id while dateRuleId still points at
+ * the deleted default), fall back to the first rule that looks date-related by
+ * name or keyword, then to the first rule — so detection never silently matches
+ * nothing.
+ */
+export function resolveDateRule(rules: MetricRule[], dateRuleId: string): MetricRule | undefined {
+  return (
+    rules.find((r) => r.id === dateRuleId) ??
+    rules.find((r) => /date/i.test(r.name) || /date/i.test(r.keyword)) ??
+    rules[0]
+  )
 }
 
 /** An event's start as a Date (timed or all-day), or null if it has no start. */

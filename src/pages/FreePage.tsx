@@ -11,6 +11,7 @@ import {
   overlapDates,
   overlapInWindowMs,
   rankDateCandidates,
+  resolveDateRule,
   weekKey,
   weeksWithDateEvent,
 } from '../lib/relationship'
@@ -75,7 +76,7 @@ export default function FreePage() {
   // spans a year back through the lookahead, and covers the date rule's scoped
   // calendars (e.g. "Us") even when they aren't marked blocking/joint/partner.
   const dateRule = useMemo(
-    () => settings.metricRules.find((r) => r.id === settings.dateRuleId),
+    () => resolveDateRule(settings.metricRules, settings.dateRuleId),
     [settings.metricRules, settings.dateRuleId],
   )
   const dateScanCalendarIds = useMemo(

@@ -11,6 +11,7 @@ import {
   overlapInWindowMs,
   overlapLongestMs,
   rankDateCandidates,
+  resolveDateRule,
   weekKey,
   weeksWithDateEvent,
 } from '../src/lib/relationship'
@@ -175,6 +176,25 @@ describe('last-date pipeline (matchRule → lastDateEvent)', () => {
     // Only the 'us' event is in scope; the 'personal' Date is excluded by scope.
     expect(matches.map((e) => e.id)).toEqual(['1'])
     expect(lastDateEvent(matches, now)).toBe('2026-05-29')
+  })
+
+  // Reproduces the real-world break: dateRuleId points at the deleted default
+  // ('date-nights') while the actual Dates rule has a fresh UUID.
+  it('resolves a stale dateRuleId to the first rule so detection still works', () => {
+    const rules = [
+      { id: 'fac49c72', name: 'Dates', keyword: 'Date,date', icon: '💟', matchDescription: false, calendarIds: ['us'] },
+      { id: 'a9c00383', name: 'Trips', keyword: 'Trip', icon: '🛄', matchDescription: false },
+    ]
+    expect(resolveDateRule(rules, 'date-nights')?.id).toBe('fac49c72') // missing id → date-ish rule
+    expect(resolveDateRule(rules, 'a9c00383')?.id).toBe('a9c00383') // valid id → itself
+    // Date-ish match wins over order even when a non-date rule is first.
+    const tripsFirst = [rules[1], rules[0]]
+    expect(resolveDateRule(tripsFirst, 'gone')?.id).toBe('fac49c72')
+    const events: GEvent[] = [
+      { id: '1', summary: 'Date night', calendarId: 'us', start: { dateTime: '2026-05-29T18:00' }, end: { dateTime: '2026-05-29T21:00' } },
+    ]
+    const rule = resolveDateRule(rules, 'date-nights')!
+    expect(lastDateEvent(matchRule(events, rule), now)).toBe('2026-05-29')
   })
 })
 
