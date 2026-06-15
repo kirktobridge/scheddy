@@ -212,14 +212,17 @@ export default function FreePage() {
     lookahead,
   ])
 
-  // Days the overlap highlight covers = union of whichever subset chips are on.
+  // Days the overlap highlight covers = intersection of whichever subset chips
+  // are on (a day must satisfy every selected subset). Empty when none are on.
   const overlapHighlight = useMemo(() => {
-    const set = new Set<string>()
-    if (!rel || !showOverlap) return set
-    if (showOverlapWeekends) relationship.overlapWeekendSet.forEach((d) => set.add(d))
-    if (showOverlapWeeknights) relationship.overlapWeeknightSet.forEach((d) => set.add(d))
-    if (showOverlapOffDays) relationship.bothOffSet.forEach((d) => set.add(d))
-    return set
+    if (!rel || !showOverlap) return new Set<string>()
+    const sets: Set<string>[] = []
+    if (showOverlapWeekends) sets.push(relationship.overlapWeekendSet)
+    if (showOverlapWeeknights) sets.push(relationship.overlapWeeknightSet)
+    if (showOverlapOffDays) sets.push(relationship.bothOffSet)
+    if (sets.length === 0) return new Set<string>()
+    const [first, ...rest] = sets
+    return new Set([...first].filter((d) => rest.every((s) => s.has(d))))
   }, [rel, showOverlap, showOverlapWeekends, showOverlapWeeknights, showOverlapOffDays, relationship])
 
   const layers = useMemo<OverlayLayer[]>(() => {
@@ -282,10 +285,20 @@ export default function FreePage() {
               {showOverlap && (
                 <div className="flex items-center gap-1.5 border-t border-slate-200 pt-1 dark:border-slate-700">
                   <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Overlap</span>
-                  <RelToggle active={showOverlapWeekends} onClick={() => setShowOverlapWeekends((v) => !v)} title="Weekend days with mutual free time" color="bg-pink-500 text-pink-950">
+                  <RelToggle
+                    active={showOverlapWeekends}
+                    onClick={() => setShowOverlapWeekends((v) => { if (!v) setShowOverlapWeeknights(false); return !v })}
+                    title="Weekend days with mutual free time"
+                    color="bg-pink-500 text-pink-950"
+                  >
                     Weekends
                   </RelToggle>
-                  <RelToggle active={showOverlapWeeknights} onClick={() => setShowOverlapWeeknights((v) => !v)} title="Weekday evenings with mutual free time" color="bg-pink-500 text-pink-950">
+                  <RelToggle
+                    active={showOverlapWeeknights}
+                    onClick={() => setShowOverlapWeeknights((v) => { if (!v) setShowOverlapWeekends(false); return !v })}
+                    title="Weekday evenings with mutual free time"
+                    color="bg-pink-500 text-pink-950"
+                  >
                     Weeknights
                   </RelToggle>
                   <RelToggle active={showOverlapOffDays} onClick={() => setShowOverlapOffDays((v) => !v)} title="Days you're both off work" color="bg-pink-500 text-pink-950">
