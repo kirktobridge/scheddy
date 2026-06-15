@@ -42,6 +42,14 @@ describe('matchRule', () => {
     expect(matchRule(events, rule({ matchDescription: true }))).toHaveLength(1)
   })
 
+  it('matches any of several comma-separated keywords', () => {
+    const events = [ev('Date night'), ev('Dinner out'), ev('Gym')]
+    expect(matchRule(events, rule({ keyword: 'date, dinner' })).map((e) => e.summary)).toEqual([
+      'Date night',
+      'Dinner out',
+    ])
+  })
+
   it('skips cancelled events and empty keywords', () => {
     expect(matchRule([ev('Date night', { status: 'cancelled' })], rule())).toHaveLength(0)
     expect(matchRule([ev('Date night')], rule({ keyword: '  ' }))).toHaveLength(0)
