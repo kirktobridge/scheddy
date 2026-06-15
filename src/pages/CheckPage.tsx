@@ -12,8 +12,8 @@ import {
   startOfDay,
   startOfMonth,
 } from 'date-fns'
-import { eventsToBusy, findFreeSlots, windowKeys, type WindowKey } from '../lib/availability'
-import { applyRuleOverrides } from '../lib/metrics'
+import { findFreeSlots, windowKeys, type WindowKey } from '../lib/availability'
+import { buildBusy } from '../lib/metrics'
 import { useSettings } from '../store/settings'
 import { useEvents } from '../hooks/useEvents'
 import SlotList from '../components/SlotList'
@@ -90,14 +90,18 @@ export default function CheckPage() {
 
   const slots = useMemo(() => {
     if (!events) return []
-    const busy = eventsToBusy(applyRuleOverrides(events, settings.metricRules), { allDay: settings.blockAllDayEvents })
+    const busy = buildBusy(events, {
+      rules: settings.metricRules,
+      allDay: settings.blockAllDayEvents,
+      allDayCalendarIds: new Set(settings.allDayBlockingCalendarIds),
+    })
     return findFreeSlots(busy, settings.windows, rangeStart, rangeEnd, {
       threshold: settings.freeThreshold,
       now,
       windowFilter,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, settings.windows, settings.freeThreshold, settings.metricRules, settings.blockAllDayEvents, rangeStart.getTime(), rangeEnd.getTime(), windowFilter])
+  }, [events, settings.windows, settings.freeThreshold, settings.metricRules, settings.blockAllDayEvents, settings.allDayBlockingCalendarIds, rangeStart.getTime(), rangeEnd.getTime(), windowFilter])
 
   const booked = useMemo(
     () => (events ?? []).filter((ev) => ev.status !== 'cancelled' && ev.transparency !== 'transparent'),

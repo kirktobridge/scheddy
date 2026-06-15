@@ -328,6 +328,18 @@ function CalendarsPanel({
     })
   }
 
+  // Per-calendar all-day opt-in: blocks even when the global setting is off.
+  // When the global setting is on, every calendar already blocks, so the pill
+  // is shown active-but-locked.
+  const allDayOn = (id: string) =>
+    settings.blockAllDayEvents || settings.allDayBlockingCalendarIds.includes(id)
+  const toggleAllDay = (id: string) =>
+    update({
+      allDayBlockingCalendarIds: settings.allDayBlockingCalendarIds.includes(id)
+        ? settings.allDayBlockingCalendarIds.filter((x) => x !== id)
+        : [...settings.allDayBlockingCalendarIds, id],
+    })
+
   const toggleHoliday = (id: string) =>
     update({
       holidayCalendarIds: has('holidayCalendarIds', id)
@@ -346,12 +358,13 @@ function CalendarsPanel({
       [field]: hasIn(field, id) ? settings[field].filter((x) => x !== id) : [...settings[field], id],
     })
 
-  // Partner "work" ⊆ partner "blocks time", mirroring the personal calendars above.
+  // Partner "work" and "joint" ⊆ partner "blocks time", mirroring the personal calendars above.
   const togglePartnerBlocking = (id: string) => {
     if (hasIn('partnerBlockingCalendarIds', id)) {
       update({
         partnerBlockingCalendarIds: settings.partnerBlockingCalendarIds.filter((x) => x !== id),
         partnerWorkCalendarIds: settings.partnerWorkCalendarIds.filter((x) => x !== id),
+        jointCalendarIds: settings.jointCalendarIds.filter((x) => x !== id),
       })
     } else {
       update({ partnerBlockingCalendarIds: [...settings.partnerBlockingCalendarIds, id] })
@@ -361,6 +374,20 @@ function CalendarsPanel({
   const togglePartnerWork = (id: string) => {
     if (!hasIn('partnerBlockingCalendarIds', id)) return
     toggleIn('partnerWorkCalendarIds', id)
+  }
+
+  // Joint events block the partner too, so marking joint implies partner "blocks time".
+  const toggleJoint = (id: string) => {
+    if (hasIn('jointCalendarIds', id)) {
+      update({ jointCalendarIds: settings.jointCalendarIds.filter((x) => x !== id) })
+    } else {
+      update({
+        jointCalendarIds: [...settings.jointCalendarIds, id],
+        partnerBlockingCalendarIds: hasIn('partnerBlockingCalendarIds', id)
+          ? settings.partnerBlockingCalendarIds
+          : [...settings.partnerBlockingCalendarIds, id],
+      })
+    }
   }
 
   const q = query.trim().toLowerCase()
@@ -403,6 +430,15 @@ function CalendarsPanel({
                   <RolePill active={has('holidayCalendarIds', cal.id)} onClick={() => toggleHoliday(cal.id)}>
                     Holiday
                   </RolePill>
+                  {blocking && (
+                    <RolePill
+                      active={allDayOn(cal.id)}
+                      disabled={settings.blockAllDayEvents}
+                      onClick={() => toggleAllDay(cal.id)}
+                    >
+                      All-day
+                    </RolePill>
+                  )}
                 </div>
               </div>
             )
@@ -420,6 +456,10 @@ function CalendarsPanel({
         <p>
           <strong className="text-slate-600 dark:text-slate-400">Holiday</strong> — adds notes like "2 days before
           Memorial Day". Tip: subscribe to "Holidays in United States" in Google Calendar.
+        </p>
+        <p>
+          <strong className="text-slate-600 dark:text-slate-400">All-day</strong> — count this calendar's all-day events
+          as busy (e.g. a "Vacation" or "Anniversary" day), even with the global all-day setting off.
         </p>
       </div>
 
@@ -451,9 +491,18 @@ function CalendarsPanel({
                       <RolePill active={hasIn('partnerWorkCalendarIds', cal.id)} disabled={!pBlocking} onClick={() => togglePartnerWork(cal.id)}>
                         Partner work
                       </RolePill>
-                      <RolePill active={hasIn('jointCalendarIds', cal.id)} onClick={() => toggleIn('jointCalendarIds', cal.id)}>
+                      <RolePill active={hasIn('jointCalendarIds', cal.id)} onClick={() => toggleJoint(cal.id)}>
                         Joint
                       </RolePill>
+                      {(pBlocking || hasIn('jointCalendarIds', cal.id)) && (
+                        <RolePill
+                          active={allDayOn(cal.id)}
+                          disabled={settings.blockAllDayEvents}
+                          onClick={() => toggleAllDay(cal.id)}
+                        >
+                          All-day
+                        </RolePill>
+                      )}
                     </div>
                   </div>
                 )
@@ -689,8 +738,8 @@ function AvailabilityPanel({ settings, update }: { settings: Settings; update: U
           />
         </label>
         <p className="text-xs text-slate-500">
-          Off by default so bill reminders and birthdays don't book your day. Individual keyword rules can override this
-          on the Metrics page.
+          Off by default so bill reminders and birthdays don't book your day. Turn it on per calendar with the "All-day"
+          pill on the Calendars page, or override individual events with keyword rules on the Metrics page.
         </p>
       </Section>
     </>

@@ -36,6 +36,8 @@ export interface Settings {
   freeThreshold: number
   /** Whether all-day events count as busy time (keyword rules can override per-rule). */
   blockAllDayEvents: boolean
+  /** Calendars whose all-day events block time even when blockAllDayEvents is off. */
+  allDayBlockingCalendarIds: string[]
   metricRules: MetricRule[]
   /** Per-metric calendar highlight color, keyed by metric key ('evenings', 'weekend', 'rule:<id>'). */
   metricColors: Record<string, string>
@@ -82,6 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   favorWeekends: true,
   freeThreshold: 0.75,
   blockAllDayEvents: false,
+  allDayBlockingCalendarIds: [],
   metricRules: [
     { id: 'date-nights', name: 'Date nights', keyword: 'date', icon: '❤️', matchDescription: false },
   ],

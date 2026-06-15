@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyRuleOverrides, dedupeEvents, matchRule, unbookedEvenings, unbookedWeekendDays } from '../src/lib/metrics'
+import { applyRuleOverrides, buildBusy, dedupeEvents, matchRule, unbookedEvenings, unbookedWeekendDays } from '../src/lib/metrics'
 import { eventsToBusy, type Windows } from '../src/lib/availability'
 import type { GEvent } from '../src/api/calendar'
 import type { MetricRule } from '../src/store/settings'
@@ -119,6 +119,36 @@ describe('eventsToBusy all-day handling', () => {
     expect(busy).toHaveLength(1)
     expect(busy[0].start).toEqual(new Date('2026-06-15T00:00:00'))
     expect(busy[0].end).toEqual(new Date('2026-06-16T00:00:00'))
+  })
+})
+
+describe('buildBusy', () => {
+  it('applies rule overrides and the per-calendar all-day policy in one pass', () => {
+    const events = [
+      allDayEv('Joint vacation', { calendarId: 'joint' }),
+      allDayEv('Bill due', { calendarId: 'personal' }),
+      // Different day so it doesn't merge into the all-day vacation span.
+      ev('Date night', {
+        transparency: 'transparent',
+        calendarId: 'personal',
+        start: { dateTime: '2026-06-20T18:00' },
+        end: { dateTime: '2026-06-20T20:00' },
+      }),
+    ]
+    const busy = buildBusy(events, {
+      rules: [rule({ blocking: true })],
+      allDay: false,
+      allDayCalendarIds: new Set(['joint']),
+    })
+    // joint all-day blocks (per-calendar opt-in) + the transparent "date" event
+    // is force-blocked by the rule; the personal all-day bill stays ignored.
+    expect(busy).toHaveLength(2)
+  })
+
+  it('joint all-day events block even with the global all-day setting off', () => {
+    const events = [allDayEv('Anniversary', { calendarId: 'joint' })]
+    expect(buildBusy(events, { rules: [], allDay: false })).toHaveLength(0)
+    expect(buildBusy(events, { rules: [], allDay: false, allDayCalendarIds: new Set(['joint']) })).toHaveLength(1)
   })
 })
 

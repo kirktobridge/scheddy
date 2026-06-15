@@ -1,6 +1,7 @@
 import { isWeekend } from 'date-fns'
 import type { GEvent } from '../api/calendar'
 import {
+  eventsToBusy,
   findFreeSlots,
   type BusyInterval,
   type FindOpts,
@@ -78,6 +79,28 @@ export function applyRuleOverrides(events: GEvent[], rules: MetricRule[]): GEven
     }
     if (ev.transparency === 'transparent' && blockTimed.has(k)) return { ...ev, transparency: undefined }
     return ev
+  })
+}
+
+export interface BusyOpts {
+  /** Keyword rules whose blocking / all-day overrides apply (see applyRuleOverrides). */
+  rules: MetricRule[]
+  /** Global default: do all-day events block time? */
+  allDay?: boolean
+  /** Calendars whose all-day events block even when the global default is off. */
+  allDayCalendarIds?: Set<string>
+}
+
+/**
+ * The single path from raw calendar events to merged busy intervals: apply the
+ * per-rule overrides, then convert with the global + per-calendar all-day policy.
+ * Every busy stream (personal, work, partner, joint) should go through this so
+ * the "does it block?" decision can't drift between them.
+ */
+export function buildBusy(events: GEvent[], opts: BusyOpts): BusyInterval[] {
+  return eventsToBusy(applyRuleOverrides(events, opts.rules), {
+    allDay: opts.allDay,
+    allDayCalendarIds: opts.allDayCalendarIds,
   })
 }
 

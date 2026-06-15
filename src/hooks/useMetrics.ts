@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { endOfMonth, isSameMonth, startOfMonth } from 'date-fns'
-import { eventsToBusy } from '../lib/availability'
 import {
-  applyRuleOverrides,
+  buildBusy,
   dedupeEvents,
   matchRule,
   unbookedEveningDates,
@@ -46,9 +45,18 @@ export function useMetrics(month: Date): Metrics {
   const { events, loading, error } = useEvents(monthStart.getTime(), monthEnd.getTime())
 
   const deduped = useMemo(() => (events ? dedupeEvents(events) : []), [events])
+  const allDayCalendarIds = useMemo(
+    () => new Set(settings.allDayBlockingCalendarIds),
+    [settings.allDayBlockingCalendarIds],
+  )
   const busy = useMemo(
-    () => eventsToBusy(applyRuleOverrides(deduped, settings.metricRules), { allDay: settings.blockAllDayEvents }),
-    [deduped, settings.metricRules, settings.blockAllDayEvents],
+    () =>
+      buildBusy(deduped, {
+        rules: settings.metricRules,
+        allDay: settings.blockAllDayEvents,
+        allDayCalendarIds,
+      }),
+    [deduped, settings.metricRules, settings.blockAllDayEvents, allDayCalendarIds],
   )
 
   const computed = useMemo(() => {

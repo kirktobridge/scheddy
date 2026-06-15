@@ -56,6 +56,24 @@ describe('eventsToBusy', () => {
     ])
     expect(busy).toEqual([{ start: d('2026-06-15T09:00'), end: d('2026-06-15T10:00') }])
   })
+
+  it('blocks all-day events when the global allDay flag is set', () => {
+    const busy = eventsToBusy(
+      [{ id: 'allday', summary: 'Vacation', start: { date: '2026-06-15' }, end: { date: '2026-06-16' } }],
+      { allDay: true },
+    )
+    expect(busy).toEqual([{ start: d('2026-06-15T00:00'), end: d('2026-06-16T00:00') }])
+  })
+
+  it('blocks all-day events only for calendars in allDayCalendarIds', () => {
+    const events: GEvent[] = [
+      { id: 'a', summary: 'Joint trip', calendarId: 'joint', start: { date: '2026-06-15' }, end: { date: '2026-06-16' } },
+      { id: 'b', summary: 'Bill due', calendarId: 'personal', start: { date: '2026-06-15' }, end: { date: '2026-06-16' } },
+    ]
+    const busy = eventsToBusy(events, { allDayCalendarIds: new Set(['joint']) })
+    // Only the joint calendar's all-day event blocks; the personal one is ignored.
+    expect(busy).toEqual([{ start: d('2026-06-15T00:00'), end: d('2026-06-16T00:00') }])
+  })
 })
 
 describe('findFreeSlots', () => {

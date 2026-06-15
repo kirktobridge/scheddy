@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { addDays, differenceInCalendarDays, endOfDay, format, isWeekend, startOfDay, startOfMonth } from 'date-fns'
 import { blockedDates, dayIsolation, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
-import { applyRuleOverrides, matchRule } from '../lib/metrics'
+import { applyRuleOverrides, buildBusy, matchRule } from '../lib/metrics'
 import {
   datesInRange,
   lastDateEvent,
@@ -112,8 +112,20 @@ export default function FreePage() {
   }, [events, workIds])
 
   const allDay = settings.blockAllDayEvents
-  const nonWorkBusy = useMemo(() => eventsToBusy(nonWorkEvents ?? [], { allDay }), [nonWorkEvents, allDay])
-  const workBusy = useMemo(() => eventsToBusy(workEvents ?? [], { allDay }), [workEvents, allDay])
+  const allDayCalendarIds = useMemo(
+    () => new Set(settings.allDayBlockingCalendarIds),
+    [settings.allDayBlockingCalendarIds],
+  )
+  // nonWorkEvents/workEvents are already rule-overridden (events, above), so
+  // convert directly — pass the same all-day policy used everywhere else.
+  const nonWorkBusy = useMemo(
+    () => eventsToBusy(nonWorkEvents ?? [], { allDay, allDayCalendarIds }),
+    [nonWorkEvents, allDay, allDayCalendarIds],
+  )
+  const workBusy = useMemo(
+    () => eventsToBusy(workEvents ?? [], { allDay, allDayCalendarIds }),
+    [workEvents, allDay, allDayCalendarIds],
+  )
 
   // The "top N" picks: among all days in the lookahead that have a slot meeting
   // the threshold, rank by isolation from other blocking events, then total free
@@ -168,7 +180,10 @@ export default function FreePage() {
   )
 
   // Combined busy (work counts as busy) drives the availability bars.
-  const combinedBusy = useMemo(() => eventsToBusy(events ?? [], { allDay }), [events, allDay])
+  const combinedBusy = useMemo(
+    () => eventsToBusy(events ?? [], { allDay, allDayCalendarIds }),
+    [events, allDay, allDayCalendarIds],
+  )
   const winKeys = useMemo(() => windowKeys(settings.windows), [settings.windows])
 
   // Relationship overlays: the partner's non-working days, days with enough
@@ -187,9 +202,13 @@ export default function FreePage() {
     }
     if (!rel) return empty
     const HOUR = 60 * 60 * 1000
-    const jointBusy = eventsToBusy(joint.events ?? [], { allDay })
-    const partnerBusy = mergeIntervals([...eventsToBusy(partner.events ?? [], { allDay }), ...jointBusy])
-    const partnerWorkBusy = eventsToBusy(partnerWork.events ?? [], { allDay })
+    // Partner/joint streams run through the same builder as personal events, so
+    // rule overrides and the per-calendar all-day policy apply consistently —
+    // otherwise an all-day joint event would silently never block the partner.
+    const busyOpts = { rules: settings.metricRules, allDay, allDayCalendarIds }
+    const jointBusy = buildBusy(joint.events ?? [], busyOpts)
+    const partnerBusy = mergeIntervals([...buildBusy(partner.events ?? [], busyOpts), ...jointBusy])
+    const partnerWorkBusy = buildBusy(partnerWork.events ?? [], busyOpts)
     const myBusy = mergeIntervals([...combinedBusy, ...jointBusy])
     const dates = datesInRange(new Date(startMs), addDays(new Date(startMs), lookahead))
 
@@ -247,6 +266,8 @@ export default function FreePage() {
   }, [
     rel,
     allDay,
+    allDayCalendarIds,
+    settings.metricRules,
     partner.events,
     partnerWork.events,
     joint.events,
