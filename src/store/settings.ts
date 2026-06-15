@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { Windows } from '../lib/availability'
+import { DEFAULT_WINDOWS, type Windows } from '../lib/availability'
 
 export interface MetricRule {
   id: string
@@ -12,7 +12,15 @@ export interface MetricRule {
 export interface Settings {
   clientId: string
   blockingCalendarIds: string[]
+  /** Subset of blocking calendars treated as "work" — see FreePage / adjustForWork. */
+  workCalendarIds: string[]
+  holidayCalendarIds: string[]
+  theme: 'dark' | 'light'
   windows: Windows
+  /** Earliest clock time ("HH:mm") shown on the Free view's availability bars. */
+  dayStart: string
+  /** How many days ahead the Free view's calendar spans. */
+  lookaheadDays: number
   freeSlotCount: number
   /** Fraction of a window that must be open for it to count as a free slot. */
   freeThreshold: number
@@ -22,11 +30,12 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '',
   blockingCalendarIds: [],
-  windows: {
-    morning: { start: '08:00', end: '12:00' },
-    afternoon: { start: '12:00', end: '17:00' },
-    evening: { start: '17:00', end: '22:00' },
-  },
+  workCalendarIds: [],
+  holidayCalendarIds: [],
+  theme: 'dark',
+  windows: DEFAULT_WINDOWS,
+  dayStart: '08:00',
+  lookaheadDays: 60,
   freeSlotCount: 6,
   freeThreshold: 0.75,
   metricRules: [
@@ -44,7 +53,10 @@ function loadSettings(): Settings {
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
-      windows: { ...DEFAULT_SETTINGS.windows, ...(parsed.windows ?? {}) },
+      // Windows are fully user-owned (add/remove), so take the stored set
+      // as-is rather than merging defaults back in — otherwise a removed
+      // default window would reappear on reload.
+      windows: parsed.windows ?? DEFAULT_SETTINGS.windows,
     }
   } catch {
     return DEFAULT_SETTINGS
