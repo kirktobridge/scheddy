@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { hasEverSignedIn, signIn, signOut } from '../auth/google'
 import { listCalendars, type GCalendar } from '../api/calendar'
 import { DEFAULT_WINDOWS, windowKeys } from '../lib/availability'
-import { useSettings, type MetricRule } from '../store/settings'
+import { useSettings, type MetricRule, type Settings } from '../store/settings'
 import { ErrorBanner } from '../components/Banner'
 
 const INPUT =
@@ -10,29 +10,25 @@ const INPUT =
 const INPUT_NESTED =
   'rounded-lg border border-slate-300 bg-slate-50 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
 
+type CatKey = 'account' | 'appearance' | 'calendars' | 'availability' | 'metrics'
+
+const CATEGORIES: { key: CatKey; label: string; icon: string }[] = [
+  { key: 'account', label: 'Account', icon: '👤' },
+  { key: 'appearance', label: 'Appearance', icon: '🎨' },
+  { key: 'calendars', label: 'Calendars', icon: '📅' },
+  { key: 'availability', label: 'Availability', icon: '🕐' },
+  { key: 'metrics', label: 'Metrics', icon: '📌' },
+]
+
+type Update = (patch: Partial<Settings>) => void
+
 export default function SettingsPage() {
   const [settings, update] = useSettings()
   const [signedIn, setSignedIn] = useState(hasEverSignedIn())
   const [calendars, setCalendars] = useState<GCalendar[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [newWindow, setNewWindow] = useState('')
-
-  const addWindow = () => {
-    const name = newWindow.trim()
-    if (!name || settings.windows[name]) return
-    update({ windows: { ...settings.windows, [name]: { start: '09:00', end: '10:00' } } })
-    setNewWindow('')
-  }
-
-  const removeWindow = (key: string) => {
-    if (Object.keys(settings.windows).length <= 1) return
-    const next = { ...settings.windows }
-    delete next[key]
-    update({ windows: next })
-  }
-
-  const canAddWindow = newWindow.trim() !== '' && !settings.windows[newWindow.trim()]
+  const [active, setActive] = useState<CatKey | null>(null)
 
   const loadCalendars = async () => {
     try {
@@ -73,104 +69,256 @@ export default function SettingsPage() {
 
   const blockingCalendars = calendars?.filter((c) => settings.blockingCalendarIds.includes(c.id)) ?? null
 
-  const updateRule = (id: string, patch: Partial<MetricRule>) =>
-    update({ metricRules: settings.metricRules.map((r) => (r.id === id ? { ...r, ...patch } : r)) })
+  const renderPanel = (key: CatKey) => {
+    switch (key) {
+      case 'account':
+        return (
+          <AccountPanel
+            settings={settings}
+            update={update}
+            signedIn={signedIn}
+            busy={busy}
+            onSignIn={handleSignIn}
+            onSignOut={handleSignOut}
+          />
+        )
+      case 'appearance':
+        return <AppearancePanel settings={settings} update={update} />
+      case 'calendars':
+        return (
+          <CalendarsPanel
+            signedIn={signedIn}
+            calendars={calendars}
+            blockingCalendars={blockingCalendars}
+            settings={settings}
+            onToggle={toggleIn}
+          />
+        )
+      case 'availability':
+        return <AvailabilityPanel settings={settings} update={update} />
+      case 'metrics':
+        return <MetricsPanel settings={settings} update={update} blockingCalendars={blockingCalendars} />
+    }
+  }
+
+  const desktopActive = active ?? 'account'
 
   return (
-    <div className="space-y-6 lg:columns-2 lg:gap-6 lg:space-y-0">
-      <h1 className="text-xl font-bold lg:mb-6 lg:break-inside-avoid">Settings</h1>
-      {error && <ErrorBanner message={error} />}
+    <div>
+      {/* Mobile: drill-down list → subpage */}
+      <div className="lg:hidden">
+        {active === null ? (
+          <>
+            <h1 className="mb-4 text-xl font-bold">Settings</h1>
+            <div className="space-y-1">
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c.key}
+                  onClick={() => setActive(c.key)}
+                  className="flex w-full items-center gap-3 rounded-lg bg-white px-4 py-3 text-left text-sm shadow-sm dark:bg-slate-800 dark:shadow-none"
+                >
+                  <span className="text-xl leading-none">{c.icon}</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{c.label}</span>
+                  <span className="ml-auto text-slate-400">›</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-4 flex items-center gap-2">
+              <button
+                onClick={() => setActive(null)}
+                className="-ml-1 rounded-lg px-2 py-1 text-sm text-emerald-600 dark:text-emerald-400"
+              >
+                ‹ Back
+              </button>
+              <h1 className="text-xl font-bold">{CATEGORIES.find((c) => c.key === active)?.label}</h1>
+            </div>
+            {error && <div className="mb-4"><ErrorBanner message={error} /></div>}
+            {renderPanel(active)}
+          </>
+        )}
+      </div>
 
-      <Section title="Appearance">
-        <div className="flex gap-2">
-          {(['light', 'dark'] as const).map((mode) => (
+      {/* Desktop: sub-nav + detail pane */}
+      <div className="hidden lg:flex lg:gap-8">
+        <nav className="w-48 shrink-0 space-y-1">
+          <h1 className="mb-4 text-xl font-bold">Settings</h1>
+          {CATEGORIES.map((c) => (
             <button
-              key={mode}
-              onClick={() => update({ theme: mode })}
-              className={`flex-1 rounded-lg py-2 text-sm capitalize ${
-                settings.theme === mode
-                  ? 'bg-emerald-500 font-medium text-emerald-950'
-                  : 'bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300 dark:shadow-none'
+              key={c.key}
+              onClick={() => setActive(c.key)}
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${
+                desktopActive === c.key
+                  ? 'bg-emerald-500/10 font-medium text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              {mode === 'light' ? '☀️ Light' : '🌙 Dark'}
+              <span className="text-lg leading-none">{c.icon}</span>
+              {c.label}
             </button>
           ))}
+        </nav>
+        <div className="min-w-0 flex-1 space-y-6">
+          {error && <ErrorBanner message={error} />}
+          {renderPanel(desktopActive)}
         </div>
-      </Section>
+      </div>
+    </div>
+  )
+}
 
-      <Section title="Google account">
-        <label className="block text-sm text-slate-600 dark:text-slate-400">
-          OAuth Client ID
-          <input
-            type="text"
-            value={settings.clientId}
-            onChange={(e) => update({ clientId: e.target.value.trim() })}
-            placeholder="xxxxx.apps.googleusercontent.com"
-            className={`mt-1 w-full px-3 py-2 text-sm ${INPUT}`}
-          />
-        </label>
-        {signedIn ? (
-          <button
-            onClick={handleSignOut}
-            className="w-full rounded-lg bg-slate-300 py-2 text-sm font-medium dark:bg-slate-700"
-          >
-            Sign out
-          </button>
-        ) : (
-          <button
-            onClick={handleSignIn}
-            disabled={busy || !settings.clientId}
-            className="w-full rounded-lg bg-emerald-500 py-2 text-sm font-medium text-emerald-950 disabled:opacity-50"
-          >
-            {busy ? 'Signing in…' : 'Sign in with Google'}
-          </button>
-        )}
-      </Section>
-
-      {signedIn && (
-        <>
-          <Section title="Calendars that block your time">
-            <CalendarChecklist
-              calendars={calendars}
-              checked={settings.blockingCalendarIds}
-              onToggle={(id) => toggleIn('blockingCalendarIds', id)}
-            />
-            <p className="text-xs text-slate-500">
-              Leave bill-reminder calendars unchecked — though all-day events never block time either way.
-            </p>
-          </Section>
-
-          <Section title="Work calendars">
-            {blockingCalendars && blockingCalendars.length === 0 ? (
-              <p className="text-xs text-slate-500">Check a calendar above first to mark it as work.</p>
-            ) : (
-              <CalendarChecklist
-                calendars={blockingCalendars}
-                checked={settings.workCalendarIds}
-                onToggle={(id) => toggleIn('workCalendarIds', id)}
-              />
-            )}
-            <p className="text-xs text-slate-500">
-              On the Free tab, work events don't count as "partly booked" — an evening with only work on it shows "free
-              after work" instead. (Work still blocks time on the Check tab.)
-            </p>
-          </Section>
-
-          <Section title="Holiday calendars">
-            <CalendarChecklist
-              calendars={calendars}
-              checked={settings.holidayCalendarIds}
-              onToggle={(id) => toggleIn('holidayCalendarIds', id)}
-            />
-            <p className="text-xs text-slate-500">
-              Free slots near these calendars' events get a note like "2 days before Memorial Day". Tip: subscribe to
-              "Holidays in United States" in Google Calendar and check it here.
-            </p>
-          </Section>
-        </>
+function AccountPanel({
+  settings,
+  update,
+  signedIn,
+  busy,
+  onSignIn,
+  onSignOut,
+}: {
+  settings: Settings
+  update: Update
+  signedIn: boolean
+  busy: boolean
+  onSignIn: () => void
+  onSignOut: () => void
+}) {
+  return (
+    <Section title="Google account">
+      <label className="block text-sm text-slate-600 dark:text-slate-400">
+        OAuth Client ID
+        <input
+          type="text"
+          value={settings.clientId}
+          onChange={(e) => update({ clientId: e.target.value.trim() })}
+          placeholder="xxxxx.apps.googleusercontent.com"
+          className={`mt-1 w-full px-3 py-2 text-sm ${INPUT}`}
+        />
+      </label>
+      {signedIn ? (
+        <button
+          onClick={onSignOut}
+          className="w-full rounded-lg bg-slate-300 py-2 text-sm font-medium dark:bg-slate-700"
+        >
+          Sign out
+        </button>
+      ) : (
+        <button
+          onClick={onSignIn}
+          disabled={busy || !settings.clientId}
+          className="w-full rounded-lg bg-emerald-500 py-2 text-sm font-medium text-emerald-950 disabled:opacity-50"
+        >
+          {busy ? 'Signing in…' : 'Sign in with Google'}
+        </button>
       )}
+    </Section>
+  )
+}
 
+function AppearancePanel({ settings, update }: { settings: Settings; update: Update }) {
+  return (
+    <Section title="Appearance">
+      <div className="flex gap-2">
+        {(['light', 'dark'] as const).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => update({ theme: mode })}
+            className={`flex-1 rounded-lg py-2 text-sm capitalize ${
+              settings.theme === mode
+                ? 'bg-emerald-500 font-medium text-emerald-950'
+                : 'bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300 dark:shadow-none'
+            }`}
+          >
+            {mode === 'light' ? '☀️ Light' : '🌙 Dark'}
+          </button>
+        ))}
+      </div>
+    </Section>
+  )
+}
+
+function CalendarsPanel({
+  signedIn,
+  calendars,
+  blockingCalendars,
+  settings,
+  onToggle,
+}: {
+  signedIn: boolean
+  calendars: GCalendar[] | null
+  blockingCalendars: GCalendar[] | null
+  settings: Settings
+  onToggle: (field: 'blockingCalendarIds' | 'workCalendarIds' | 'holidayCalendarIds', id: string) => void
+}) {
+  if (!signedIn) {
+    return <p className="text-sm text-slate-500">Sign in on the Account page first to pick calendars.</p>
+  }
+  return (
+    <>
+      <Section title="Calendars that block your time">
+        <CalendarChecklist
+          calendars={calendars}
+          checked={settings.blockingCalendarIds}
+          onToggle={(id) => onToggle('blockingCalendarIds', id)}
+        />
+        <p className="text-xs text-slate-500">
+          Leave bill-reminder calendars unchecked — though all-day events never block time either way.
+        </p>
+      </Section>
+
+      <Section title="Work calendars">
+        {blockingCalendars && blockingCalendars.length === 0 ? (
+          <p className="text-xs text-slate-500">Check a calendar above first to mark it as work.</p>
+        ) : (
+          <CalendarChecklist
+            calendars={blockingCalendars}
+            checked={settings.workCalendarIds}
+            onToggle={(id) => onToggle('workCalendarIds', id)}
+          />
+        )}
+        <p className="text-xs text-slate-500">
+          On the Free tab, work events don't count as "partly booked" — an evening with only work on it shows "free
+          after work" instead. (Work still blocks time on the Check tab.)
+        </p>
+      </Section>
+
+      <Section title="Holiday calendars">
+        <CalendarChecklist
+          calendars={calendars}
+          checked={settings.holidayCalendarIds}
+          onToggle={(id) => onToggle('holidayCalendarIds', id)}
+        />
+        <p className="text-xs text-slate-500">
+          Free slots near these calendars' events get a note like "2 days before Memorial Day". Tip: subscribe to
+          "Holidays in United States" in Google Calendar and check it here.
+        </p>
+      </Section>
+    </>
+  )
+}
+
+function AvailabilityPanel({ settings, update }: { settings: Settings; update: Update }) {
+  const [newWindow, setNewWindow] = useState('')
+
+  const addWindow = () => {
+    const name = newWindow.trim()
+    if (!name || settings.windows[name]) return
+    update({ windows: { ...settings.windows, [name]: { start: '09:00', end: '10:00' } } })
+    setNewWindow('')
+  }
+
+  const removeWindow = (key: string) => {
+    if (Object.keys(settings.windows).length <= 1) return
+    const next = { ...settings.windows }
+    delete next[key]
+    update({ windows: next })
+  }
+
+  const canAddWindow = newWindow.trim() !== '' && !settings.windows[newWindow.trim()]
+
+  return (
+    <>
       <Section title="Time windows">
         {windowKeys(settings.windows).map((key) => (
           <div key={key} className="flex items-center gap-2 text-sm">
@@ -306,101 +454,116 @@ export default function SettingsPage() {
         </label>
         <p className="text-xs text-slate-500">
           Off by default so bill reminders and birthdays don't book your day. Individual keyword rules can override this
-          below.
+          on the Metrics page.
         </p>
       </Section>
+    </>
+  )
+}
 
-      <Section title="Metric keywords">
-        {settings.metricRules.map((rule) => (
-          <div key={rule.id} className="space-y-2 rounded-lg bg-white p-3 shadow-sm dark:bg-slate-800 dark:shadow-none">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={rule.icon}
-                onChange={(e) => updateRule(rule.id, { icon: e.target.value })}
-                className={`w-12 px-2 py-1 text-center text-sm ${INPUT_NESTED}`}
-                aria-label="Icon"
-              />
-              <input
-                type="text"
-                value={rule.name}
-                onChange={(e) => updateRule(rule.id, { name: e.target.value })}
-                placeholder="Metric name"
-                className={`flex-1 px-2 py-1 text-sm ${INPUT_NESTED}`}
-              />
-              <button
-                onClick={() => update({ metricRules: settings.metricRules.filter((r) => r.id !== rule.id) })}
-                className="rounded-lg bg-rose-500/20 px-2 text-sm text-rose-600 dark:text-rose-300"
-                aria-label={`Delete ${rule.name}`}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="text"
-                value={rule.keyword}
-                onChange={(e) => updateRule(rule.id, { keyword: e.target.value })}
-                placeholder="Keywords (comma-separated)"
-                className={`flex-1 px-2 py-1 text-sm ${INPUT_NESTED}`}
-              />
-              <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={rule.matchDescription}
-                  onChange={(e) => updateRule(rule.id, { matchDescription: e.target.checked })}
-                  className="h-3.5 w-3.5 accent-emerald-500"
-                />
-                + description
-              </label>
-            </div>
-            <RuleScope
-              rule={rule}
-              calendars={blockingCalendars}
-              onChange={(calendarIds) => updateRule(rule.id, { calendarIds })}
+function MetricsPanel({
+  settings,
+  update,
+  blockingCalendars,
+}: {
+  settings: Settings
+  update: Update
+  blockingCalendars: GCalendar[] | null
+}) {
+  const updateRule = (id: string, patch: Partial<MetricRule>) =>
+    update({ metricRules: settings.metricRules.map((r) => (r.id === id ? { ...r, ...patch } : r)) })
+
+  return (
+    <Section title="Metric keywords">
+      {settings.metricRules.map((rule) => (
+        <div key={rule.id} className="space-y-2 rounded-lg bg-white p-3 shadow-sm dark:bg-slate-800 dark:shadow-none">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={rule.icon}
+              onChange={(e) => updateRule(rule.id, { icon: e.target.value })}
+              className={`w-12 px-2 py-1 text-center text-sm ${INPUT_NESTED}`}
+              aria-label="Icon"
+            />
+            <input
+              type="text"
+              value={rule.name}
+              onChange={(e) => updateRule(rule.id, { name: e.target.value })}
+              placeholder="Metric name"
+              className={`flex-1 px-2 py-1 text-sm ${INPUT_NESTED}`}
+            />
+            <button
+              onClick={() => update({ metricRules: settings.metricRules.filter((r) => r.id !== rule.id) })}
+              className="rounded-lg bg-rose-500/20 px-2 text-sm text-rose-600 dark:text-rose-300"
+              aria-label={`Delete ${rule.name}`}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={rule.keyword}
+              onChange={(e) => updateRule(rule.id, { keyword: e.target.value })}
+              placeholder="Keywords (comma-separated)"
+              className={`flex-1 px-2 py-1 text-sm ${INPUT_NESTED}`}
             />
             <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
               <input
                 type="checkbox"
-                checked={!!rule.blocking}
-                onChange={(e) => updateRule(rule.id, { blocking: e.target.checked })}
+                checked={rule.matchDescription}
+                onChange={(e) => updateRule(rule.id, { matchDescription: e.target.checked })}
                 className="h-3.5 w-3.5 accent-emerald-500"
               />
-              Matching events block time (even if marked "Free")
-            </label>
-            <label className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-              All-day matches
-              <select
-                value={rule.allDay ?? 'inherit'}
-                onChange={(e) =>
-                  updateRule(rule.id, {
-                    allDay: e.target.value === 'inherit' ? undefined : (e.target.value as 'block' | 'free'),
-                  })
-                }
-                className={`px-2 py-1 ${INPUT_NESTED}`}
-              >
-                <option value="inherit">Use global setting</option>
-                <option value="block">Always block time</option>
-                <option value="free">Never block time</option>
-              </select>
+              + description
             </label>
           </div>
-        ))}
-        <button
-          onClick={() =>
-            update({
-              metricRules: [
-                ...settings.metricRules,
-                { id: crypto.randomUUID(), name: '', keyword: '', icon: '📌', matchDescription: false },
-              ],
-            })
-          }
-          className="w-full rounded-lg border border-dashed border-slate-400 py-2 text-sm text-slate-500 dark:border-slate-600 dark:text-slate-400"
-        >
-          + Add metric
-        </button>
-      </Section>
-    </div>
+          <RuleScope
+            rule={rule}
+            calendars={blockingCalendars}
+            onChange={(calendarIds) => updateRule(rule.id, { calendarIds })}
+          />
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <input
+              type="checkbox"
+              checked={!!rule.blocking}
+              onChange={(e) => updateRule(rule.id, { blocking: e.target.checked })}
+              className="h-3.5 w-3.5 accent-emerald-500"
+            />
+            Matching events block time (even if marked "Free")
+          </label>
+          <label className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+            All-day matches
+            <select
+              value={rule.allDay ?? 'inherit'}
+              onChange={(e) =>
+                updateRule(rule.id, {
+                  allDay: e.target.value === 'inherit' ? undefined : (e.target.value as 'block' | 'free'),
+                })
+              }
+              className={`px-2 py-1 ${INPUT_NESTED}`}
+            >
+              <option value="inherit">Use global setting</option>
+              <option value="block">Always block time</option>
+              <option value="free">Never block time</option>
+            </select>
+          </label>
+        </div>
+      ))}
+      <button
+        onClick={() =>
+          update({
+            metricRules: [
+              ...settings.metricRules,
+              { id: crypto.randomUUID(), name: '', keyword: '', icon: '📌', matchDescription: false },
+            ],
+          })
+        }
+        className="w-full rounded-lg border border-dashed border-slate-400 py-2 text-sm text-slate-500 dark:border-slate-600 dark:text-slate-400"
+      >
+        + Add metric
+      </button>
+    </Section>
   )
 }
 
@@ -465,7 +628,7 @@ function RuleScope({
         {calendars === null ? (
           <p className="text-slate-500">Loading calendars…</p>
         ) : calendars.length === 0 ? (
-          <p className="text-slate-500">Check a blocking calendar above first.</p>
+          <p className="text-slate-500">Check a blocking calendar on the Calendars page first.</p>
         ) : (
           <>
             <label className="flex items-center gap-2 py-0.5">
@@ -501,7 +664,7 @@ function RuleScope({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-2 lg:mb-6 lg:break-inside-avoid">
+    <section className="space-y-2">
       <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">{title}</h2>
       {children}
     </section>
