@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { hasEverSignedIn, signIn, signOut } from '../auth/google'
 import { listCalendars, type GCalendar } from '../api/calendar'
 import { DEFAULT_WINDOWS, windowKeys } from '../lib/availability'
@@ -286,7 +286,7 @@ function ColorsPanel({ settings, update }: { settings: Settings; update: Update 
   )
 }
 
-function CalendarsPanel({
+export function CalendarsPanel({
   signedIn,
   calendars,
   settings,
@@ -298,6 +298,9 @@ function CalendarsPanel({
   update: Update
 }) {
   const [query, setQuery] = useState('')
+  // Auto-by-role row groups; "Unused" starts collapsed. Ephemeral (not persisted).
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(['unused']))
+  const [legendOpen, setLegendOpen] = useState(false)
 
   if (!signedIn) {
     return <p className="text-sm text-slate-500">Sign in on the Account page first to pick calendars.</p>
@@ -402,6 +405,119 @@ function CalendarsPanel({
   const q = query.trim().toLowerCase()
   const shown = q ? calendars.filter((c) => c.summary.toLowerCase().includes(q)) : calendars
 
+  const rel = settings.relationshipMode
+  // All-day opt-in only matters for a calendar that blocks in some capacity.
+  const blocksAny = (id: string) =>
+    has('blockingCalendarIds', id) || hasIn('partnerBlockingCalendarIds', id) || hasIn('jointCalendarIds', id)
+
+  type Col = {
+    key: string
+    label: string
+    help: string
+    active: (id: string) => boolean
+    disabled: (id: string) => boolean
+    toggle: (id: string) => void
+  }
+  const youCols: Col[] = [
+    {
+      key: 'blocking',
+      label: 'Blocks time',
+      help: 'events here mark you busy.',
+      active: (id) => has('blockingCalendarIds', id),
+      disabled: () => false,
+      toggle: toggleBlocking,
+    },
+    {
+      key: 'work',
+      label: 'Work',
+      help: 'still busy, but evenings with only work read "free after work" on the Free tab (needs Blocks time).',
+      active: (id) => has('workCalendarIds', id),
+      disabled: (id) => !has('blockingCalendarIds', id),
+      toggle: toggleWork,
+    },
+    {
+      key: 'holiday',
+      label: 'Holiday',
+      help: 'adds notes like "2 days before Memorial Day". Tip: subscribe to "Holidays in United States" in Google Calendar.',
+      active: (id) => has('holidayCalendarIds', id),
+      disabled: () => false,
+      toggle: toggleHoliday,
+    },
+    {
+      key: 'dayEvents',
+      label: 'Show events',
+      help: "list this calendar's events in the selected-day schedule on the Free tab.",
+      active: (id) => has('dayEventCalendarIds', id),
+      disabled: () => false,
+      toggle: toggleDayEvents,
+    },
+    {
+      key: 'allDay',
+      label: 'All-day',
+      help: 'count this calendar’s all-day events as busy (e.g. a "Vacation" or "Anniversary" day), even with the global all-day setting off.',
+      active: (id) => allDayOn(id),
+      disabled: (id) => settings.blockAllDayEvents || !blocksAny(id),
+      toggle: toggleAllDay,
+    },
+  ]
+  const relCols: Col[] = [
+    {
+      key: 'pBlocking',
+      label: 'Partner busy',
+      help: "your partner's calendars; used to find mutual free time and space out date picks.",
+      active: (id) => hasIn('partnerBlockingCalendarIds', id),
+      disabled: () => false,
+      toggle: togglePartnerBlocking,
+    },
+    {
+      key: 'pWork',
+      label: 'Partner work',
+      help: 'drives the "off work" overlay on the Free tab (needs Partner busy).',
+      active: (id) => hasIn('partnerWorkCalendarIds', id),
+      disabled: (id) => !hasIn('partnerBlockingCalendarIds', id),
+      toggle: togglePartnerWork,
+    },
+    {
+      key: 'joint',
+      label: 'Joint',
+      help: 'shared events that block both of you (e.g. a couples calendar).',
+      active: (id) => hasIn('jointCalendarIds', id),
+      disabled: () => false,
+      toggle: toggleJoint,
+    },
+  ]
+  const cols = rel ? [...youCols, ...relCols] : youCols
+  const relStart = relCols[0].key
+
+  // Each calendar lands in exactly one auto-derived bucket.
+  const roleOf = (id: string): 'blocking' | 'other' | 'unused' => {
+    if (has('blockingCalendarIds', id)) return 'blocking'
+    const other =
+      has('holidayCalendarIds', id) ||
+      has('dayEventCalendarIds', id) ||
+      hasIn('partnerBlockingCalendarIds', id) ||
+      hasIn('partnerWorkCalendarIds', id) ||
+      hasIn('jointCalendarIds', id)
+    return other ? 'other' : 'unused'
+  }
+  const groups = (
+    [
+      { key: 'blocking', label: 'Blocking' },
+      { key: 'other', label: 'Other roles' },
+      { key: 'unused', label: 'Unused' },
+    ] as const
+  )
+    .map((g) => ({ ...g, cals: shown.filter((c) => roleOf(c.id) === g.key) }))
+    .filter((g) => g.cals.length > 0)
+
+  const toggleGroup = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+
   return (
     <Section title="Calendars">
       <input
@@ -414,160 +530,152 @@ function CalendarsPanel({
       {shown.length === 0 ? (
         <p className="text-sm text-slate-500">No calendars match "{query}".</p>
       ) : (
-        <div className="max-h-[60vh] space-y-1 overflow-y-auto">
-          {shown.map((cal) => {
-            const blocking = has('blockingCalendarIds', cal.id)
-            return (
-              <div
-                key={cal.id}
-                className="flex flex-wrap items-center gap-2 rounded-lg bg-white p-2.5 shadow-sm dark:bg-slate-800 dark:shadow-none"
-              >
-                <span
-                  className="h-3 w-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: cal.backgroundColor ?? getColor(settings, 'calendar.fallback') }}
-                />
-                <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">
-                  {cal.summary}
-                </span>
-                <div className="flex shrink-0 gap-1.5">
-                  <RolePill active={blocking} onClick={() => toggleBlocking(cal.id)}>
-                    Blocks time
-                  </RolePill>
-                  <RolePill active={has('workCalendarIds', cal.id)} disabled={!blocking} onClick={() => toggleWork(cal.id)}>
-                    Work
-                  </RolePill>
-                  <RolePill active={has('holidayCalendarIds', cal.id)} onClick={() => toggleHoliday(cal.id)}>
-                    Holiday
-                  </RolePill>
-                  <RolePill active={has('dayEventCalendarIds', cal.id)} onClick={() => toggleDayEvents(cal.id)}>
-                    Show events
-                  </RolePill>
-                  {blocking && (
-                    <RolePill
-                      active={allDayOn(cal.id)}
-                      disabled={settings.blockAllDayEvents}
-                      onClick={() => toggleAllDay(cal.id)}
-                    >
-                      All-day
-                    </RolePill>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-      <div className="space-y-1 pt-1 text-xs text-slate-500">
-        <p>
-          <strong className="text-slate-600 dark:text-slate-400">Blocks time</strong> — events here mark you busy.
-        </p>
-        <p>
-          <strong className="text-slate-600 dark:text-slate-400">Work</strong> — still busy, but evenings with only work
-          read "free after work" on the Free tab (needs Blocks time).
-        </p>
-        <p>
-          <strong className="text-slate-600 dark:text-slate-400">Holiday</strong> — adds notes like "2 days before
-          Memorial Day". Tip: subscribe to "Holidays in United States" in Google Calendar.
-        </p>
-        <p>
-          <strong className="text-slate-600 dark:text-slate-400">All-day</strong> — count this calendar's all-day events
-          as busy (e.g. a "Vacation" or "Anniversary" day), even with the global all-day setting off.
-        </p>
-        <p>
-          <strong className="text-slate-600 dark:text-slate-400">Show events</strong> — list this calendar's events in the
-          selected-day schedule on the Free tab.
-        </p>
-      </div>
-
-      {settings.relationshipMode && (
-        <div className="space-y-2 border-t border-slate-200 pt-4 dark:border-slate-700">
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Partner & joint calendars</h3>
-          {shown.length === 0 ? (
-            <p className="text-sm text-slate-500">No calendars match "{query}".</p>
-          ) : (
-            <div className="max-h-[60vh] space-y-1 overflow-y-auto">
-              {shown.map((cal) => {
-                const pBlocking = hasIn('partnerBlockingCalendarIds', cal.id)
-                return (
-                  <div
-                    key={cal.id}
-                    className="flex flex-wrap items-center gap-2 rounded-lg bg-white p-2.5 shadow-sm dark:bg-slate-800 dark:shadow-none"
+        <div className="max-h-[60vh] overflow-auto rounded-lg border border-slate-200 dark:border-slate-700">
+          <table className="w-full border-collapse text-sm">
+            <thead className="sticky top-0 z-20 bg-slate-100 dark:bg-slate-900">
+              <tr>
+                <th
+                  rowSpan={2}
+                  className="sticky left-0 z-30 bg-slate-100 px-3 py-2 text-left font-medium text-slate-500 dark:bg-slate-900"
+                >
+                  Calendar
+                </th>
+                <th
+                  colSpan={youCols.length}
+                  className="px-2 py-1.5 text-center text-xs font-semibold tracking-wide text-slate-500 uppercase"
+                >
+                  You
+                </th>
+                {rel && (
+                  <th
+                    colSpan={relCols.length}
+                    className="border-l border-slate-200 px-2 py-1.5 text-center text-xs font-semibold tracking-wide text-slate-500 uppercase dark:border-slate-700"
                   >
-                    <span
-                      className="h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: cal.backgroundColor ?? getColor(settings, 'calendar.fallback') }}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">
-                      {cal.summary}
-                    </span>
-                    <div className="flex shrink-0 gap-1.5">
-                      <RolePill active={pBlocking} onClick={() => togglePartnerBlocking(cal.id)}>
-                        Partner busy
-                      </RolePill>
-                      <RolePill active={hasIn('partnerWorkCalendarIds', cal.id)} disabled={!pBlocking} onClick={() => togglePartnerWork(cal.id)}>
-                        Partner work
-                      </RolePill>
-                      <RolePill active={hasIn('jointCalendarIds', cal.id)} onClick={() => toggleJoint(cal.id)}>
-                        Joint
-                      </RolePill>
-                      {(pBlocking || hasIn('jointCalendarIds', cal.id)) && (
-                        <RolePill
-                          active={allDayOn(cal.id)}
-                          disabled={settings.blockAllDayEvents}
-                          onClick={() => toggleAllDay(cal.id)}
+                    {settings.partnerName.trim() || 'Relationship'}
+                  </th>
+                )}
+              </tr>
+              <tr>
+                {cols.map((c) => (
+                  <th
+                    key={c.key}
+                    title={`${c.label} — ${c.help}`}
+                    className={`px-2 py-1.5 text-center align-bottom text-xs font-medium whitespace-nowrap text-slate-600 dark:text-slate-300 ${
+                      rel && c.key === relStart ? 'border-l border-slate-200 dark:border-slate-700' : ''
+                    }`}
+                  >
+                    {c.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((g) => {
+                const open = !collapsed.has(g.key)
+                return (
+                  <Fragment key={g.key}>
+                    <tr className="bg-slate-50 dark:bg-slate-800/40">
+                      <th colSpan={1 + cols.length} scope="colgroup" className="sticky left-0 px-1 py-1 text-left">
+                        <button
+                          onClick={() => toggleGroup(g.key)}
+                          aria-expanded={open}
+                          className="flex w-full items-center gap-1.5 px-2 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300"
                         >
-                          All-day
-                        </RolePill>
-                      )}
-                    </div>
-                  </div>
+                          <span className="text-[10px]">{open ? '▾' : '▸'}</span>
+                          {g.label}
+                          <span className="font-normal text-slate-400">({g.cals.length})</span>
+                        </button>
+                      </th>
+                    </tr>
+                    {open &&
+                      g.cals.map((cal) => (
+                        <tr key={cal.id} className="border-t border-slate-100 dark:border-slate-800">
+                          <th
+                            scope="row"
+                            className="sticky left-0 z-10 bg-white px-3 py-1.5 text-left font-normal dark:bg-slate-800"
+                          >
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="h-3 w-3 shrink-0 rounded-full"
+                                style={{ backgroundColor: cal.backgroundColor ?? getColor(settings, 'calendar.fallback') }}
+                              />
+                              <span className="min-w-0 max-w-[40vw] truncate text-slate-800 dark:text-slate-200">
+                                {cal.summary}
+                              </span>
+                            </span>
+                          </th>
+                          {cols.map((c) => (
+                            <td
+                              key={c.key}
+                              className={`px-2 py-1.5 text-center ${
+                                rel && c.key === relStart ? 'border-l border-slate-100 dark:border-slate-800' : ''
+                              }`}
+                            >
+                              <CellToggle
+                                active={c.active(cal.id)}
+                                disabled={c.disabled(cal.id)}
+                                onToggle={() => c.toggle(cal.id)}
+                                label={`${cal.summary} — ${c.label}`}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                  </Fragment>
                 )
               })}
-            </div>
-          )}
-          <div className="space-y-1 pt-1 text-xs text-slate-500">
-            <p>
-              <strong className="text-slate-600 dark:text-slate-400">Partner busy</strong> — your partner's calendars;
-              used to find mutual free time and space out date picks.
-            </p>
-            <p>
-              <strong className="text-slate-600 dark:text-slate-400">Partner work</strong> — drives the "off work"
-              overlay on the Free tab (needs Partner busy).
-            </p>
-            <p>
-              <strong className="text-slate-600 dark:text-slate-400">Joint</strong> — shared events that block both of
-              you (e.g. a couples calendar).
-            </p>
-          </div>
+            </tbody>
+          </table>
         </div>
       )}
+
+      <div className="pt-1 text-xs text-slate-500">
+        <button
+          onClick={() => setLegendOpen((v) => !v)}
+          aria-expanded={legendOpen}
+          className="flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-400"
+        >
+          <span className="text-[10px]">{legendOpen ? '▾' : '▸'}</span>
+          What do these mean?
+        </button>
+        {legendOpen && (
+          <div className="space-y-1 pt-2">
+            {cols.map((c) => (
+              <p key={c.key}>
+                <strong className="text-slate-600 dark:text-slate-400">{c.label}</strong> — {c.help}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
     </Section>
   )
 }
 
-function RolePill({
+function CellToggle({
   active,
   disabled,
-  onClick,
-  children,
+  onToggle,
+  label,
 }: {
   active: boolean
   disabled?: boolean
-  onClick: () => void
-  children: React.ReactNode
+  onToggle: () => void
+  label: string
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={onToggle}
       disabled={disabled}
       aria-pressed={active}
-      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+      aria-label={label}
+      className={`inline-flex h-6 w-6 items-center justify-center rounded-md border text-xs font-bold ${
         active
           ? 'border-emerald-500 bg-emerald-500 text-emerald-950'
-          : 'border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400'
+          : 'border-slate-300 text-transparent dark:border-slate-600'
       } ${disabled ? 'opacity-40' : ''}`}
     >
-      {children}
+      ✓
     </button>
   )
 }
