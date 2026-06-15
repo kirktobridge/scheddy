@@ -233,10 +233,11 @@ export function rankFreeDays(
 }
 
 /**
- * The waking-day span for a date: from the earliest of the first window's start
- * and `dayStart` (dayStart only ever pulls the span earlier, never hides a
- * window) to the last window's end. Returns null when there are no windows or
- * the span is empty.
+ * The waking-day span for a date: from `dayStart` (falling back to the first
+ * window's start) to the last window's end. `dayStart` both extends the span
+ * earlier and clips it later — availability before it is never shown. Returns
+ * null when there are no windows or the span is empty (dayStart at/after the
+ * last window's end).
  */
 export function daySpan(
   windows: Windows,
@@ -247,7 +248,7 @@ export function daySpan(
   if (keys.length === 0) return null
   const day = new Date(date + 'T00:00:00')
   const firstStart = windows[keys[0]].start
-  const startHM = dayStart && dayStart < firstStart ? dayStart : firstStart
+  const startHM = dayStart ?? firstStart
   const start = atTime(day, startHM)
   const end = atTime(day, windows[keys[keys.length - 1]].end)
   if (end.getTime() <= start.getTime()) return null
@@ -281,7 +282,7 @@ export function dayTimeline(
   windows: Windows,
   date: string,
   now?: Date,
-  /** Earliest clock time ("HH:mm") to show; extends the span earlier (never clips a window). */
+  /** Clock time ("HH:mm") the bar starts at; hides any availability before it. */
   dayStart?: string,
 ): DayTimeline {
   const keys = windowKeys(windows)
@@ -290,9 +291,6 @@ export function dayTimeline(
   const span = daySpan(windows, date, dayStart)
   if (!span) return empty
 
-  const firstStart = windows[keys[0]].start
-  // Only let dayStart pull the span earlier — never later, so no window is hidden.
-  const startHM = dayStart && dayStart < firstStart ? dayStart : firstStart
   const { start: spanStart, end: spanEnd } = span
   const spanLen = spanEnd.getTime() - spanStart.getTime()
 
@@ -313,11 +311,11 @@ export function dayTimeline(
 
   const nowFrac = now ? frac(now) : 0
 
-  // Tick at the span start (when earlier than the first window), each window start, then span end.
-  const ticks: { frac: number; label: string }[] = []
-  if (startHM < firstStart) ticks.push({ frac: 0, label: fmtTime(spanStart) })
+  // Tick at the span start, each window start that falls inside the span, then span end.
+  const ticks: { frac: number; label: string }[] = [{ frac: 0, label: fmtTime(spanStart) }]
   for (const k of keys) {
     const t = atTime(day, windows[k].start)
+    if (t.getTime() <= spanStart.getTime() || t.getTime() >= spanEnd.getTime()) continue
     ticks.push({ frac: frac(t), label: fmtTime(t) })
   }
   ticks.push({ frac: 1, label: fmtTime(spanEnd) })

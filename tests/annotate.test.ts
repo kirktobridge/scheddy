@@ -53,14 +53,14 @@ describe('dayTimeline', () => {
     expect(nowFrac).toBeCloseTo(0.5)
   })
 
-  it('dayStart extends the span earlier (and adds a tick) but never clips a window', () => {
+  it('dayStart extends the span earlier and clips availability before it', () => {
     // dayStart 06:00 is before the 08:00 morning window → span grows to 16h.
     const early = dayTimeline([], windows, '2026-06-15', undefined, '06:00')
     expect(early.ticks[0]).toEqual({ frac: 0, label: '6am' })
     expect(early.segments).toEqual([{ kind: 'free', startFrac: 0, endFrac: 1 }])
-    // dayStart later than the first window is ignored (no clipping) — same as default.
+    // dayStart later than the first window clips the front: span starts at 10am.
     const late = dayTimeline([], windows, '2026-06-15', undefined, '10:00')
-    expect(late.ticks[0]).toEqual({ frac: 0, label: '8am' })
+    expect(late.ticks[0]).toEqual({ frac: 0, label: '10am' })
   })
 
   it('spans earliest window start to latest window end for custom windows', () => {
