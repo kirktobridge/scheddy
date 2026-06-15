@@ -6,10 +6,10 @@ Everything runs in your browser — no backend, no database. Your OAuth token an
 
 ## Features
 
-- **Free** — your next N open morning/afternoon/evening slots over the coming 60 days
+- **Free** — your next N open morning/afternoon/evening slots over the coming 60 days, with relative day labels ("tomorrow", "next Thursday"), the bookings around partly-open slots, warnings when a free evening precedes an all-day event or pre-noon start, and notes for nearby holidays
 - **Check** — "am I free this weekend / in July / June 20–25?" via quick chips, a month dropdown, and custom date pickers, with a free-slots view plus what's already booked
 - **Metrics** — per-month counts for configurable keyword rules (e.g. events titled with "date" = date nights), plus unbooked evenings and free weekend days remaining
-- **Settings** — pick which calendars block your time (all-day events like bill due dates never block), tune time windows, thresholds, and metric keywords
+- **Settings** — pick which calendars block your time (all-day events like bill due dates never block), pick holiday calendars for proximity notes, light/dark mode, time windows, thresholds, and metric keywords
 
 ## One-time Google Cloud setup
 
