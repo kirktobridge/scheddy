@@ -240,6 +240,30 @@ export default function SettingsPage() {
           />
         </label>
         <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
+          Spacing window (± days)
+          <input
+            type="number"
+            min={0}
+            max={14}
+            value={settings.isolationWindowDays}
+            onChange={(e) => update({ isolationWindowDays: Math.min(14, Math.max(0, Number(e.target.value) || 0)) })}
+            className={`w-20 px-2 py-1 text-right ${INPUT}`}
+          />
+        </label>
+        <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+          Favor weekends
+          <input
+            type="checkbox"
+            checked={settings.favorWeekends}
+            onChange={(e) => update({ favorWeekends: e.target.checked })}
+            className="h-4 w-4 accent-emerald-500"
+          />
+        </label>
+        <p className="text-xs text-slate-500">
+          Picks prefer days with the most empty calendar within ± this many days, then the most free time, then
+          weekends.
+        </p>
+        <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
           Show availability from
           <input
             type="time"

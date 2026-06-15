@@ -37,6 +37,8 @@ interface Props {
   slotInfo: (slot: Slot) => SlotInfo
   /** Dates (yyyy-MM-dd) to highlight with a strong accent ring (metric overlay). */
   overlay?: Set<string> | null
+  /** Highlight color for the lit overlay cells. */
+  overlayColor?: string
   /** Month whose card is selected (drives the Metrics section). */
   selectedMonth: Date
   onSelectMonth: (month: Date) => void
@@ -88,6 +90,7 @@ export default function FreeCalendar({
   dayInfo,
   slotInfo,
   overlay,
+  overlayColor = '#fbbf24',
   selectedMonth,
   onSelectMonth,
 }: Props) {
@@ -104,6 +107,9 @@ export default function FreeCalendar({
     for (let m = first; m.getTime() <= last.getTime(); m = addMonths(m, 1)) out.push(m)
     return out
   }, [now, maxDate])
+  // Months that have their own card — spillover days belonging to these are
+  // hidden to avoid showing the same date on two cards.
+  const monthKeys = useMemo(() => new Set(months.map((m) => format(m, 'yyyy-MM'))), [months])
 
   return (
     <div className="space-y-4">
@@ -141,9 +147,13 @@ export default function FreeCalendar({
                 ))}
                 {gridDays.map((day) => {
                   const dateStr = format(day, 'yyyy-MM-dd')
+                  const inMonth = isSameMonth(day, month)
+                  // Spillover day shown on its own month's card — blank it here.
+                  if (!inMonth && monthKeys.has(format(day, 'yyyy-MM'))) {
+                    return <div key={dateStr} className="h-12" />
+                  }
                   const active = day.getTime() >= todayMs && day.getTime() <= maxMs
                   const pick = freeSet.has(dateStr)
-                  const inMonth = isSameMonth(day, month)
                   const today = isToday(day)
                   const isSel = active && dateStr === selected
                   const lit = !!overlay?.has(dateStr) && inMonth
@@ -154,13 +164,14 @@ export default function FreeCalendar({
                       type="button"
                       disabled={!active}
                       onClick={() => setSelected(dateStr)}
+                      style={lit ? { boxShadow: `inset 0 0 0 2px ${overlayColor}, 0 0 0 1px ${overlayColor}66` } : undefined}
                       className={`relative h-12 overflow-hidden rounded-lg text-left transition ${
                         active ? 'bg-slate-200 dark:bg-slate-600' : ''
                       } ${isSel ? 'z-10 shadow-md' : active ? 'hover:brightness-95 dark:hover:brightness-110' : ''} ${
-                        lit ? 'z-20 ring-2 ring-inset ring-amber-400 ring-offset-1 ring-offset-amber-400/40' : ''
+                        lit ? 'z-20' : ''
                       }`}
                     >
-                      {lit && <div className="absolute inset-0 bg-amber-400/30" />}
+                      {lit && <div className="absolute inset-0" style={{ backgroundColor: `${overlayColor}4d` }} />}
                       {active && <DayFill busy={busy} windows={windows} date={dateStr} now={now} dayStart={dayStart} />}
                       {highlightPicks && pick && !isSel && (
                         <span className="absolute right-0.5 top-0.5 text-[10px] leading-none text-emerald-600 dark:text-emerald-400">

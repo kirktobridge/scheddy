@@ -1,4 +1,4 @@
-import { addDays, format, startOfDay } from 'date-fns'
+import { addDays, format, isWeekend, startOfDay } from 'date-fns'
 import type { GEvent } from '../api/calendar'
 import { fmtTime } from './format'
 
@@ -167,6 +167,69 @@ export function findFreeSlots(
     }
   }
   return slots
+}
+
+/** Every yyyy-MM-dd touched by a busy interval (all-day spans cover each day). */
+export function blockedDates(busy: BusyInterval[]): Set<string> {
+  const dates = new Set<string>()
+  for (const b of busy) {
+    for (let day = startOfDay(b.start); day.getTime() < b.end.getTime(); day = addDays(day, 1)) {
+      dates.add(format(day, 'yyyy-MM-dd'))
+    }
+  }
+  return dates
+}
+
+/**
+ * How far (in days) the nearest blocking event sits from `date`, looking up to
+ * `n` days each way and taking the smaller side. Each direction defaults to `n`
+ * when nothing's blocked within the window (the "max window of concern"), so a
+ * day with clear calendar on both sides scores `n`. `n <= 0` disables it (0).
+ */
+export function dayIsolation(date: string, blocked: Set<string>, n: number): number {
+  if (n <= 0) return 0
+  const base = new Date(date + 'T12:00:00')
+  const reach = (dir: 1 | -1): number => {
+    for (let k = 1; k <= n; k++) {
+      if (blocked.has(format(addDays(base, dir * k), 'yyyy-MM-dd'))) return k
+    }
+    return n
+  }
+  return Math.min(reach(-1), reach(1))
+}
+
+export interface RankOpts {
+  count: number
+  isolationWindow: number
+  favorWeekends: boolean
+}
+
+/**
+ * Ranks free days for the "top N" picks, lexicographically: most isolated from
+ * other blocking events first, then most total free time (bucketed to 30 min so
+ * weekends can still break realistic ties), then weekends. Returns the top
+ * `count`, re-sorted by date for calendar display.
+ */
+export function rankFreeDays(
+  entries: [string, Slot[]][],
+  blocked: Set<string>,
+  opts: RankOpts,
+): [string, Slot[]][] {
+  const freeMs = (s: Slot[]) => s.reduce((sum, x) => sum + (x.freeTo.getTime() - x.freeFrom.getTime()), 0)
+  const HALF_HOUR = 30 * 60 * 1000
+  const freeBucket = (s: Slot[]) => Math.round(freeMs(s) / HALF_HOUR)
+  const weekendRank = (date: string) => (isWeekend(new Date(date + 'T12:00:00')) ? 1 : 0)
+  return [...entries]
+    .sort(([da, sa], [db, sb]) => {
+      return (
+        dayIsolation(db, blocked, opts.isolationWindow) - dayIsolation(da, blocked, opts.isolationWindow) ||
+        freeBucket(sb) - freeBucket(sa) ||
+        (opts.favorWeekends ? weekendRank(db) - weekendRank(da) : 0) ||
+        da.localeCompare(db)
+      )
+    })
+    .slice(0, opts.count)
+    .sort(([da], [db]) => da.localeCompare(db))
 }
 
 export interface TimelineSeg {

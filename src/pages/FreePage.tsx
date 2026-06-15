@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import { addDays, endOfDay, startOfDay, startOfMonth } from 'date-fns'
-import { eventsToBusy, findFreeSlots, windowKeys, type Slot } from '../lib/availability'
+import { blockedDates, eventsToBusy, findFreeSlots, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides } from '../lib/metrics'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
-import { useSettings } from '../store/settings'
+import { DEFAULT_METRIC_COLOR, useSettings } from '../store/settings'
 import { useEvents } from '../hooks/useEvents'
 import { type DayInfo, type SlotInfo } from '../components/SlotList'
 import FreeCalendar from '../components/FreeCalendar'
@@ -12,8 +12,11 @@ import MetricsStats from '../components/MetricsStats'
 import { useMetrics } from '../hooks/useMetrics'
 
 export default function FreePage() {
-  const [settings] = useSettings()
+  const [settings, setSettings] = useSettings()
   const lookahead = settings.lookaheadDays
+  const colorFor = (key: string) => settings.metricColors[key] ?? DEFAULT_METRIC_COLOR
+  const setColor = (key: string, color: string) =>
+    setSettings({ metricColors: { ...settings.metricColors, [key]: color } })
   // Refresh recomputes "now" too, so stale slots disappear on pull.
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [highlightPicks, setHighlightPicks] = useState(true)
@@ -21,8 +24,9 @@ export default function FreePage() {
   const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()))
   const metrics = useMetrics(selectedMonth)
   const startMs = startOfDay(new Date(nowMs)).getTime()
-  // Fetch one day past the lookahead so next-day warnings work on the last slot.
-  const endMs = addDays(new Date(startMs), lookahead + 1).getTime()
+  // Fetch one day past the lookahead so next-day warnings work on the last slot,
+  // plus the isolation window so forward spacing is accurate at the end of the span.
+  const endMs = addDays(new Date(startMs), lookahead + settings.isolationWindowDays + 1).getTime()
 
   const { events: rawEvents, loading, error, refresh } = useEvents(startMs, endMs)
   // Keyword-rule overrides (force-block Free events, per-rule all-day flips)
@@ -49,7 +53,8 @@ export default function FreePage() {
   const workBusy = useMemo(() => eventsToBusy(workEvents ?? [], { allDay }), [workEvents, allDay])
 
   // The "top N" picks: among all days in the lookahead that have a slot meeting
-  // the threshold, take the N with the most total free time, then order by date.
+  // the threshold, rank by isolation from other blocking events, then total free
+  // time, then weekends (see rankFreeDays), and order the result by date.
   const days = useMemo<[string, Slot[]][]>(() => {
     if (!events) return []
     const found = findFreeSlots(nonWorkBusy, settings.windows, new Date(startMs), addDays(new Date(startMs), lookahead), {
@@ -64,12 +69,24 @@ export default function FreePage() {
       list.push(a)
       byDate.set(a.date, list)
     }
-    const freeMs = (s: Slot[]) => s.reduce((sum, x) => sum + (x.freeTo.getTime() - x.freeFrom.getTime()), 0)
-    return [...byDate.entries()]
-      .sort(([da, sa], [db, sb]) => freeMs(sb) - freeMs(sa) || da.localeCompare(db))
-      .slice(0, settings.freeSlotCount)
-      .sort(([da], [db]) => da.localeCompare(db))
-  }, [events, nonWorkBusy, workBusy, settings.windows, settings.freeThreshold, settings.freeSlotCount, startMs, nowMs, lookahead])
+    return rankFreeDays([...byDate.entries()], blockedDates(nonWorkBusy), {
+      count: settings.freeSlotCount,
+      isolationWindow: settings.isolationWindowDays,
+      favorWeekends: settings.favorWeekends,
+    })
+  }, [
+    events,
+    nonWorkBusy,
+    workBusy,
+    settings.windows,
+    settings.freeThreshold,
+    settings.freeSlotCount,
+    settings.isolationWindowDays,
+    settings.favorWeekends,
+    startMs,
+    nowMs,
+    lookahead,
+  ])
 
   // Free slots for any single day (no threshold) — powers the detail card when
   // an arbitrary calendar day is selected.
@@ -109,7 +126,7 @@ export default function FreePage() {
 
   return (
     <div className="space-y-4">
-      <MetricsStats {...metrics} />
+      <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} />
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Availability</h1>
         <div className="flex items-center gap-2">
@@ -157,6 +174,7 @@ export default function FreePage() {
           dayInfo={dayInfo}
           slotInfo={slotInfo}
           overlay={metrics.overlay}
+          overlayColor={metrics.activeKey ? colorFor(metrics.activeKey) : undefined}
           selectedMonth={selectedMonth}
           onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
         />

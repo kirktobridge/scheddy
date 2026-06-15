@@ -28,12 +28,21 @@ export interface Settings {
   /** How many days ahead the Free view's calendar spans. */
   lookaheadDays: number
   freeSlotCount: number
+  /** ±days window of concern when scoring how isolated a pick is from other blocking events. */
+  isolationWindowDays: number
+  /** Whether weekends break ties when ranking the top free days. */
+  favorWeekends: boolean
   /** Fraction of a window that must be open for it to count as a free slot. */
   freeThreshold: number
   /** Whether all-day events count as busy time (keyword rules can override per-rule). */
   blockAllDayEvents: boolean
   metricRules: MetricRule[]
+  /** Per-metric calendar highlight color, keyed by metric key ('evenings', 'weekend', 'rule:<id>'). */
+  metricColors: Record<string, string>
 }
+
+/** Highlight color used for a metric's calendar overlay when none is set. */
+export const DEFAULT_METRIC_COLOR = '#fbbf24'
 
 export const DEFAULT_SETTINGS: Settings = {
   clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '',
@@ -44,12 +53,15 @@ export const DEFAULT_SETTINGS: Settings = {
   windows: DEFAULT_WINDOWS,
   dayStart: '08:00',
   lookaheadDays: 60,
-  freeSlotCount: 6,
+  freeSlotCount: 10,
+  isolationWindowDays: 3,
+  favorWeekends: true,
   freeThreshold: 0.75,
   blockAllDayEvents: false,
   metricRules: [
     { id: 'date-nights', name: 'Date nights', keyword: 'date', icon: '❤️', matchDescription: false },
   ],
+  metricColors: {},
 }
 
 const STORAGE_KEY = 'scheddy.settings'
