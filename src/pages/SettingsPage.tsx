@@ -10,7 +10,7 @@ const INPUT =
 const INPUT_NESTED =
   'rounded-lg border border-slate-300 bg-slate-50 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
 
-type CatKey = 'account' | 'appearance' | 'calendars' | 'availability' | 'metrics'
+type CatKey = 'account' | 'appearance' | 'calendars' | 'availability' | 'metrics' | 'relationship'
 
 const CATEGORIES: { key: CatKey; label: string; icon: string }[] = [
   { key: 'account', label: 'Account', icon: '👤' },
@@ -18,6 +18,7 @@ const CATEGORIES: { key: CatKey; label: string; icon: string }[] = [
   { key: 'calendars', label: 'Calendars', icon: '📅' },
   { key: 'availability', label: 'Availability', icon: '🕐' },
   { key: 'metrics', label: 'Metrics', icon: '📌' },
+  { key: 'relationship', label: 'Relationship', icon: '💑' },
 ]
 
 type Update = (patch: Partial<Settings>) => void
@@ -62,11 +63,6 @@ export default function SettingsPage() {
     setCalendars(null)
   }
 
-  const toggleIn = (field: 'blockingCalendarIds' | 'workCalendarIds' | 'holidayCalendarIds', id: string) => {
-    const cur = settings[field]
-    update({ [field]: cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id] })
-  }
-
   const blockingCalendars = calendars?.filter((c) => settings.blockingCalendarIds.includes(c.id)) ?? null
 
   const renderPanel = (key: CatKey) => {
@@ -86,18 +82,14 @@ export default function SettingsPage() {
         return <AppearancePanel settings={settings} update={update} />
       case 'calendars':
         return (
-          <CalendarsPanel
-            signedIn={signedIn}
-            calendars={calendars}
-            blockingCalendars={blockingCalendars}
-            settings={settings}
-            onToggle={toggleIn}
-          />
+          <CalendarsPanel signedIn={signedIn} calendars={calendars} settings={settings} update={update} />
         )
       case 'availability':
         return <AvailabilityPanel settings={settings} update={update} />
       case 'metrics':
         return <MetricsPanel settings={settings} update={update} blockingCalendars={blockingCalendars} />
+      case 'relationship':
+        return <RelationshipPanel settings={settings} update={update} />
     }
   }
 
@@ -241,60 +233,221 @@ function AppearancePanel({ settings, update }: { settings: Settings; update: Upd
 function CalendarsPanel({
   signedIn,
   calendars,
-  blockingCalendars,
   settings,
-  onToggle,
+  update,
 }: {
   signedIn: boolean
   calendars: GCalendar[] | null
-  blockingCalendars: GCalendar[] | null
   settings: Settings
-  onToggle: (field: 'blockingCalendarIds' | 'workCalendarIds' | 'holidayCalendarIds', id: string) => void
+  update: Update
 }) {
+  const [query, setQuery] = useState('')
+
   if (!signedIn) {
     return <p className="text-sm text-slate-500">Sign in on the Account page first to pick calendars.</p>
   }
+  if (!calendars) return <p className="text-sm text-slate-500">Loading calendars…</p>
+
+  const has = (field: 'blockingCalendarIds' | 'workCalendarIds' | 'holidayCalendarIds', id: string) =>
+    settings[field].includes(id)
+
+  const toggleBlocking = (id: string) => {
+    if (has('blockingCalendarIds', id)) {
+      // Removing "blocks time" also strips the work flag (work ⊆ blocking).
+      update({
+        blockingCalendarIds: settings.blockingCalendarIds.filter((x) => x !== id),
+        workCalendarIds: settings.workCalendarIds.filter((x) => x !== id),
+      })
+    } else {
+      update({ blockingCalendarIds: [...settings.blockingCalendarIds, id] })
+    }
+  }
+
+  const toggleWork = (id: string) => {
+    if (!has('blockingCalendarIds', id)) return
+    update({
+      workCalendarIds: has('workCalendarIds', id)
+        ? settings.workCalendarIds.filter((x) => x !== id)
+        : [...settings.workCalendarIds, id],
+    })
+  }
+
+  const toggleHoliday = (id: string) =>
+    update({
+      holidayCalendarIds: has('holidayCalendarIds', id)
+        ? settings.holidayCalendarIds.filter((x) => x !== id)
+        : [...settings.holidayCalendarIds, id],
+    })
+
+  const hasIn = (field: 'partnerBlockingCalendarIds' | 'partnerWorkCalendarIds' | 'jointCalendarIds', id: string) =>
+    settings[field].includes(id)
+
+  const toggleIn = (
+    field: 'partnerBlockingCalendarIds' | 'partnerWorkCalendarIds' | 'jointCalendarIds',
+    id: string,
+  ) =>
+    update({
+      [field]: hasIn(field, id) ? settings[field].filter((x) => x !== id) : [...settings[field], id],
+    })
+
+  // Partner "work" ⊆ partner "blocks time", mirroring the personal calendars above.
+  const togglePartnerBlocking = (id: string) => {
+    if (hasIn('partnerBlockingCalendarIds', id)) {
+      update({
+        partnerBlockingCalendarIds: settings.partnerBlockingCalendarIds.filter((x) => x !== id),
+        partnerWorkCalendarIds: settings.partnerWorkCalendarIds.filter((x) => x !== id),
+      })
+    } else {
+      update({ partnerBlockingCalendarIds: [...settings.partnerBlockingCalendarIds, id] })
+    }
+  }
+
+  const togglePartnerWork = (id: string) => {
+    if (!hasIn('partnerBlockingCalendarIds', id)) return
+    toggleIn('partnerWorkCalendarIds', id)
+  }
+
+  const q = query.trim().toLowerCase()
+  const shown = q ? calendars.filter((c) => c.summary.toLowerCase().includes(q)) : calendars
+
   return (
-    <>
-      <Section title="Calendars that block your time">
-        <CalendarChecklist
-          calendars={calendars}
-          checked={settings.blockingCalendarIds}
-          onToggle={(id) => onToggle('blockingCalendarIds', id)}
-        />
-        <p className="text-xs text-slate-500">
-          Leave bill-reminder calendars unchecked — though all-day events never block time either way.
+    <Section title="Calendars">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search calendars…"
+        className={`w-full px-3 py-2 text-sm ${INPUT}`}
+      />
+      {shown.length === 0 ? (
+        <p className="text-sm text-slate-500">No calendars match "{query}".</p>
+      ) : (
+        <div className="max-h-[60vh] space-y-1 overflow-y-auto">
+          {shown.map((cal) => {
+            const blocking = has('blockingCalendarIds', cal.id)
+            return (
+              <div
+                key={cal.id}
+                className="flex flex-wrap items-center gap-2 rounded-lg bg-white p-2.5 shadow-sm dark:bg-slate-800 dark:shadow-none"
+              >
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: cal.backgroundColor ?? '#64748b' }}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">
+                  {cal.summary}
+                </span>
+                <div className="flex shrink-0 gap-1.5">
+                  <RolePill active={blocking} onClick={() => toggleBlocking(cal.id)}>
+                    Blocks time
+                  </RolePill>
+                  <RolePill active={has('workCalendarIds', cal.id)} disabled={!blocking} onClick={() => toggleWork(cal.id)}>
+                    Work
+                  </RolePill>
+                  <RolePill active={has('holidayCalendarIds', cal.id)} onClick={() => toggleHoliday(cal.id)}>
+                    Holiday
+                  </RolePill>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <div className="space-y-1 pt-1 text-xs text-slate-500">
+        <p>
+          <strong className="text-slate-600 dark:text-slate-400">Blocks time</strong> — events here mark you busy.
         </p>
-      </Section>
+        <p>
+          <strong className="text-slate-600 dark:text-slate-400">Work</strong> — still busy, but evenings with only work
+          read "free after work" on the Free tab (needs Blocks time).
+        </p>
+        <p>
+          <strong className="text-slate-600 dark:text-slate-400">Holiday</strong> — adds notes like "2 days before
+          Memorial Day". Tip: subscribe to "Holidays in United States" in Google Calendar.
+        </p>
+      </div>
 
-      <Section title="Work calendars">
-        {blockingCalendars && blockingCalendars.length === 0 ? (
-          <p className="text-xs text-slate-500">Check a calendar above first to mark it as work.</p>
-        ) : (
-          <CalendarChecklist
-            calendars={blockingCalendars}
-            checked={settings.workCalendarIds}
-            onToggle={(id) => onToggle('workCalendarIds', id)}
-          />
-        )}
-        <p className="text-xs text-slate-500">
-          On the Free tab, work events don't count as "partly booked" — an evening with only work on it shows "free
-          after work" instead. (Work still blocks time on the Check tab.)
-        </p>
-      </Section>
+      {settings.relationshipMode && (
+        <div className="space-y-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Partner & joint calendars</h3>
+          {shown.length === 0 ? (
+            <p className="text-sm text-slate-500">No calendars match "{query}".</p>
+          ) : (
+            <div className="max-h-[60vh] space-y-1 overflow-y-auto">
+              {shown.map((cal) => {
+                const pBlocking = hasIn('partnerBlockingCalendarIds', cal.id)
+                return (
+                  <div
+                    key={cal.id}
+                    className="flex flex-wrap items-center gap-2 rounded-lg bg-white p-2.5 shadow-sm dark:bg-slate-800 dark:shadow-none"
+                  >
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: cal.backgroundColor ?? '#64748b' }}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">
+                      {cal.summary}
+                    </span>
+                    <div className="flex shrink-0 gap-1.5">
+                      <RolePill active={pBlocking} onClick={() => togglePartnerBlocking(cal.id)}>
+                        Partner busy
+                      </RolePill>
+                      <RolePill active={hasIn('partnerWorkCalendarIds', cal.id)} disabled={!pBlocking} onClick={() => togglePartnerWork(cal.id)}>
+                        Partner work
+                      </RolePill>
+                      <RolePill active={hasIn('jointCalendarIds', cal.id)} onClick={() => toggleIn('jointCalendarIds', cal.id)}>
+                        Joint
+                      </RolePill>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <div className="space-y-1 pt-1 text-xs text-slate-500">
+            <p>
+              <strong className="text-slate-600 dark:text-slate-400">Partner busy</strong> — your partner's calendars;
+              used to find mutual free time and space out date picks.
+            </p>
+            <p>
+              <strong className="text-slate-600 dark:text-slate-400">Partner work</strong> — drives the "off work"
+              overlay on the Free tab (needs Partner busy).
+            </p>
+            <p>
+              <strong className="text-slate-600 dark:text-slate-400">Joint</strong> — shared events that block both of
+              you (e.g. a couples calendar).
+            </p>
+          </div>
+        </div>
+      )}
+    </Section>
+  )
+}
 
-      <Section title="Holiday calendars">
-        <CalendarChecklist
-          calendars={calendars}
-          checked={settings.holidayCalendarIds}
-          onToggle={(id) => onToggle('holidayCalendarIds', id)}
-        />
-        <p className="text-xs text-slate-500">
-          Free slots near these calendars' events get a note like "2 days before Memorial Day". Tip: subscribe to
-          "Holidays in United States" in Google Calendar and check it here.
-        </p>
-      </Section>
-    </>
+function RolePill({
+  active,
+  disabled,
+  onClick,
+  children,
+}: {
+  active: boolean
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+        active
+          ? 'border-emerald-500 bg-emerald-500 text-emerald-950'
+          : 'border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400'
+      } ${disabled ? 'opacity-40' : ''}`}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -567,37 +720,6 @@ function MetricsPanel({
   )
 }
 
-function CalendarChecklist({
-  calendars,
-  checked,
-  onToggle,
-}: {
-  calendars: GCalendar[] | null
-  checked: string[]
-  onToggle: (id: string) => void
-}) {
-  if (!calendars) return <p className="text-sm text-slate-500">Loading calendars…</p>
-  return (
-    <>
-      {calendars.map((cal) => (
-        <label key={cal.id} className="flex items-center gap-3 py-1 text-sm">
-          <input
-            type="checkbox"
-            checked={checked.includes(cal.id)}
-            onChange={() => onToggle(cal.id)}
-            className="h-4 w-4 accent-emerald-500"
-          />
-          <span
-            className="h-3 w-3 shrink-0 rounded-full"
-            style={{ backgroundColor: cal.backgroundColor ?? '#64748b' }}
-          />
-          <span className="text-slate-800 dark:text-slate-200">{cal.summary}</span>
-        </label>
-      ))}
-    </>
-  )
-}
-
 /** Per-rule "scope" disclosure: which calendars the rule counts on (empty = all). */
 function RuleScope({
   rule,
@@ -659,6 +781,108 @@ function RuleScope({
         )}
       </div>
     </details>
+  )
+}
+
+function RelationshipPanel({ settings, update }: { settings: Settings; update: Update }) {
+  return (
+    <>
+      <Section title="Relationship mode">
+        <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+          Enable relationship mode
+          <input
+            type="checkbox"
+            checked={settings.relationshipMode}
+            onChange={(e) => update({ relationshipMode: e.target.checked })}
+            className="h-4 w-4 accent-emerald-500"
+          />
+        </label>
+        <p className="text-xs text-slate-500">
+          Adds "off days", "overlap", and "date" overlays to the Free tab, plus a partner/joint calendar section on the
+          Calendars page.
+        </p>
+        {settings.relationshipMode && (
+          <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+            Partner name
+            <input
+              type="text"
+              value={settings.partnerName}
+              onChange={(e) => update({ partnerName: e.target.value })}
+              placeholder="Partner"
+              className={`w-40 px-2 py-1 text-sm ${INPUT}`}
+            />
+          </label>
+        )}
+      </Section>
+
+      {settings.relationshipMode && (
+        <Section title="Date options">
+          <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
+            Overlap threshold (hours)
+            <input
+              type="number"
+              min={0}
+              max={24}
+              value={settings.overlapMinHours}
+              onChange={(e) => update({ overlapMinHours: Math.min(24, Math.max(0, Number(e.target.value) || 0)) })}
+              className={`w-20 px-2 py-1 text-right ${INPUT}`}
+            />
+          </label>
+          <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
+            Minimum date length (hours)
+            <input
+              type="number"
+              min={0}
+              max={24}
+              value={settings.dateMinHours}
+              onChange={(e) => update({ dateMinHours: Math.min(24, Math.max(0, Number(e.target.value) || 0)) })}
+              className={`w-20 px-2 py-1 text-right ${INPUT}`}
+            />
+          </label>
+          <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
+            Date candidates to show
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={settings.dateCandidateCount}
+              onChange={(e) => update({ dateCandidateCount: Math.min(10, Math.max(1, Number(e.target.value) || 1)) })}
+              className={`w-20 px-2 py-1 text-right ${INPUT}`}
+            />
+          </label>
+          <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+            Day preference
+            <select
+              value={settings.datePreference}
+              onChange={(e) => update({ datePreference: e.target.value as Settings['datePreference'] })}
+              className={`px-2 py-1 ${INPUT}`}
+            >
+              <option value="weekend">Prefer weekends</option>
+              <option value="weekday">Prefer weekdays</option>
+              <option value="either">No preference</option>
+            </select>
+          </label>
+          <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+            "Date" events come from
+            <select
+              value={settings.dateRuleId}
+              onChange={(e) => update({ dateRuleId: e.target.value })}
+              className={`px-2 py-1 ${INPUT}`}
+            >
+              {settings.metricRules.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.icon} {r.name || r.keyword || r.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-xs text-slate-500">
+            A week that already has a matching event won't be offered as a date candidate. Add or edit keyword rules on
+            the Metrics page.
+          </p>
+        </Section>
+      )}
+    </>
   )
 }
 

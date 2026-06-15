@@ -39,9 +39,28 @@ interface Props {
   overlay?: Set<string> | null
   /** Highlight color for the lit overlay cells. */
   overlayColor?: string
+  /**
+   * Extra highlight layers drawn on top of the metric overlay, each on its own
+   * visual channel so they stack without clobbering: a background `tint`, an
+   * inset `ring`, or a corner `marker` glyph.
+   */
+  layers?: OverlayLayer[]
+  /** When set, shade the mutual-free time (free of this merged busy) on the bars. */
+  overlapBusy?: BusyInterval[]
+  /** Color for the mutual-free overlap shading. */
+  overlapShadeColor?: string
   /** Month whose card is selected (drives the Metrics section). */
   selectedMonth: Date
   onSelectMonth: (month: Date) => void
+}
+
+export interface OverlayLayer {
+  key: string
+  dates: Set<string>
+  color: string
+  style: 'tint' | 'ring' | 'marker'
+  /** Glyph for `marker` layers (e.g. ❤️). */
+  mark?: string
 }
 
 /** Vertical free/busy fill for a free day's cell: top = start of day, bottom = end. */
@@ -51,14 +70,19 @@ function DayFill({
   date,
   now,
   dayStart,
+  overlapBusy,
+  overlapShadeColor,
 }: {
   busy: BusyInterval[]
   windows: Windows
   date: string
   now: Date
   dayStart: string
+  overlapBusy?: BusyInterval[]
+  overlapShadeColor?: string
 }) {
   const { segments, nowFrac } = dayTimeline(busy, windows, date, now, dayStart)
+  const overlapSegments = overlapBusy ? dayTimeline(overlapBusy, windows, date, now, dayStart).segments : []
   return (
     <>
       {segments
@@ -70,6 +94,16 @@ function DayFill({
             style={{ top: `${s.startFrac * 100}%`, height: `${(s.endFrac - s.startFrac) * 100}%` }}
           />
         ))}
+      {overlapShadeColor &&
+        overlapSegments
+          .filter((s) => s.kind === 'free')
+          .map((s, i) => (
+            <div
+              key={`o${i}`}
+              className="absolute inset-x-0"
+              style={{ top: `${s.startFrac * 100}%`, height: `${(s.endFrac - s.startFrac) * 100}%`, backgroundColor: overlapShadeColor }}
+            />
+          ))}
       {nowFrac > 0 && (
         <div className="absolute inset-x-0 top-0 bg-slate-100/70 dark:bg-slate-900/60" style={{ height: `${nowFrac * 100}%` }} />
       )}
@@ -91,6 +125,9 @@ export default function FreeCalendar({
   slotInfo,
   overlay,
   overlayColor = '#fbbf24',
+  layers,
+  overlapBusy,
+  overlapShadeColor,
   selectedMonth,
   onSelectMonth,
 }: Props) {
@@ -157,6 +194,21 @@ export default function FreeCalendar({
                   const today = isToday(day)
                   const isSel = active && dateStr === selected
                   const lit = !!overlay?.has(dateStr) && inMonth
+                  const cellLayers = inMonth ? (layers ?? []).filter((l) => l.dates.has(dateStr)) : []
+
+                  // Each channel stacks independently: metric overlay + tint layers wash
+                  // the background; ring layers nest as inset borders; markers sit in the corner.
+                  const tints = [
+                    ...(lit ? [overlayColor] : []),
+                    ...cellLayers.filter((l) => l.style === 'tint').map((l) => l.color),
+                  ]
+                  const rings = [
+                    ...(lit ? [overlayColor] : []),
+                    ...cellLayers.filter((l) => l.style === 'ring').map((l) => l.color),
+                  ]
+                  const markers = cellLayers.filter((l) => l.style === 'marker')
+                  const boxShadow = rings.map((c, i) => `inset 0 0 0 ${2 + i * 2}px ${c}`).join(', ')
+                  const highlighted = tints.length > 0 || rings.length > 0 || markers.length > 0
 
                   return (
                     <button
@@ -164,15 +216,32 @@ export default function FreeCalendar({
                       type="button"
                       disabled={!active}
                       onClick={() => setSelected(dateStr)}
-                      style={lit ? { boxShadow: `inset 0 0 0 2px ${overlayColor}, 0 0 0 1px ${overlayColor}66` } : undefined}
+                      style={boxShadow ? { boxShadow } : undefined}
                       className={`relative h-12 overflow-hidden rounded-lg text-left transition ${
                         active ? 'bg-slate-200 dark:bg-slate-600' : ''
                       } ${isSel ? 'z-10 shadow-md' : active ? 'hover:brightness-95 dark:hover:brightness-110' : ''} ${
-                        lit ? 'z-20' : ''
+                        highlighted ? 'z-20' : ''
                       }`}
                     >
-                      {lit && <div className="absolute inset-0" style={{ backgroundColor: `${overlayColor}4d` }} />}
-                      {active && <DayFill busy={busy} windows={windows} date={dateStr} now={now} dayStart={dayStart} />}
+                      {tints.map((c, i) => (
+                        <div key={i} className="absolute inset-0" style={{ backgroundColor: `${c}4d` }} />
+                      ))}
+                      {active && (
+                        <DayFill
+                          busy={busy}
+                          windows={windows}
+                          date={dateStr}
+                          now={now}
+                          dayStart={dayStart}
+                          overlapBusy={overlapBusy}
+                          overlapShadeColor={overlapShadeColor}
+                        />
+                      )}
+                      {markers.length > 0 && (
+                        <span className="pointer-events-none absolute right-0.5 top-0.5 z-30 text-[11px] leading-none">
+                          {markers.map((l) => l.mark ?? '●').join('')}
+                        </span>
+                      )}
                       {highlightPicks && pick && !isSel && (
                         <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-base leading-none text-amber-500 dark:text-amber-400">
                           ★
@@ -213,6 +282,8 @@ export default function FreeCalendar({
           windowOrder={windowOrder}
           dayInfo={dayInfo}
           slotInfo={slotInfo}
+          overlapBusy={overlapBusy}
+          overlapShadeColor={overlapShadeColor}
         />
       )}
     </div>

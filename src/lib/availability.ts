@@ -232,6 +232,28 @@ export function rankFreeDays(
     .sort(([da], [db]) => da.localeCompare(db))
 }
 
+/**
+ * The waking-day span for a date: from the earliest of the first window's start
+ * and `dayStart` (dayStart only ever pulls the span earlier, never hides a
+ * window) to the last window's end. Returns null when there are no windows or
+ * the span is empty.
+ */
+export function daySpan(
+  windows: Windows,
+  date: string,
+  dayStart?: string,
+): { start: Date; end: Date } | null {
+  const keys = windowKeys(windows)
+  if (keys.length === 0) return null
+  const day = new Date(date + 'T00:00:00')
+  const firstStart = windows[keys[0]].start
+  const startHM = dayStart && dayStart < firstStart ? dayStart : firstStart
+  const start = atTime(day, startHM)
+  const end = atTime(day, windows[keys[keys.length - 1]].end)
+  if (end.getTime() <= start.getTime()) return null
+  return { start, end }
+}
+
 export interface TimelineSeg {
   kind: 'free' | 'busy'
   /** Position within the day span, 0–1. */
@@ -265,15 +287,14 @@ export function dayTimeline(
   const keys = windowKeys(windows)
   const day = new Date(date + 'T00:00:00')
   const empty: DayTimeline = { segments: [], nowFrac: 0, ticks: [] }
-  if (keys.length === 0) return empty
+  const span = daySpan(windows, date, dayStart)
+  if (!span) return empty
 
   const firstStart = windows[keys[0]].start
   // Only let dayStart pull the span earlier — never later, so no window is hidden.
   const startHM = dayStart && dayStart < firstStart ? dayStart : firstStart
-  const spanStart = atTime(day, startHM)
-  const spanEnd = atTime(day, windows[keys[keys.length - 1]].end)
+  const { start: spanStart, end: spanEnd } = span
   const spanLen = spanEnd.getTime() - spanStart.getTime()
-  if (spanLen <= 0) return empty
 
   const frac = (d: Date) => Math.min(1, Math.max(0, (d.getTime() - spanStart.getTime()) / spanLen))
 

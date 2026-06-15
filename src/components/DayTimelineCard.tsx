@@ -17,11 +17,16 @@ interface Props {
   windowOrder: WindowKey[]
   dayInfo: (date: string) => DayInfo
   slotInfo: (slot: Slot) => SlotInfo
+  /** When set, shade the mutual-free time (free of this merged busy) on the bar. */
+  overlapBusy?: BusyInterval[]
+  /** Color for the mutual-free overlap shading. */
+  overlapShadeColor?: string
 }
 
-export default function DayTimelineCard({ date, slots, windows, busy, now, dayStart, windowOrder, dayInfo, slotInfo }: Props) {
+export default function DayTimelineCard({ date, slots, windows, busy, now, dayStart, windowOrder, dayInfo, slotInfo, overlapBusy, overlapShadeColor }: Props) {
   const info = dayInfo(date)
   const { segments, nowFrac, ticks } = dayTimeline(busy, windows, date, now, dayStart)
+  const overlapSegments = overlapBusy ? dayTimeline(overlapBusy, windows, date, now, dayStart).segments : []
 
   const summary = summarizeDay(slots, windowOrder)
   const allDay = summary === 'free all day'
@@ -54,6 +59,16 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
                 style={{ left: `${s.startFrac * 100}%`, width: `${(s.endFrac - s.startFrac) * 100}%` }}
               />
             ))}
+          {overlapShadeColor &&
+            overlapSegments
+              .filter((s) => s.kind === 'free')
+              .map((s, i) => (
+                <div
+                  key={`o${i}`}
+                  className="absolute inset-y-0"
+                  style={{ left: `${s.startFrac * 100}%`, width: `${(s.endFrac - s.startFrac) * 100}%`, backgroundColor: overlapShadeColor }}
+                />
+              ))}
           {ticks.slice(1, -1).map((t, i) => (
             <div
               key={i}

@@ -39,6 +39,27 @@ export interface Settings {
   metricRules: MetricRule[]
   /** Per-metric calendar highlight color, keyed by metric key ('evenings', 'weekend', 'rule:<id>'). */
   metricColors: Record<string, string>
+
+  /** Relationship mode: surfaces a partner's availability on the Free view (see relationship.ts). */
+  relationshipMode: boolean
+  /** Partner's display name, used in relationship labels (blank → "Partner"). */
+  partnerName: string
+  /** Whether date candidates lean toward weekends, weekdays, or neither. */
+  datePreference: 'weekend' | 'weekday' | 'either'
+  /** All of the partner's busy calendars — drives mutual free time + date-candidate isolation. */
+  partnerBlockingCalendarIds: string[]
+  /** Subset of the partner's calendars treated as "work" — drives the "not working" overlay. */
+  partnerWorkCalendarIds: string[]
+  /** Shared calendars whose events block BOTH partners (e.g. a joint events calendar). */
+  jointCalendarIds: string[]
+  /** Minimum mutual free hours for a day to count as "overlapping free time" (button 2). */
+  overlapMinHours: number
+  /** Minimum mutual free hours for a day to be a date candidate (button 3). */
+  dateMinHours: number
+  /** How many date candidates to surface (button 3). */
+  dateCandidateCount: number
+  /** Which metric rule's matches count as an already-scheduled date (excludes that week). */
+  dateRuleId: string
 }
 
 /** Highlight color used for a metric's calendar overlay when none is set. */
@@ -62,6 +83,16 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: 'date-nights', name: 'Date nights', keyword: 'date', icon: '❤️', matchDescription: false },
   ],
   metricColors: {},
+  relationshipMode: false,
+  partnerName: '',
+  datePreference: 'weekend',
+  partnerBlockingCalendarIds: [],
+  partnerWorkCalendarIds: [],
+  jointCalendarIds: [],
+  overlapMinHours: 2,
+  dateMinHours: 3,
+  dateCandidateCount: 3,
+  dateRuleId: 'date-nights',
 }
 
 const STORAGE_KEY = 'scheddy.settings'

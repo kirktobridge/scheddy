@@ -1,7 +1,17 @@
 import { useCallback, useMemo, useState } from 'react'
 import { addDays, endOfDay, startOfDay, startOfMonth } from 'date-fns'
-import { blockedDates, eventsToBusy, findFreeSlots, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
-import { applyRuleOverrides } from '../lib/metrics'
+import { blockedDates, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
+import { applyRuleOverrides, matchRule } from '../lib/metrics'
+import {
+  datesInRange,
+  notWorkingDates,
+  overlapByDate,
+  overlapDates,
+  rankDateCandidates,
+  weekKey,
+  weeksWithDateEvent,
+} from '../lib/relationship'
+import type { OverlayLayer } from '../components/FreeCalendar'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
 import { DEFAULT_METRIC_COLOR, useSettings } from '../store/settings'
 import { useEvents } from '../hooks/useEvents'
@@ -10,6 +20,9 @@ import FreeCalendar from '../components/FreeCalendar'
 import { ErrorBanner, Spinner } from '../components/Banner'
 import MetricsStats from '../components/MetricsStats'
 import { useMetrics } from '../hooks/useMetrics'
+
+/** Shared accent for the "Our Overlap" + "Date Options" controls and overlap bar shading. */
+const OVERLAP_COLOR = '#ec4899'
 
 export default function FreePage() {
   const [settings, setSettings] = useSettings()
@@ -20,6 +33,11 @@ export default function FreePage() {
   // Refresh recomputes "now" too, so stale slots disappear on pull.
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [highlightPicks, setHighlightPicks] = useState(true)
+  const rel = settings.relationshipMode
+  const partnerName = settings.partnerName || 'Partner'
+  const [showNotWorking, setShowNotWorking] = useState(false)
+  const [showOverlap, setShowOverlap] = useState(false)
+  const [showDates, setShowDates] = useState(true)
   // Metrics follow whichever month card is selected in the calendar.
   const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()))
   const metrics = useMetrics(selectedMonth)
@@ -36,6 +54,12 @@ export default function FreePage() {
     [rawEvents, settings.metricRules],
   )
   const holidays = useEvents(startMs, endMs, settings.holidayCalendarIds)
+
+  // Relationship mode: pull the partner's busy/work calendars and the shared
+  // "joint" calendar. Pass [] when off so the hook stays idle (no fetch, no error).
+  const partner = useEvents(startMs, endMs, rel ? settings.partnerBlockingCalendarIds : [])
+  const partnerWork = useEvents(startMs, endMs, rel ? settings.partnerWorkCalendarIds : [])
+  const joint = useEvents(startMs, endMs, rel ? settings.jointCalendarIds : [])
 
   // Work events don't count toward "partly booked" — they get a "free after
   // work" label instead. Split them out before computing availability.
@@ -108,6 +132,78 @@ export default function FreePage() {
   const combinedBusy = useMemo(() => eventsToBusy(events ?? [], { allDay }), [events, allDay])
   const winKeys = useMemo(() => windowKeys(settings.windows), [settings.windows])
 
+  // Relationship overlays: the partner's non-working days, days with enough
+  // mutual free time, and the top date-night candidates. Joint events block both
+  // partners, so they fold into each side's busy.
+  const relationship = useMemo(() => {
+    const empty = {
+      notWorkingSet: new Set<string>(),
+      overlapSet: new Set<string>(),
+      dateSet: new Set<string>(),
+      overlapBusy: [] as ReturnType<typeof mergeIntervals>,
+    }
+    if (!rel) return empty
+    const HOUR = 60 * 60 * 1000
+    const jointBusy = eventsToBusy(joint.events ?? [], { allDay })
+    const partnerBusy = mergeIntervals([...eventsToBusy(partner.events ?? [], { allDay }), ...jointBusy])
+    const partnerWorkBusy = eventsToBusy(partnerWork.events ?? [], { allDay })
+    const myBusy = mergeIntervals([...combinedBusy, ...jointBusy])
+    const dates = datesInRange(new Date(startMs), addDays(new Date(startMs), lookahead))
+
+    const overlap = overlapByDate(myBusy, partnerBusy, settings.windows, dates, settings.dayStart)
+    const notWorkingSet = notWorkingDates(partnerWorkBusy, dates)
+    const overlapSet = overlapDates(overlap, settings.overlapMinHours * HOUR)
+
+    // Date candidates: days with enough mutual free time, in weeks that don't
+    // already have a date booked, ranked by isolation from either partner's
+    // commitments, then weekends, then most mutual free time.
+    const eligible = [...overlapDates(overlap, settings.dateMinHours * HOUR)]
+    const dateRule = settings.metricRules.find((r) => r.id === settings.dateRuleId)
+    const dateEvents = dateRule
+      ? matchRule([...(events ?? []), ...(joint.events ?? []), ...(partner.events ?? [])], dateRule)
+      : []
+    const bookedWeeks = weeksWithDateEvent(dateEvents)
+    const candidates = eligible.filter((d) => !bookedWeeks.has(weekKey(d)))
+    const overlapBusy = mergeIntervals([...myBusy, ...partnerBusy])
+    const blocked = blockedDates(overlapBusy)
+    const dateSet = new Set(
+      rankDateCandidates(candidates, overlap, blocked, {
+        count: settings.dateCandidateCount,
+        isolationWindow: settings.isolationWindowDays,
+        preference: settings.datePreference,
+      }),
+    )
+    return { notWorkingSet, overlapSet, dateSet, overlapBusy }
+  }, [
+    rel,
+    allDay,
+    partner.events,
+    partnerWork.events,
+    joint.events,
+    combinedBusy,
+    events,
+    settings.windows,
+    settings.dayStart,
+    settings.overlapMinHours,
+    settings.dateMinHours,
+    settings.dateCandidateCount,
+    settings.isolationWindowDays,
+    settings.datePreference,
+    settings.dateRuleId,
+    settings.metricRules,
+    startMs,
+    lookahead,
+  ])
+
+  const layers = useMemo<OverlayLayer[]>(() => {
+    if (!rel) return []
+    const out: OverlayLayer[] = []
+    if (showNotWorking) out.push({ key: 'not-working', dates: relationship.notWorkingSet, color: '#3b82f6', style: 'tint' })
+    if (showOverlap) out.push({ key: 'overlap', dates: relationship.overlapSet, color: OVERLAP_COLOR, style: 'ring' })
+    if (showDates) out.push({ key: 'dates', dates: relationship.dateSet, color: OVERLAP_COLOR, style: 'marker', mark: '❤️' })
+    return out
+  }, [rel, showNotWorking, showOverlap, showDates, relationship])
+
   const dayInfo = useCallback(
     (date: string): DayInfo => ({
       label: relativeDayLabel(new Date(date + 'T12:00:00'), new Date(nowMs)),
@@ -142,6 +238,20 @@ export default function FreePage() {
           >
             ★ Top {settings.freeSlotCount}
           </button>
+          {rel && (
+            <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1 dark:border-slate-700">
+              <span className="text-xs font-medium text-slate-400 dark:text-slate-500">Me &amp; {partnerName}</span>
+              <RelToggle active={showNotWorking} onClick={() => setShowNotWorking((v) => !v)} title={`Days ${partnerName} isn't working`} color="bg-blue-500 text-blue-950">
+                🛌 {partnerName}'s Off Days
+              </RelToggle>
+              <RelToggle active={showOverlap} onClick={() => setShowOverlap((v) => !v)} title={`Days you share ≥ ${settings.overlapMinHours}h free`} color="bg-pink-500 text-pink-950">
+                ⇄ Our Overlap
+              </RelToggle>
+              <RelToggle active={showDates} onClick={() => setShowDates((v) => !v)} title={`Top ${settings.dateCandidateCount} date candidates`} color="bg-pink-500 text-pink-950">
+                ❤️ Date Options
+              </RelToggle>
+            </div>
+          )}
           <button
             onClick={() => {
               setNowMs(Date.now())
@@ -175,10 +285,42 @@ export default function FreePage() {
           slotInfo={slotInfo}
           overlay={metrics.overlay}
           overlayColor={metrics.activeKey ? colorFor(metrics.activeKey) : undefined}
+          layers={layers}
+          overlapBusy={showOverlap ? relationship.overlapBusy : undefined}
+          overlapShadeColor={OVERLAP_COLOR}
           selectedMonth={selectedMonth}
           onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
         />
       )}
     </div>
+  )
+}
+
+/** Relationship-mode overlay toggle — mirrors the "★ Top N" button styling. */
+function RelToggle({
+  active,
+  onClick,
+  title,
+  color,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  title: string
+  /** Tailwind bg+text classes for the active state. */
+  color: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      title={title}
+      className={`rounded-md px-2 py-1 text-xs ${
+        active ? `${color} font-medium` : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
