@@ -35,20 +35,50 @@ export function matchRule(events: GEvent[], rule: MetricRule): GEvent[] {
 
 const eventKey = (ev: GEvent): string => ev.iCalUID ?? `${ev.calendarId}/${ev.id}`
 
+const isAllDay = (ev: GEvent): boolean => !ev.start?.dateTime && !!ev.start?.date
+
 /**
- * Events matched by any `blocking` rule get their "transparent" (Free) flag
- * cleared so they count as busy time in availability calcs. Other events pass
- * through untouched. Returns the same array reference when nothing changes.
+ * Applies the per-rule blocking overrides to events before they become busy
+ * intervals:
+ *  - a `blocking` rule clears the "transparent" (Free) flag on matched timed
+ *    events so they count as busy;
+ *  - a rule's `allDay` override flips matched all-day events on ('block', given
+ *    concrete times) or off ('free', marked transparent), overriding the global
+ *    `blockAllDayEvents` setting. 'block' wins if both apply to one event.
+ * Other events pass through untouched; returns the same array when nothing changes.
  */
-export function applyBlockingRules(events: GEvent[], rules: MetricRule[]): GEvent[] {
-  const blockingRules = rules.filter((r) => r.blocking)
-  if (!blockingRules.length) return events
-  const forced = new Set<string>()
-  for (const rule of blockingRules) for (const ev of matchRule(events, rule)) forced.add(eventKey(ev))
-  if (!forced.size) return events
-  return events.map((ev) =>
-    ev.transparency === 'transparent' && forced.has(eventKey(ev)) ? { ...ev, transparency: undefined } : ev,
-  )
+export function applyRuleOverrides(events: GEvent[], rules: MetricRule[]): GEvent[] {
+  const relevant = rules.filter((r) => r.blocking || r.allDay)
+  if (!relevant.length) return events
+  const blockTimed = new Set<string>()
+  const allDayBlock = new Set<string>()
+  const allDayFree = new Set<string>()
+  for (const rule of relevant) {
+    for (const ev of matchRule(events, rule)) {
+      const k = eventKey(ev)
+      if (rule.blocking) blockTimed.add(k)
+      if (rule.allDay === 'block') allDayBlock.add(k)
+      else if (rule.allDay === 'free') allDayFree.add(k)
+    }
+  }
+  if (!blockTimed.size && !allDayBlock.size && !allDayFree.size) return events
+  return events.map((ev) => {
+    const k = eventKey(ev)
+    if (isAllDay(ev)) {
+      if (allDayBlock.has(k)) {
+        return {
+          ...ev,
+          transparency: undefined,
+          start: { dateTime: ev.start!.date + 'T00:00:00' },
+          end: { dateTime: (ev.end?.date ?? ev.start!.date) + 'T00:00:00' },
+        }
+      }
+      if (allDayFree.has(k)) return { ...ev, transparency: 'transparent' }
+      return ev
+    }
+    if (ev.transparency === 'transparent' && blockTimed.has(k)) return { ...ev, transparency: undefined }
+    return ev
+  })
 }
 
 /**

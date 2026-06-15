@@ -60,20 +60,28 @@ export function mergeIntervals(intervals: BusyInterval[]): BusyInterval[] {
 }
 
 /**
- * Converts calendar events to merged busy intervals. All-day events
- * (bill reminders etc.), transparent ("Free") events, and cancelled
- * events never block time.
+ * Converts calendar events to merged busy intervals. Transparent ("Free") and
+ * cancelled events never block time. All-day events (bill reminders etc.) block
+ * only when `opts.allDay` is set — a per-rule override can flip individual ones
+ * (see applyRuleOverrides), so callers pass the global default here.
  */
-export function eventsToBusy(events: GEvent[]): BusyInterval[] {
+export function eventsToBusy(events: GEvent[], opts: { allDay?: boolean } = {}): BusyInterval[] {
   const busy: BusyInterval[] = []
   for (const ev of events) {
     if (ev.status === 'cancelled') continue
     if (ev.transparency === 'transparent') continue
-    if (!ev.start?.dateTime || !ev.end?.dateTime) continue
-    const start = new Date(ev.start.dateTime)
-    const end = new Date(ev.end.dateTime)
-    if (end.getTime() <= start.getTime()) continue
-    busy.push({ start, end })
+    if (ev.start?.dateTime && ev.end?.dateTime) {
+      const start = new Date(ev.start.dateTime)
+      const end = new Date(ev.end.dateTime)
+      if (end.getTime() <= start.getTime()) continue
+      busy.push({ start, end })
+    } else if (opts.allDay && ev.start?.date && ev.end?.date) {
+      // Google encodes all-day end.date as exclusive (next midnight).
+      const start = new Date(ev.start.date + 'T00:00:00')
+      const end = new Date(ev.end.date + 'T00:00:00')
+      if (end.getTime() <= start.getTime()) continue
+      busy.push({ start, end })
+    }
   }
   return mergeIntervals(busy)
 }

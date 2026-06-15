@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { endOfMonth, isSameMonth, startOfMonth } from 'date-fns'
 import { eventsToBusy } from '../lib/availability'
 import {
+  applyRuleOverrides,
   dedupeEvents,
   matchRule,
   unbookedEveningDates,
@@ -45,7 +46,10 @@ export function useMetrics(month: Date): Metrics {
   const { events, loading, error } = useEvents(monthStart.getTime(), monthEnd.getTime())
 
   const deduped = useMemo(() => (events ? dedupeEvents(events) : []), [events])
-  const busy = useMemo(() => eventsToBusy(deduped), [deduped])
+  const busy = useMemo(
+    () => eventsToBusy(applyRuleOverrides(deduped, settings.metricRules), { allDay: settings.blockAllDayEvents }),
+    [deduped, settings.metricRules, settings.blockAllDayEvents],
+  )
 
   const computed = useMemo(() => {
     // For the current month count from now forward ("remaining"); for other

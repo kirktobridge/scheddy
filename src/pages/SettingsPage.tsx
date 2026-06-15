@@ -271,6 +271,19 @@ export default function SettingsPage() {
             <option value="1">Fully free</option>
           </select>
         </label>
+        <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+          All-day events block time
+          <input
+            type="checkbox"
+            checked={settings.blockAllDayEvents}
+            onChange={(e) => update({ blockAllDayEvents: e.target.checked })}
+            className="h-4 w-4 accent-emerald-500"
+          />
+        </label>
+        <p className="text-xs text-slate-500">
+          Off by default so bill reminders and birthdays don't book your day. Individual keyword rules can override this
+          below.
+        </p>
       </Section>
 
       <Section title="Metric keywords">
@@ -330,6 +343,22 @@ export default function SettingsPage() {
                 className="h-3.5 w-3.5 accent-emerald-500"
               />
               Matching events block time (even if marked "Free")
+            </label>
+            <label className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+              All-day matches
+              <select
+                value={rule.allDay ?? 'inherit'}
+                onChange={(e) =>
+                  updateRule(rule.id, {
+                    allDay: e.target.value === 'inherit' ? undefined : (e.target.value as 'block' | 'free'),
+                  })
+                }
+                className={`px-2 py-1 ${INPUT_NESTED}`}
+              >
+                <option value="inherit">Use global setting</option>
+                <option value="block">Always block time</option>
+                <option value="free">Never block time</option>
+              </select>
             </label>
           </div>
         ))}

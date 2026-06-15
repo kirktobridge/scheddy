@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { addDays, endOfDay, startOfDay, startOfMonth } from 'date-fns'
 import { eventsToBusy, findFreeSlots, windowKeys, type Slot } from '../lib/availability'
-import { applyBlockingRules } from '../lib/metrics'
+import { applyRuleOverrides } from '../lib/metrics'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
 import { useSettings } from '../store/settings'
 import { useEvents } from '../hooks/useEvents'
@@ -25,10 +25,10 @@ export default function FreePage() {
   const endMs = addDays(new Date(startMs), lookahead + 1).getTime()
 
   const { events: rawEvents, loading, error, refresh } = useEvents(startMs, endMs)
-  // Events matched by a "blocking" keyword rule lose their Free flag so they
-  // count against availability below.
+  // Keyword-rule overrides (force-block Free events, per-rule all-day flips)
+  // are baked into the events before they become busy intervals below.
   const events = useMemo(
-    () => (rawEvents ? applyBlockingRules(rawEvents, settings.metricRules) : rawEvents),
+    () => (rawEvents ? applyRuleOverrides(rawEvents, settings.metricRules) : rawEvents),
     [rawEvents, settings.metricRules],
   )
   const holidays = useEvents(startMs, endMs, settings.holidayCalendarIds)
@@ -44,8 +44,9 @@ export default function FreePage() {
     return { workEvents, nonWorkEvents }
   }, [events, workIds])
 
-  const nonWorkBusy = useMemo(() => eventsToBusy(nonWorkEvents ?? []), [nonWorkEvents])
-  const workBusy = useMemo(() => eventsToBusy(workEvents ?? []), [workEvents])
+  const allDay = settings.blockAllDayEvents
+  const nonWorkBusy = useMemo(() => eventsToBusy(nonWorkEvents ?? [], { allDay }), [nonWorkEvents, allDay])
+  const workBusy = useMemo(() => eventsToBusy(workEvents ?? [], { allDay }), [workEvents, allDay])
 
   // The "top N" picks: among all days in the lookahead that have a slot meeting
   // the threshold, take the N with the most total free time, then order by date.
@@ -87,7 +88,7 @@ export default function FreePage() {
   )
 
   // Combined busy (work counts as busy) drives the availability bars.
-  const combinedBusy = useMemo(() => eventsToBusy(events ?? []), [events])
+  const combinedBusy = useMemo(() => eventsToBusy(events ?? [], { allDay }), [events, allDay])
   const winKeys = useMemo(() => windowKeys(settings.windows), [settings.windows])
 
   const dayInfo = useCallback(

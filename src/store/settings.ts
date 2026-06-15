@@ -11,6 +11,8 @@ export interface MetricRule {
   calendarIds?: string[]
   /** When true, matched events block time on the Free/Check views even if marked "Free". */
   blocking?: boolean
+  /** Override the global all-day rule for matched events. Undefined = inherit. */
+  allDay?: 'block' | 'free'
 }
 
 export interface Settings {
@@ -28,6 +30,8 @@ export interface Settings {
   freeSlotCount: number
   /** Fraction of a window that must be open for it to count as a free slot. */
   freeThreshold: number
+  /** Whether all-day events count as busy time (keyword rules can override per-rule). */
+  blockAllDayEvents: boolean
   metricRules: MetricRule[]
 }
 
@@ -42,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lookaheadDays: 60,
   freeSlotCount: 6,
   freeThreshold: 0.75,
+  blockAllDayEvents: false,
   metricRules: [
     { id: 'date-nights', name: 'Date nights', keyword: 'date', icon: '❤️', matchDescription: false },
   ],

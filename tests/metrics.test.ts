@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyBlockingRules, dedupeEvents, matchRule, unbookedEvenings, unbookedWeekendDays } from '../src/lib/metrics'
+import { applyRuleOverrides, dedupeEvents, matchRule, unbookedEvenings, unbookedWeekendDays } from '../src/lib/metrics'
 import { eventsToBusy, type Windows } from '../src/lib/availability'
 import type { GEvent } from '../src/api/calendar'
 import type { MetricRule } from '../src/store/settings'
@@ -63,17 +63,20 @@ describe('matchRule', () => {
   })
 })
 
-describe('applyBlockingRules', () => {
+const allDayEv = (summary: string, extra: Partial<GEvent> = {}): GEvent =>
+  ev(summary, { start: { date: '2026-06-15' }, end: { date: '2026-06-16' }, ...extra })
+
+describe('applyRuleOverrides', () => {
   it('clears the Free flag on events matched by a blocking rule', () => {
     const events = [ev('Date night', { transparency: 'transparent' }), ev('Gym', { transparency: 'transparent' })]
-    const out = applyBlockingRules(events, [rule({ blocking: true })])
+    const out = applyRuleOverrides(events, [rule({ blocking: true })])
     expect(out[0].transparency).toBeUndefined()
     expect(out[1].transparency).toBe('transparent')
   })
 
-  it('leaves events untouched when no rule is blocking', () => {
+  it('leaves events untouched when no rule overrides', () => {
     const events = [ev('Date night', { transparency: 'transparent' })]
-    expect(applyBlockingRules(events, [rule()])).toBe(events)
+    expect(applyRuleOverrides(events, [rule()])).toBe(events)
   })
 
   it('respects the calendar scope when forcing blocking', () => {
@@ -81,9 +84,41 @@ describe('applyBlockingRules', () => {
       ev('Date A', { transparency: 'transparent', calendarId: 'mine' }),
       ev('Date B', { transparency: 'transparent', calendarId: 'wife' }),
     ]
-    const out = applyBlockingRules(events, [rule({ blocking: true, calendarIds: ['wife'] })])
+    const out = applyRuleOverrides(events, [rule({ blocking: true, calendarIds: ['wife'] })])
     expect(out[0].transparency).toBe('transparent')
     expect(out[1].transparency).toBeUndefined()
+  })
+
+  it('gives matched all-day events concrete times when allDay=block', () => {
+    const out = applyRuleOverrides([allDayEv('Date trip')], [rule({ allDay: 'block' })])
+    expect(out[0].start?.dateTime).toBe('2026-06-15T00:00:00')
+    expect(out[0].end?.dateTime).toBe('2026-06-16T00:00:00')
+    // ...and it now contributes a busy interval the global default would have skipped.
+    expect(eventsToBusy(out)).toHaveLength(1)
+    expect(eventsToBusy([allDayEv('Date trip')])).toHaveLength(0)
+  })
+
+  it('marks matched all-day events transparent when allDay=free', () => {
+    const out = applyRuleOverrides([allDayEv('Date trip')], [rule({ allDay: 'free' })])
+    expect(out[0].transparency).toBe('transparent')
+    expect(eventsToBusy(out, { allDay: true })).toHaveLength(0)
+  })
+
+  it('blocks all-day matches over free when both overrides apply', () => {
+    const rules = [rule({ id: 'a', allDay: 'free' }), rule({ id: 'b', allDay: 'block' })]
+    const out = applyRuleOverrides([allDayEv('Date trip')], rules)
+    expect(out[0].start?.dateTime).toBe('2026-06-15T00:00:00')
+  })
+})
+
+describe('eventsToBusy all-day handling', () => {
+  it('skips all-day events by default and includes them when allDay is set', () => {
+    const events = [allDayEv('Conference')]
+    expect(eventsToBusy(events)).toHaveLength(0)
+    const busy = eventsToBusy(events, { allDay: true })
+    expect(busy).toHaveLength(1)
+    expect(busy[0].start).toEqual(new Date('2026-06-15T00:00:00'))
+    expect(busy[0].end).toEqual(new Date('2026-06-16T00:00:00'))
   })
 })
 
