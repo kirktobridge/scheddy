@@ -508,6 +508,22 @@ function RolePill({
 
 function AvailabilityPanel({ settings, update }: { settings: Settings; update: Update }) {
   const [newWindow, setNewWindow] = useState('')
+  // Calendar span is stored as days; the days slider caps at 60, so anything
+  // larger must have been entered as months.
+  const [spanUnit, setSpanUnit] = useState<'days' | 'months'>(
+    settings.lookaheadDays > 60 ? 'months' : 'days',
+  )
+
+  const changeSpanUnit = (unit: 'days' | 'months') => {
+    setSpanUnit(unit)
+    if (unit === 'months') {
+      update({ lookaheadDays: Math.min(3, Math.max(1, Math.round(settings.lookaheadDays / 30))) * 30 })
+    } else {
+      update({ lookaheadDays: Math.min(60, Math.max(7, settings.lookaheadDays)) })
+    }
+  }
+
+  const dayStartHour = Number(settings.dayStart.split(':')[0]) || 0
 
   const addWindow = () => {
     const name = newWindow.trim()
@@ -584,28 +600,22 @@ function AvailabilityPanel({ settings, update }: { settings: Settings; update: U
       </Section>
 
       <Section title="Free slots">
-        <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
-          Days on home screen
-          <input
-            type="number"
-            min={1}
-            max={30}
-            value={settings.freeSlotCount}
-            onChange={(e) => update({ freeSlotCount: Math.max(1, Number(e.target.value) || 1) })}
-            className={`w-20 px-2 py-1 text-right ${INPUT}`}
-          />
-        </label>
-        <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
-          Spacing window (± days)
-          <input
-            type="number"
-            min={0}
-            max={14}
-            value={settings.isolationWindowDays}
-            onChange={(e) => update({ isolationWindowDays: Math.min(14, Math.max(0, Number(e.target.value) || 0)) })}
-            className={`w-20 px-2 py-1 text-right ${INPUT}`}
-          />
-        </label>
+        <SliderField
+          label="Days on home screen"
+          value={settings.freeSlotCount}
+          min={0}
+          max={10}
+          format={(v) => String(v)}
+          onChange={(v) => update({ freeSlotCount: v })}
+        />
+        <SliderField
+          label="Spacing window"
+          value={settings.isolationWindowDays}
+          min={0}
+          max={7}
+          format={(v) => `± ${v} day${v === 1 ? '' : 's'}`}
+          onChange={(v) => update({ isolationWindowDays: v })}
+        />
         <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
           Favor weekends
           <input
@@ -619,38 +629,55 @@ function AvailabilityPanel({ settings, update }: { settings: Settings; update: U
           Picks prefer days with the most empty calendar within ± this many days, then the most free time, then
           weekends.
         </p>
-        <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
-          Show availability from
-          <input
-            type="time"
-            value={settings.dayStart}
-            onChange={(e) => update({ dayStart: e.target.value || '08:00' })}
-            className={`px-2 py-1 ${INPUT}`}
-          />
-        </label>
-        <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
-          Calendar span (days)
-          <input
-            type="number"
-            min={7}
-            max={365}
-            value={settings.lookaheadDays}
-            onChange={(e) => update({ lookaheadDays: Math.min(365, Math.max(7, Number(e.target.value) || 60)) })}
-            className={`w-20 px-2 py-1 text-right ${INPUT}`}
-          />
-        </label>
-        <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
-          How open must a window be?
-          <select
-            value={String(settings.freeThreshold)}
-            onChange={(e) => update({ freeThreshold: Number(e.target.value) })}
-            className={`px-2 py-1 ${INPUT}`}
-          >
-            <option value="0.5">≥ 50%</option>
-            <option value="0.75">≥ 75%</option>
-            <option value="1">Fully free</option>
-          </select>
-        </label>
+        <SliderField
+          label="Show availability from"
+          value={dayStartHour}
+          min={0}
+          max={24}
+          format={(v) => `${String(v).padStart(2, '0')}:00`}
+          onChange={(v) => update({ dayStart: `${String(Math.min(23, v)).padStart(2, '0')}:00` })}
+        />
+        <div className="text-sm text-slate-700 dark:text-slate-300">
+          <div className="flex items-center justify-between">
+            <span>Calendar span</span>
+            <select
+              value={spanUnit}
+              onChange={(e) => changeSpanUnit(e.target.value as 'days' | 'months')}
+              className={`px-2 py-1 ${INPUT}`}
+            >
+              <option value="days">Days</option>
+              <option value="months">Months</option>
+            </select>
+          </div>
+          {spanUnit === 'days' ? (
+            <SliderField
+              label=""
+              value={Math.min(60, Math.max(7, settings.lookaheadDays))}
+              min={7}
+              max={60}
+              format={(v) => `${v} days`}
+              onChange={(v) => update({ lookaheadDays: v })}
+            />
+          ) : (
+            <SliderField
+              label=""
+              value={Math.min(3, Math.max(1, Math.round(settings.lookaheadDays / 30)))}
+              min={1}
+              max={3}
+              format={(v) => `${v} month${v === 1 ? '' : 's'}`}
+              onChange={(v) => update({ lookaheadDays: v * 30 })}
+            />
+          )}
+        </div>
+        <SliderField
+          label="How open must a window be?"
+          value={Math.round(settings.freeThreshold * 100)}
+          min={0}
+          max={100}
+          step={5}
+          format={(v) => `${v}%`}
+          onChange={(v) => update({ freeThreshold: v / 100 })}
+        />
         <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
           All-day events block time
           <input
@@ -905,6 +932,17 @@ function RelationshipPanel({ settings, update }: { settings: Settings; update: U
               className={`w-20 px-2 py-1 text-right ${INPUT}`}
             />
           </label>
+          <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
+            Nudge when overdue (days, 0 = off)
+            <input
+              type="number"
+              min={0}
+              max={365}
+              value={settings.dateCadenceDays}
+              onChange={(e) => update({ dateCadenceDays: Math.min(365, Math.max(0, Number(e.target.value) || 0)) })}
+              className={`w-20 px-2 py-1 text-right ${INPUT}`}
+            />
+          </label>
           <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
             Day preference
             <select
@@ -938,6 +976,51 @@ function RelationshipPanel({ settings, update }: { settings: Settings; update: U
         </Section>
       )}
     </>
+  )
+}
+
+function SliderField({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  format,
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step?: number
+  format: (v: number) => string
+  onChange: (v: number) => void
+}) {
+  return (
+    <div className="text-sm text-slate-700 dark:text-slate-300">
+      {label && (
+        <div className="flex items-center justify-between">
+          <span>{label}</span>
+          <span className="tabular-nums text-slate-500 dark:text-slate-400">{format(value)}</span>
+        </div>
+      )}
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="mt-1 w-full accent-emerald-500"
+        />
+        {!label && (
+          <span className="mt-1 w-20 shrink-0 text-right tabular-nums text-slate-500 dark:text-slate-400">
+            {format(value)}
+          </span>
+        )}
+      </div>
+    </div>
   )
 }
 
