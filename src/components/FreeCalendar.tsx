@@ -174,7 +174,7 @@ export default function FreeCalendar({
                       {lit && <div className="absolute inset-0" style={{ backgroundColor: `${overlayColor}4d` }} />}
                       {active && <DayFill busy={busy} windows={windows} date={dateStr} now={now} dayStart={dayStart} />}
                       {highlightPicks && pick && !isSel && (
-                        <span className="absolute right-0.5 top-0.5 text-[10px] leading-none text-emerald-600 dark:text-emerald-400">
+                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-base leading-none text-amber-500 dark:text-amber-400">
                           ★
                         </span>
                       )}
