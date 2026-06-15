@@ -1,4 +1,5 @@
 import { getAccessToken, clearToken } from '../auth/google'
+import { isMockMode, mockEventsMulti, MOCK_CALENDARS } from './mock'
 
 const BASE = 'https://www.googleapis.com/calendar/v3'
 
@@ -44,6 +45,7 @@ interface Paged<T> {
 }
 
 export async function listCalendars(): Promise<GCalendar[]> {
+  if (isMockMode()) return MOCK_CALENDARS
   const out: GCalendar[] = []
   let pageToken: string | undefined
   do {
@@ -76,6 +78,7 @@ export async function listEvents(calendarId: string, timeMin: Date, timeMax: Dat
 }
 
 export async function listEventsMulti(calendarIds: string[], timeMin: Date, timeMax: Date): Promise<GEvent[]> {
+  if (isMockMode()) return mockEventsMulti(calendarIds, timeMin, timeMax)
   const results = await Promise.all(calendarIds.map((id) => listEvents(id, timeMin, timeMax)))
   return results.flat()
 }
