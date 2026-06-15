@@ -10,6 +10,7 @@ import {
   overlapFreeGaps,
   overlapInWindowMs,
   overlapLongestMs,
+  normalizeRankOrder,
   rankDateCandidates,
   resolveDateRule,
   weekKey,
@@ -263,6 +264,20 @@ describe('rankDateCandidates', () => {
     expect(top).toHaveLength(2)
   })
 
+  it('reorders by the configured precedence (overlap above day type)', () => {
+    // 06-20 Sat (weekend bias) vs 06-19 Fri with more overlap. Default order →
+    // weekend wins; with overlap ahead of dayType, the higher-overlap Friday wins.
+    const ov = overlap(['2026-06-19', 6], ['2026-06-20', 5])
+    const base = { count: 1, isolationWindow: 0, preference: 'weekend' as const }
+    expect(rankDateCandidates(['2026-06-19', '2026-06-20'], ov, new Set(), base)).toEqual(['2026-06-20'])
+    expect(
+      rankDateCandidates(['2026-06-19', '2026-06-20'], ov, new Set(), {
+        ...base,
+        order: ['overlap', 'dayType'],
+      }),
+    ).toEqual(['2026-06-19'])
+  })
+
   it('prioritizes a partner-off day over a higher-ranked working day when favorPartnerOff', () => {
     // 06-20 (Sat) would win on weekend bias, but 06-18 (Thu) is a partner off day.
     const opts = {
@@ -312,5 +327,22 @@ describe('rankDateCandidates', () => {
       { count: 3, isolationWindow: 0, preference: 'either' },
     )
     expect(top).toEqual(['2026-06-20', '2026-06-24'])
+  })
+})
+
+describe('normalizeRankOrder', () => {
+  it('defaults to the canonical order and appends missing factors', () => {
+    expect(normalizeRankOrder(undefined)).toEqual(['partnerOff', 'isolation', 'dayType', 'overlap'])
+    expect(normalizeRankOrder(['overlap'])).toEqual(['overlap', 'partnerOff', 'isolation', 'dayType'])
+  })
+
+  it('drops unknown/duplicate entries', () => {
+    // @ts-expect-error testing junk input
+    expect(normalizeRankOrder(['overlap', 'overlap', 'bogus', 'dayType'])).toEqual([
+      'overlap',
+      'dayType',
+      'partnerOff',
+      'isolation',
+    ])
   })
 })

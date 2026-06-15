@@ -1,6 +1,6 @@
 import { addDays, differenceInCalendarDays, format, isWeekend, startOfDay, startOfWeek } from 'date-fns'
 import type { GEvent } from '../api/calendar'
-import type { MetricRule } from '../store/settings'
+import { DATE_RANK_FACTORS, type DateRankFactor, type MetricRule } from '../store/settings'
 import {
   atTime,
   blockedDates,
@@ -167,6 +167,17 @@ export interface DateRankOpts {
   favorPartnerOff?: boolean
   /** Dates (yyyy-MM-dd) the partner isn't working — used when favorPartnerOff. */
   partnerOff?: Set<string>
+  /** Precedence of the ranking factors (highest first). Defaults to the canonical order. */
+  order?: DateRankFactor[]
+}
+
+/** Valid factors, de-duped, in the given order, with any missing ones appended. */
+export function normalizeRankOrder(order?: DateRankFactor[]): DateRankFactor[] {
+  const seen = new Set<DateRankFactor>()
+  const out: DateRankFactor[] = []
+  for (const f of order ?? []) if (DATE_RANK_FACTORS.includes(f) && !seen.has(f)) (seen.add(f), out.push(f))
+  for (const f of DATE_RANK_FACTORS) if (!seen.has(f)) out.push(f)
+  return out
 }
 
 /**
@@ -188,15 +199,20 @@ export function rankDateCandidates(
   // +1 to a day in the preferred bucket so it sorts ahead; 0 when no preference.
   const dayBias = (date: string) =>
     opts.preference === 'weekend' ? isWknd(date) : opts.preference === 'weekday' ? 1 - isWknd(date) : 0
-  const offRank = (date: string) => (opts.favorPartnerOff && opts.partnerOff?.has(date) ? 1 : 0)
-  const ranked = [...eligible].sort(
-    (a, b) =>
-      offRank(b) - offRank(a) ||
-      dayIsolation(b, blocked, opts.isolationWindow) - dayIsolation(a, blocked, opts.isolationWindow) ||
-      dayBias(b) - dayBias(a) ||
-      (overlap.get(b) ?? 0) - (overlap.get(a) ?? 0) ||
-      a.localeCompare(b),
-  )
+  const score: Record<DateRankFactor, (date: string) => number> = {
+    partnerOff: (date) => (opts.favorPartnerOff && opts.partnerOff?.has(date) ? 1 : 0),
+    isolation: (date) => dayIsolation(date, blocked, opts.isolationWindow),
+    dayType: dayBias,
+    overlap: (date) => overlap.get(date) ?? 0,
+  }
+  const factors = normalizeRankOrder(opts.order)
+  const ranked = [...eligible].sort((a, b) => {
+    for (const f of factors) {
+      const diff = score[f](b) - score[f](a)
+      if (diff) return diff
+    }
+    return a.localeCompare(b)
+  })
 
   const picked: string[] = []
   const usedWeeks = new Set<string>()

@@ -2,11 +2,11 @@ import { Fragment, useEffect, useState } from 'react'
 import { hasEverSignedIn, signIn, signOut } from '../auth/google'
 import { listCalendars, type GCalendar } from '../api/calendar'
 import { DEFAULT_WINDOWS, windowKeys } from '../lib/availability'
-import { getSettings, useSettings, type MetricRule, type Settings } from '../store/settings'
+import { getSettings, useSettings, type DateRankFactor, type MetricRule, type Settings } from '../store/settings'
 import { ErrorBanner } from '../components/Banner'
 import ColorField from '../components/ColorField'
 import { COLOR_GROUPS, getColor } from '../lib/colorConfig'
-import { resolveDateRule } from '../lib/relationship'
+import { normalizeRankOrder, resolveDateRule } from '../lib/relationship'
 
 const INPUT =
   'rounded-lg border border-slate-300 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
@@ -1150,10 +1150,10 @@ function RelationshipPanel({
               ))}
             </select>
           </label>
+          <RankPriority settings={settings} update={update} />
           <p className="text-xs text-slate-500">
-            Candidates favor (in order) {settings.partnerName || 'partner'}'s days off, the most empty calendar around
-            them, your day preference, then the most shared free time — one per week, never back-to-back. A week that
-            already has a matching event is skipped (edit keyword rules on the Metrics page).
+            Candidates are ranked by the priority above (drag-free reorder with the arrows), one per week, never
+            back-to-back. A week that already has a matching event is skipped (edit keyword rules on the Metrics page).
           </p>
         </Section>
       )}
@@ -1209,6 +1209,65 @@ function RelationshipPanel({
         </Section>
       )}
     </>
+  )
+}
+
+/** Reorderable list that sets the date-ranking factor precedence. */
+function RankPriority({ settings, update }: { settings: Settings; update: Update }) {
+  const order = normalizeRankOrder(settings.dateRankOrder)
+  const partner = settings.partnerName || 'Partner'
+  const labels: Record<DateRankFactor, string> = {
+    partnerOff: `${partner}'s days off`,
+    isolation: 'Most open calendar (spacing)',
+    dayType: 'Day preference',
+    overlap: 'Most shared free time',
+  }
+  // Factors whose own control is currently off contribute nothing wherever they sit.
+  const inactive: Record<DateRankFactor, boolean> = {
+    partnerOff: !settings.dateFavorPartnerOff,
+    isolation: settings.isolationWindowDays <= 0,
+    dayType: settings.datePreference === 'either',
+    overlap: false,
+  }
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir
+    if (j < 0 || j >= order.length) return
+    const next = [...order]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    update({ dateRankOrder: next })
+  }
+  return (
+    <div className="space-y-1">
+      <span className="text-sm text-slate-700 dark:text-slate-300">Ranking priority</span>
+      {order.map((f, i) => (
+        <div
+          key={f}
+          className="flex items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 text-sm shadow-sm dark:bg-slate-800 dark:shadow-none"
+        >
+          <span className="w-4 text-center text-xs text-slate-400">{i + 1}</span>
+          <span className="flex-1 text-slate-700 dark:text-slate-300">
+            {labels[f]}
+            {inactive[f] && <span className="ml-1 text-xs text-slate-400">· off</span>}
+          </span>
+          <button
+            onClick={() => move(i, -1)}
+            disabled={i === 0}
+            aria-label={`Move ${labels[f]} up`}
+            className="rounded px-1.5 text-slate-500 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-slate-700"
+          >
+            ↑
+          </button>
+          <button
+            onClick={() => move(i, 1)}
+            disabled={i === order.length - 1}
+            aria-label={`Move ${labels[f]} down`}
+            className="rounded px-1.5 text-slate-500 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-slate-700"
+          >
+            ↓
+          </button>
+        </div>
+      ))}
+    </div>
   )
 }
 

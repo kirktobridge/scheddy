@@ -15,6 +15,12 @@ export interface MetricRule {
   allDay?: 'block' | 'free'
 }
 
+/** Factors the date-candidate ranking can be ordered by (see rankDateCandidates). */
+export type DateRankFactor = 'partnerOff' | 'isolation' | 'dayType' | 'overlap'
+
+/** Canonical factor set + the default precedence (highest priority first). */
+export const DATE_RANK_FACTORS: DateRankFactor[] = ['partnerOff', 'isolation', 'dayType', 'overlap']
+
 export interface Settings {
   clientId: string
   blockingCalendarIds: string[]
@@ -54,6 +60,8 @@ export interface Settings {
   datePreference: 'weekend' | 'weekday' | 'either'
   /** Whether date candidates prioritize days the partner is off work. */
   dateFavorPartnerOff: boolean
+  /** Precedence of the date-ranking factors, highest priority first. */
+  dateRankOrder: DateRankFactor[]
   /** All of the partner's busy calendars — drives mutual free time + date-candidate isolation. */
   partnerBlockingCalendarIds: string[]
   /** Subset of the partner's calendars treated as "work" — drives the "not working" overlay. */
@@ -103,6 +111,7 @@ export const DEFAULT_SETTINGS: Settings = {
   partnerName: '',
   datePreference: 'weekend',
   dateFavorPartnerOff: true,
+  dateRankOrder: DATE_RANK_FACTORS,
   partnerBlockingCalendarIds: [],
   partnerWorkCalendarIds: [],
   jointCalendarIds: [],

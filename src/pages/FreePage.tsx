@@ -258,6 +258,7 @@ export default function FreePage() {
         preference: settings.datePreference,
         favorPartnerOff: settings.dateFavorPartnerOff,
         partnerOff: notWorkingSet,
+        order: settings.dateRankOrder,
       }),
     )
 
@@ -302,6 +303,7 @@ export default function FreePage() {
     settings.isolationWindowDays,
     settings.datePreference,
     settings.dateFavorPartnerOff,
+    settings.dateRankOrder,
     partnerName,
     startMs,
     lookahead,
