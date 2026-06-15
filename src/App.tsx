@@ -3,6 +3,7 @@ import FreePage from './pages/FreePage'
 import CheckPage from './pages/CheckPage'
 import SettingsPage from './pages/SettingsPage'
 import { useSettings } from './store/settings'
+import { applyColorVars } from './lib/colorConfig'
 
 type Tab = 'free' | 'check' | 'settings'
 
@@ -22,6 +23,10 @@ export default function App() {
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', settings.theme === 'dark' ? '#0f172a' : '#f1f5f9')
   }, [settings.theme])
+
+  useEffect(() => {
+    applyColorVars(settings)
+  }, [settings.colors])
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">

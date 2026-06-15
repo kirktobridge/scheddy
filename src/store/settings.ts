@@ -39,6 +39,8 @@ export interface Settings {
   metricRules: MetricRule[]
   /** Per-metric calendar highlight color, keyed by metric key ('evenings', 'weekend', 'rule:<id>'). */
   metricColors: Record<string, string>
+  /** Overrides for the app's configurable semantic colors, keyed by colorConfig entry key. */
+  colors: Record<string, string>
 
   /** Relationship mode: surfaces a partner's availability on the Free view (see relationship.ts). */
   relationshipMode: boolean
@@ -62,9 +64,6 @@ export interface Settings {
   dateRuleId: string
 }
 
-/** Highlight color used for a metric's calendar overlay when none is set. */
-export const DEFAULT_METRIC_COLOR = '#fbbf24'
-
 export const DEFAULT_SETTINGS: Settings = {
   clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '',
   blockingCalendarIds: [],
@@ -83,6 +82,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: 'date-nights', name: 'Date nights', keyword: 'date', icon: '❤️', matchDescription: false },
   ],
   metricColors: {},
+  colors: {},
   relationshipMode: false,
   partnerName: '',
   datePreference: 'weekend',

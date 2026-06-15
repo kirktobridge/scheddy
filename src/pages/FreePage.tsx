@@ -14,7 +14,8 @@ import {
 } from '../lib/relationship'
 import type { OverlayLayer } from '../components/FreeCalendar'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
-import { DEFAULT_METRIC_COLOR, useSettings } from '../store/settings'
+import { useSettings } from '../store/settings'
+import { getColor } from '../lib/colorConfig'
 import { useEvents } from '../hooks/useEvents'
 import { type DayInfo, type SlotInfo } from '../components/SlotList'
 import FreeCalendar from '../components/FreeCalendar'
@@ -22,13 +23,12 @@ import { ErrorBanner, Spinner } from '../components/Banner'
 import MetricsStats from '../components/MetricsStats'
 import { useMetrics } from '../hooks/useMetrics'
 
-/** Shared accent for the "Our Overlap" + "Date Options" controls and overlap bar shading. */
-const OVERLAP_COLOR = '#ec4899'
-
 export default function FreePage() {
   const [settings, setSettings] = useSettings()
   const lookahead = settings.lookaheadDays
-  const colorFor = (key: string) => settings.metricColors[key] ?? DEFAULT_METRIC_COLOR
+  /** Shared accent for the "Our Overlap" + "Date Options" controls and overlap bar shading. */
+  const overlapColor = getColor(settings, 'relationship.overlap')
+  const colorFor = (key: string) => settings.metricColors[key] ?? getColor(settings, 'metric.default')
   const setColor = (key: string, color: string) =>
     setSettings({ metricColors: { ...settings.metricColors, [key]: color } })
   // Refresh recomputes "now" too, so stale slots disappear on pull.
@@ -225,11 +225,11 @@ export default function FreePage() {
   const layers = useMemo<OverlayLayer[]>(() => {
     if (!rel) return []
     const out: OverlayLayer[] = []
-    if (showNotWorking) out.push({ key: 'not-working', dates: relationship.notWorkingSet, color: '#3b82f6', style: 'tint' })
-    if (showOverlap && overlapHighlight.size) out.push({ key: 'overlap', dates: overlapHighlight, color: OVERLAP_COLOR, style: 'ring' })
-    if (showDates) out.push({ key: 'dates', dates: relationship.dateSet, color: OVERLAP_COLOR, style: 'marker', mark: '❤️' })
+    if (showNotWorking) out.push({ key: 'not-working', dates: relationship.notWorkingSet, color: getColor(settings, 'relationship.partnerOff'), style: 'tint' })
+    if (showOverlap && overlapHighlight.size) out.push({ key: 'overlap', dates: overlapHighlight, color: overlapColor, style: 'ring' })
+    if (showDates) out.push({ key: 'dates', dates: relationship.dateSet, color: getColor(settings, 'relationship.dateMarker'), style: 'marker', mark: '❤️' })
     return out
-  }, [rel, showNotWorking, showOverlap, showDates, overlapHighlight, relationship])
+  }, [rel, showNotWorking, showOverlap, showDates, overlapHighlight, relationship, settings, overlapColor])
 
   const dayInfo = useCallback(
     (date: string): DayInfo => ({
@@ -330,7 +330,7 @@ export default function FreePage() {
           overlayColor={metrics.activeKey ? colorFor(metrics.activeKey) : undefined}
           layers={layers}
           overlapBusy={showOverlap ? relationship.overlapBusy : undefined}
-          overlapShadeColor={OVERLAP_COLOR}
+          overlapShadeColor={overlapColor}
           overlapShadeDates={overlapHighlight}
           selectedMonth={selectedMonth}
           onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}

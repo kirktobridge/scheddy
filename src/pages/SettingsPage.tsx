@@ -2,19 +2,29 @@ import { useEffect, useState } from 'react'
 import { hasEverSignedIn, signIn, signOut } from '../auth/google'
 import { listCalendars, type GCalendar } from '../api/calendar'
 import { DEFAULT_WINDOWS, windowKeys } from '../lib/availability'
-import { useSettings, type MetricRule, type Settings } from '../store/settings'
+import { getSettings, useSettings, type MetricRule, type Settings } from '../store/settings'
 import { ErrorBanner } from '../components/Banner'
+import ColorField from '../components/ColorField'
+import { COLOR_GROUPS, getColor } from '../lib/colorConfig'
 
 const INPUT =
   'rounded-lg border border-slate-300 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
 const INPUT_NESTED =
   'rounded-lg border border-slate-300 bg-slate-50 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
 
-type CatKey = 'account' | 'appearance' | 'calendars' | 'availability' | 'metrics' | 'relationship'
+type CatKey =
+  | 'account'
+  | 'appearance'
+  | 'colors'
+  | 'calendars'
+  | 'availability'
+  | 'metrics'
+  | 'relationship'
 
 const CATEGORIES: { key: CatKey; label: string; icon: string }[] = [
   { key: 'account', label: 'Account', icon: '👤' },
   { key: 'appearance', label: 'Appearance', icon: '🎨' },
+  { key: 'colors', label: 'Colors', icon: '🌈' },
   { key: 'calendars', label: 'Calendars', icon: '📅' },
   { key: 'availability', label: 'Availability', icon: '🕐' },
   { key: 'metrics', label: 'Metrics', icon: '📌' },
@@ -80,6 +90,8 @@ export default function SettingsPage() {
         )
       case 'appearance':
         return <AppearancePanel settings={settings} update={update} />
+      case 'colors':
+        return <ColorsPanel settings={settings} update={update} />
       case 'calendars':
         return (
           <CalendarsPanel signedIn={signedIn} calendars={calendars} settings={settings} update={update} />
@@ -230,6 +242,49 @@ function AppearancePanel({ settings, update }: { settings: Settings; update: Upd
   )
 }
 
+function ColorsPanel({ settings, update }: { settings: Settings; update: Update }) {
+  const setColor = (key: string, hex: string) =>
+    update({ colors: { ...settings.colors, [key]: hex } })
+  const resetColor = (key: string) => {
+    const { [key]: _, ...rest } = settings.colors
+    update({ colors: rest })
+  }
+  const hasOverrides = Object.keys(settings.colors).length > 0
+
+  return (
+    <>
+      {COLOR_GROUPS.map((group) => (
+        <Section key={group.id} title={group.title}>
+          {group.description && (
+            <p className="text-xs text-slate-500 dark:text-slate-400">{group.description}</p>
+          )}
+          <div className="rounded-lg bg-white px-3 py-1 shadow-sm dark:bg-slate-800 dark:shadow-none">
+            {group.entries.map((entry) => (
+              <ColorField
+                key={entry.key}
+                label={entry.label}
+                description={entry.description}
+                value={getColor(settings, entry.key)}
+                fallback={entry.default}
+                onChange={(hex) => setColor(entry.key, hex)}
+                onReset={() => resetColor(entry.key)}
+              />
+            ))}
+          </div>
+        </Section>
+      ))}
+      {hasOverrides && (
+        <button
+          onClick={() => update({ colors: {} })}
+          className="rounded-lg bg-rose-500/20 px-3 py-1.5 text-sm text-rose-600 dark:text-rose-400"
+        >
+          Reset all colors
+        </button>
+      )}
+    </>
+  )
+}
+
 function CalendarsPanel({
   signedIn,
   calendars,
@@ -332,7 +387,7 @@ function CalendarsPanel({
               >
                 <span
                   className="h-3 w-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: cal.backgroundColor ?? '#64748b' }}
+                  style={{ backgroundColor: cal.backgroundColor ?? getColor(settings, 'calendar.fallback') }}
                 />
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">
                   {cal.summary}
@@ -383,7 +438,7 @@ function CalendarsPanel({
                   >
                     <span
                       className="h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: cal.backgroundColor ?? '#64748b' }}
+                      style={{ backgroundColor: cal.backgroundColor ?? getColor(settings, 'calendar.fallback') }}
                     />
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-800 dark:text-slate-200">
                       {cal.summary}
@@ -772,7 +827,7 @@ function RuleScope({
                 />
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: cal.backgroundColor ?? '#64748b' }}
+                  style={{ backgroundColor: cal.backgroundColor ?? getColor(getSettings(), 'calendar.fallback') }}
                 />
                 <span className="text-slate-700 dark:text-slate-300">{cal.summary}</span>
               </label>
