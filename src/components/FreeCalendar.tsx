@@ -12,6 +12,7 @@ import {
   startOfWeek,
 } from 'date-fns'
 import { dayTimeline, type BusyInterval, type Slot, type WindowKey, type Windows } from '../lib/availability'
+import type { GEvent } from '../api/calendar'
 import DayTimelineCard from './DayTimelineCard'
 import type { DayInfo, SlotInfo } from './SlotList'
 
@@ -35,6 +36,10 @@ interface Props {
   slotsForDate: (date: string) => Slot[]
   dayInfo: (date: string) => DayInfo
   slotInfo: (slot: Slot) => SlotInfo
+  /** That day's events for the detail card's schedule list; omit to hide the schedule. */
+  eventsForDate?: (date: string) => GEvent[]
+  /** calendarId → color for the schedule row dots. */
+  calendarColors?: Map<string, string | undefined>
   /** Dates (yyyy-MM-dd) to highlight with a strong accent ring (metric overlay). */
   overlay?: Set<string> | null
   /** Highlight color for the lit overlay cells. */
@@ -131,6 +136,8 @@ export default function FreeCalendar({
   slotsForDate,
   dayInfo,
   slotInfo,
+  eventsForDate,
+  calendarColors,
   overlay,
   overlayColor = '#fbbf24',
   layers,
@@ -299,6 +306,8 @@ export default function FreeCalendar({
           partnerBusy={partnerBusy}
           partnerName={partnerName}
           reasons={selected ? dateReasons?.get(selected) : undefined}
+          events={eventsForDate ? eventsForDate(selected) : undefined}
+          calendarColors={calendarColors}
         />
       )}
     </div>

@@ -17,10 +17,11 @@ export const MOCK_CALENDARS: GCalendar[] = [
   { id: 'mock-partner', summary: 'Ana (mock)', backgroundColor: '#a855f7', accessRole: 'reader' },
 ]
 
-const MOCK_SETTINGS: Partial<Settings> = {
+export const MOCK_SETTINGS: Partial<Settings> = {
   blockingCalendarIds: ['mock-personal', 'mock-work'],
   workCalendarIds: ['mock-work'],
   holidayCalendarIds: ['mock-holidays'],
+  dayEventCalendarIds: ['mock-personal', 'mock-work', 'mock-us', 'mock-partner'],
   metricRules: [
     { id: 'trips', name: 'Trips', keyword: 'trip', icon: '✈️', matchDescription: false },
     // Dates live on the shared "Us" calendar — scoped so only those count.

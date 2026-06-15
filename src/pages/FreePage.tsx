@@ -20,6 +20,8 @@ import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBooki
 import { useSettings } from '../store/settings'
 import { getColor } from '../lib/colorConfig'
 import { useEvents } from '../hooks/useEvents'
+import { useCalendars } from '../hooks/useCalendars'
+import { eventsForDay } from '../lib/format'
 import { type DayInfo, type SlotInfo } from '../components/SlotList'
 import FreeCalendar from '../components/FreeCalendar'
 import { ErrorBanner, Spinner } from '../components/Banner'
@@ -65,6 +67,20 @@ export default function FreePage() {
     [rawEvents, settings.metricRules],
   )
   const holidays = useEvents(startMs, endMs, settings.holidayCalendarIds)
+
+  // Raw events (no rule overrides) for the selected-day schedule, scoped to the
+  // "Show events" calendars. Empty selection stays idle. Calendar colors drive
+  // the per-row dots.
+  const dayEventStream = useEvents(startMs, endMs, settings.dayEventCalendarIds)
+  const calendars = useCalendars()
+  const calColors = useMemo(
+    () => new Map((calendars ?? []).map((c) => [c.id, c.backgroundColor])),
+    [calendars],
+  )
+  const eventsForDate = useCallback(
+    (date: string) => eventsForDay(dayEventStream.events ?? [], date),
+    [dayEventStream.events],
+  )
 
   // Relationship mode: pull the partner's busy/work calendars and the shared
   // "joint" calendar. Pass [] when off so the hook stays idle (no fetch, no error).
@@ -468,6 +484,8 @@ export default function FreePage() {
           slotsForDate={slotsForDate}
           dayInfo={dayInfo}
           slotInfo={slotInfo}
+          eventsForDate={settings.dayEventCalendarIds.length ? eventsForDate : undefined}
+          calendarColors={calColors}
           overlay={metrics.overlay}
           overlayColor={metrics.activeKey ? colorFor(metrics.activeKey) : undefined}
           layers={layers}

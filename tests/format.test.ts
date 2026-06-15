@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventDates } from '../src/lib/format'
+import { eventDates, eventsForDay } from '../src/lib/format'
 import type { GEvent } from '../src/api/calendar'
 
 const ev = (extra: Partial<GEvent>): GEvent => ({ id: 'x', summary: 'e', ...extra })
@@ -36,5 +36,22 @@ describe('eventDates', () => {
       '2026-06-16',
       '2026-06-17',
     ])
+  })
+})
+
+describe('eventsForDay', () => {
+  const timed = ev({ id: 'a', summary: 'Standup', start: { dateTime: '2026-06-15T09:00' }, end: { dateTime: '2026-06-15T10:00' } })
+  const later = ev({ id: 'b', summary: 'Lunch', start: { dateTime: '2026-06-15T12:00' }, end: { dateTime: '2026-06-15T13:00' } })
+  const allDay = ev({ id: 'c', summary: 'Anniversary', start: { date: '2026-06-15' }, end: { date: '2026-06-16' } })
+  const other = ev({ id: 'd', summary: 'Off-day', start: { dateTime: '2026-06-16T09:00' }, end: { dateTime: '2026-06-16T10:00' } })
+  const cancelled = ev({ id: 'e', summary: 'Dropped', status: 'cancelled', start: { dateTime: '2026-06-15T08:00' }, end: { dateTime: '2026-06-15T08:30' } })
+
+  it('keeps only events on the date, sorted all-day first then by start', () => {
+    const out = eventsForDay([later, allDay, timed, other], '2026-06-15')
+    expect(out.map((e) => e.id)).toEqual(['c', 'a', 'b'])
+  })
+
+  it('drops cancelled events', () => {
+    expect(eventsForDay([cancelled, timed], '2026-06-15').map((e) => e.id)).toEqual(['a'])
   })
 })

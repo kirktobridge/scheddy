@@ -39,6 +39,22 @@ export function eventDates(ev: GEvent): string[] {
   )
 }
 
+/**
+ * Active events occurring on `date` (yyyy-MM-dd), sorted all-day first then by
+ * start time. Cancelled events are dropped; transparent/"free" events are kept
+ * (this is a literal agenda, not a busy calc).
+ */
+export function eventsForDay(events: GEvent[], date: string): GEvent[] {
+  return events
+    .filter((ev) => ev.status !== 'cancelled' && eventDates(ev).includes(date))
+    .sort((a, b) => {
+      const aAllDay = !a.start?.dateTime
+      const bAllDay = !b.start?.dateTime
+      if (aAllDay !== bAllDay) return aAllDay ? -1 : 1
+      return eventStart(a).getTime() - eventStart(b).getTime()
+    })
+}
+
 export function fmtEventWhen(ev: GEvent): string {
   if (ev.start?.dateTime && ev.end?.dateTime) {
     const start = new Date(ev.start.dateTime)

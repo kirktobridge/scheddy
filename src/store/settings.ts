@@ -21,6 +21,8 @@ export interface Settings {
   /** Subset of blocking calendars treated as "work" — see FreePage / adjustForWork. */
   workCalendarIds: string[]
   holidayCalendarIds: string[]
+  /** Calendars whose events are listed in the selected-day schedule on the Free view (empty = none). */
+  dayEventCalendarIds: string[]
   theme: 'dark' | 'light'
   windows: Windows
   /** Earliest clock time ("HH:mm") shown on the Free view's availability bars. */
@@ -75,6 +77,7 @@ export const DEFAULT_SETTINGS: Settings = {
   blockingCalendarIds: [],
   workCalendarIds: [],
   holidayCalendarIds: [],
+  dayEventCalendarIds: [],
   theme: 'dark',
   windows: DEFAULT_WINDOWS,
   dayStart: '08:00',

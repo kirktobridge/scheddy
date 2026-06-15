@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { dayTimeline, daySpan, freeGaps, mergeIntervals, type BusyInterval, type Slot, type WindowKey, type Windows } from '../lib/availability'
 import { summarizeDay } from '../lib/annotate'
-import { fmtDay, fmtTime } from '../lib/format'
+import { eventStart, fmtDay, fmtTime } from '../lib/format'
+import type { GEvent } from '../api/calendar'
 import type { DayInfo, SlotInfo } from './SlotList'
 
 interface Props {
@@ -28,6 +29,10 @@ interface Props {
   partnerName?: string
   /** Reason chips when this day is a date candidate. */
   reasons?: string[]
+  /** That day's events for the schedule list; undefined hides the schedule entirely. */
+  events?: GEvent[]
+  /** calendarId → color for the schedule row dots. */
+  calendarColors?: Map<string, string | undefined>
 }
 
 const HALF_HOUR = 30 * 60 * 1000
@@ -58,7 +63,7 @@ function Chip({
   )
 }
 
-export default function DayTimelineCard({ date, slots, windows, busy, now, dayStart, windowOrder, dayInfo, slotInfo, overlapBusy, overlapShadeColor, partnerBusy, partnerName, reasons }: Props) {
+export default function DayTimelineCard({ date, slots, windows, busy, now, dayStart, windowOrder, dayInfo, slotInfo, overlapBusy, overlapShadeColor, partnerBusy, partnerName, reasons, events, calendarColors }: Props) {
   const info = dayInfo(date)
   const { segments, nowFrac, ticks } = dayTimeline(busy, windows, date, now, dayStart)
   const overlapSegments = overlapBusy ? dayTimeline(overlapBusy, windows, date, now, dayStart).segments : []
@@ -195,6 +200,32 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
       </div>
       {!allDay && slots.length > 0 && (
         <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">{ranges.join('  ·  ')}</p>
+      )}
+
+      {events && (
+        <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-700/60">
+          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Schedule</p>
+          {events.length === 0 ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500">Nothing scheduled</p>
+          ) : (
+            <ul className="space-y-1">
+              {events.map((ev) => (
+                <li key={ev.id} className="flex items-center gap-2 text-sm">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: calendarColors?.get(ev.calendarId ?? '') ?? '#94a3b8' }}
+                  />
+                  <span className="w-24 shrink-0 text-xs tabular-nums text-slate-400 dark:text-slate-500">
+                    {ev.start?.dateTime
+                      ? `${fmtTime(eventStart(ev))}${ev.end?.dateTime ? `–${fmtTime(new Date(ev.end.dateTime))}` : ''}`
+                      : 'all day'}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-300">{ev.summary ?? '(no title)'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   )

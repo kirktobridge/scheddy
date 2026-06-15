@@ -304,8 +304,10 @@ function CalendarsPanel({
   }
   if (!calendars) return <p className="text-sm text-slate-500">Loading calendars…</p>
 
-  const has = (field: 'blockingCalendarIds' | 'workCalendarIds' | 'holidayCalendarIds', id: string) =>
-    settings[field].includes(id)
+  const has = (
+    field: 'blockingCalendarIds' | 'workCalendarIds' | 'holidayCalendarIds' | 'dayEventCalendarIds',
+    id: string,
+  ) => settings[field].includes(id)
 
   const toggleBlocking = (id: string) => {
     if (has('blockingCalendarIds', id)) {
@@ -345,6 +347,13 @@ function CalendarsPanel({
       holidayCalendarIds: has('holidayCalendarIds', id)
         ? settings.holidayCalendarIds.filter((x) => x !== id)
         : [...settings.holidayCalendarIds, id],
+    })
+
+  const toggleDayEvents = (id: string) =>
+    update({
+      dayEventCalendarIds: has('dayEventCalendarIds', id)
+        ? settings.dayEventCalendarIds.filter((x) => x !== id)
+        : [...settings.dayEventCalendarIds, id],
     })
 
   const hasIn = (field: 'partnerBlockingCalendarIds' | 'partnerWorkCalendarIds' | 'jointCalendarIds', id: string) =>
@@ -430,6 +439,9 @@ function CalendarsPanel({
                   <RolePill active={has('holidayCalendarIds', cal.id)} onClick={() => toggleHoliday(cal.id)}>
                     Holiday
                   </RolePill>
+                  <RolePill active={has('dayEventCalendarIds', cal.id)} onClick={() => toggleDayEvents(cal.id)}>
+                    Show events
+                  </RolePill>
                   {blocking && (
                     <RolePill
                       active={allDayOn(cal.id)}
@@ -460,6 +472,10 @@ function CalendarsPanel({
         <p>
           <strong className="text-slate-600 dark:text-slate-400">All-day</strong> — count this calendar's all-day events
           as busy (e.g. a "Vacation" or "Anniversary" day), even with the global all-day setting off.
+        </p>
+        <p>
+          <strong className="text-slate-600 dark:text-slate-400">Show events</strong> — list this calendar's events in the
+          selected-day schedule on the Free tab.
         </p>
       </div>
 
