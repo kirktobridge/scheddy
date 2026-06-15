@@ -16,7 +16,6 @@ const INPUT_NESTED =
 type CatKey =
   | 'account'
   | 'appearance'
-  | 'colors'
   | 'calendars'
   | 'availability'
   | 'metrics'
@@ -25,7 +24,6 @@ type CatKey =
 const CATEGORIES: { key: CatKey; label: string; icon: string }[] = [
   { key: 'account', label: 'Account', icon: '👤' },
   { key: 'appearance', label: 'Appearance', icon: '🎨' },
-  { key: 'colors', label: 'Colors', icon: '🌈' },
   { key: 'calendars', label: 'Calendars', icon: '📅' },
   { key: 'availability', label: 'Availability', icon: '🕐' },
   { key: 'metrics', label: 'Metrics', icon: '📌' },
@@ -91,8 +89,6 @@ export default function SettingsPage() {
         )
       case 'appearance':
         return <AppearancePanel settings={settings} update={update} />
-      case 'colors':
-        return <ColorsPanel settings={settings} update={update} />
       case 'calendars':
         return (
           <CalendarsPanel signedIn={signedIn} calendars={calendars} settings={settings} update={update} />
@@ -222,28 +218,6 @@ function AccountPanel({
 }
 
 function AppearancePanel({ settings, update }: { settings: Settings; update: Update }) {
-  return (
-    <Section title="Appearance">
-      <div className="flex gap-2">
-        {(['light', 'dark'] as const).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => update({ theme: mode })}
-            className={`flex-1 rounded-lg py-2 text-sm capitalize ${
-              settings.theme === mode
-                ? 'bg-emerald-500 font-medium text-emerald-950'
-                : 'bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300 dark:shadow-none'
-            }`}
-          >
-            {mode === 'light' ? '☀️ Light' : '🌙 Dark'}
-          </button>
-        ))}
-      </div>
-    </Section>
-  )
-}
-
-function ColorsPanel({ settings, update }: { settings: Settings; update: Update }) {
   const setColor = (key: string, hex: string) =>
     update({ colors: { ...settings.colors, [key]: hex } })
   const resetColor = (key: string) => {
@@ -254,6 +228,23 @@ function ColorsPanel({ settings, update }: { settings: Settings; update: Update 
 
   return (
     <>
+      <Section title="Appearance">
+        <div className="flex gap-2">
+          {(['light', 'dark'] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => update({ theme: mode })}
+              className={`flex-1 rounded-lg py-2 text-sm capitalize ${
+                settings.theme === mode
+                  ? 'bg-emerald-500 font-medium text-emerald-950'
+                  : 'bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300 dark:shadow-none'
+              }`}
+            >
+              {mode === 'light' ? '☀️ Light' : '🌙 Dark'}
+            </button>
+          ))}
+        </div>
+      </Section>
       {COLOR_GROUPS.map((group) => (
         <Section key={group.id} title={group.title}>
           {group.description && (
