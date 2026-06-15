@@ -149,6 +149,17 @@ function instants(ev: GEvent): [number, number] {
   return [start, end]
 }
 
+/** Mock replacement for createEvent: append to the seeded cache so it shows on refresh. */
+export function mockCreateEvent(
+  calendarId: string,
+  event: { summary: string; description?: string; start: { dateTime: string }; end: { dateTime: string } },
+): GEvent {
+  const id = `mock-new-${Date.now()}`
+  const ev: GEvent = { id, iCalUID: id, calendarId, ...event }
+  allEvents().push(ev)
+  return ev
+}
+
 /** Mock replacement for listEventsMulti: filter seeded events to the window + calendars. */
 export function mockEventsMulti(calendarIds: string[], timeMin: Date, timeMax: Date): GEvent[] {
   const ids = new Set(calendarIds)

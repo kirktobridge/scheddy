@@ -70,6 +70,10 @@ export interface Settings {
   dateCadenceDays: number
   /** Whether the Free-page relationship card is expanded (remembered across reloads). */
   relationshipPanelOpen: boolean
+  /** Calendar a booked date is written to (blank → first joint, then first blocking). */
+  dateTargetCalendarId: string
+  /** Title for a booked date — keep a date keyword in it so the week self-excludes. */
+  dateEventTitle: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -105,6 +109,8 @@ export const DEFAULT_SETTINGS: Settings = {
   dateRuleId: 'date-nights',
   dateCadenceDays: 14,
   relationshipPanelOpen: false,
+  dateTargetCalendarId: '',
+  dateEventTitle: 'Date ❤️',
 }
 
 const STORAGE_KEY = 'scheddy.settings'

@@ -1,5 +1,5 @@
 import { getAccessToken, clearToken } from '../auth/google'
-import { isMockMode, mockEventsMulti, MOCK_CALENDARS } from './mock'
+import { isMockMode, mockCreateEvent, mockEventsMulti, MOCK_CALENDARS } from './mock'
 
 const BASE = 'https://www.googleapis.com/calendar/v3'
 
@@ -81,4 +81,37 @@ export async function listEventsMulti(calendarIds: string[], timeMin: Date, time
   if (isMockMode()) return mockEventsMulti(calendarIds, timeMin, timeMax)
   const results = await Promise.all(calendarIds.map((id) => listEvents(id, timeMin, timeMax)))
   return results.flat()
+}
+
+export interface NewEvent {
+  summary: string
+  description?: string
+  /** RFC3339 timestamps. */
+  start: { dateTime: string }
+  end: { dateTime: string }
+}
+
+/**
+ * Creates a single timed event. This is the ONLY mutating call in the app: there
+ * is intentionally no event-update or event-delete (and no calendar-management)
+ * helper, and the write path is POST-only — so the app cannot remove or alter
+ * existing events or calendars, only add new ones.
+ */
+export async function createEvent(calendarId: string, event: NewEvent): Promise<GEvent> {
+  if (isMockMode()) return mockCreateEvent(calendarId, event)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await getAccessToken()
+    const res = await fetch(`${BASE}/calendars/${encodeURIComponent(calendarId)}/events`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(event),
+    })
+    if (res.status === 401 && attempt === 0) {
+      clearToken()
+      continue
+    }
+    if (!res.ok) throw new Error(`Google Calendar API error ${res.status}: ${await res.text()}`)
+    return { ...((await res.json()) as GEvent), calendarId }
+  }
+  throw new Error('unreachable')
 }

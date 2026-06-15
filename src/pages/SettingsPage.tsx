@@ -98,7 +98,7 @@ export default function SettingsPage() {
       case 'metrics':
         return <MetricsPanel settings={settings} update={update} blockingCalendars={blockingCalendars} />
       case 'relationship':
-        return <RelationshipPanel settings={settings} update={update} />
+        return <RelationshipPanel settings={settings} update={update} calendars={calendars} />
     }
   }
 
@@ -1031,7 +1031,18 @@ function RuleScope({
   )
 }
 
-function RelationshipPanel({ settings, update }: { settings: Settings; update: Update }) {
+function RelationshipPanel({
+  settings,
+  update,
+  calendars,
+}: {
+  settings: Settings
+  update: Update
+  calendars: GCalendar[] | null
+}) {
+  // Calendars a date can be written to (you must be able to edit them).
+  const writable = (calendars ?? []).filter((c) => c.accessRole === 'owner' || c.accessRole === 'writer')
+  const targetFallback = settings.jointCalendarIds[0] ?? settings.blockingCalendarIds[0] ?? ''
   return (
     <>
       <Section title="Relationship mode">
@@ -1137,6 +1148,41 @@ function RelationshipPanel({ settings, update }: { settings: Settings; update: U
           <p className="text-xs text-slate-500">
             A week that already has a matching event won't be offered as a date candidate. Add or edit keyword rules on
             the Metrics page.
+          </p>
+        </Section>
+      )}
+
+      {settings.relationshipMode && (
+        <Section title="Book a date">
+          <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+            Add dates to
+            <select
+              value={settings.dateTargetCalendarId || targetFallback}
+              onChange={(e) => update({ dateTargetCalendarId: e.target.value })}
+              className={`max-w-[60%] truncate px-2 py-1 ${INPUT}`}
+            >
+              {writable.length === 0 && <option value="">(sign in to pick a calendar)</option>}
+              {writable.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.summary}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+            Event title
+            <input
+              type="text"
+              value={settings.dateEventTitle}
+              onChange={(e) => update({ dateEventTitle: e.target.value })}
+              placeholder="Date ❤️"
+              className={`w-44 px-2 py-1 text-sm ${INPUT}`}
+            />
+          </label>
+          <p className="text-xs text-slate-500">
+            "Plan date" on a day creates a {settings.dateMinHours}h event in your shared free window. Keep a date keyword
+            in the title so that week stops being suggested. Booking needs calendar write access — if it fails, sign out
+            and back in on the Account page to grant it.
           </p>
         </Section>
       )}

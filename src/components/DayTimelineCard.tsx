@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { dayTimeline, daySpan, freeGaps, mergeIntervals, type BusyInterval, type Slot, type WindowKey, type Windows } from '../lib/availability'
 import { summarizeDay } from '../lib/annotate'
 import { eventStart, fmtDay, fmtTime } from '../lib/format'
@@ -33,6 +33,10 @@ interface Props {
   events?: GEvent[]
   /** calendarId → color for the schedule row dots. */
   calendarColors?: Map<string, string | undefined>
+  /** Book a date in this day's longest mutual-free window (relationship mode). */
+  onPlanDate?: (start: Date, end: Date) => Promise<void> | void
+  /** Minimum date length (hours) used to size the proposed booking. */
+  dateMinHours?: number
 }
 
 const HALF_HOUR = 30 * 60 * 1000
@@ -63,7 +67,7 @@ function Chip({
   )
 }
 
-export default function DayTimelineCard({ date, slots, windows, busy, now, dayStart, windowOrder, dayInfo, slotInfo, overlapBusy, overlapShadeColor, partnerBusy, partnerName, reasons, events, calendarColors }: Props) {
+export default function DayTimelineCard({ date, slots, windows, busy, now, dayStart, windowOrder, dayInfo, slotInfo, overlapBusy, overlapShadeColor, partnerBusy, partnerName, reasons, events, calendarColors, onPlanDate, dateMinHours }: Props) {
   const info = dayInfo(date)
   const { segments, nowFrac, ticks } = dayTimeline(busy, windows, date, now, dayStart)
   const overlapSegments = overlapBusy ? dayTimeline(overlapBusy, windows, date, now, dayStart).segments : []
@@ -91,6 +95,36 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
   const warnLabel = warning?.startsWith('next day:') ? 'next day busy' : warning ? 'early start tomorrow' : undefined
   // Together chip already conveys mutual time, so drop any "together" reason.
   const factReasons = (reasons ?? []).filter((r) => !/together/i.test(r))
+
+  // Booking: propose the longest mutual-free window, sized to the min date length.
+  const longestMutual = mutualGaps.reduce<BusyInterval | null>(
+    (best, g) => (!best || g.end.getTime() - g.start.getTime() > best.end.getTime() - best.start.getTime() ? g : best),
+    null,
+  )
+  const propStart = longestMutual?.start
+  const propEnd =
+    longestMutual && propStart
+      ? new Date(Math.min(propStart.getTime() + (dateMinHours ?? 3) * 3_600_000, longestMutual.end.getTime()))
+      : undefined
+  const canPlan = !!onPlanDate && !!propStart && !!propEnd
+  const [confirming, setConfirming] = useState(false)
+  const [planning, setPlanning] = useState(false)
+  const [planned, setPlanned] = useState(false)
+  const [planError, setPlanError] = useState<string | null>(null)
+  const confirmPlan = async () => {
+    if (!onPlanDate || !propStart || !propEnd) return
+    setPlanning(true)
+    setPlanError(null)
+    try {
+      await onPlanDate(propStart, propEnd)
+      setPlanned(true)
+      setConfirming(false)
+    } catch (e) {
+      setPlanError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setPlanning(false)
+    }
+  }
 
   return (
     <div className="break-inside-avoid rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800 dark:shadow-none">
@@ -200,6 +234,44 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
       </div>
       {!allDay && slots.length > 0 && (
         <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">{ranges.join('  ·  ')}</p>
+      )}
+
+      {canPlan && (
+        <div className="mt-3 text-xs">
+          {planned ? (
+            <p className="font-medium text-emerald-600 dark:text-emerald-400">
+              ❤️ Date booked — {fmtTime(propStart!)}–{fmtTime(propEnd!)}
+            </p>
+          ) : confirming ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-slate-600 dark:text-slate-300">
+                Book {fmtTime(propStart!)}–{fmtTime(propEnd!)}?
+              </span>
+              <button
+                onClick={confirmPlan}
+                disabled={planning}
+                className="rounded-md bg-pink-500 px-2.5 py-1 font-medium text-pink-950 disabled:opacity-50"
+              >
+                {planning ? 'Booking…' : 'Confirm'}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                disabled={planning}
+                className="rounded-md bg-slate-200 px-2.5 py-1 text-slate-700 disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200"
+              >
+                Cancel
+              </button>
+              {planError && <span className="text-rose-600 dark:text-rose-400">{planError}</span>}
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirming(true)}
+              className="rounded-md bg-pink-500/90 px-2.5 py-1 font-medium text-pink-950"
+            >
+              ❤️ Plan date
+            </button>
+          )}
+        </div>
       )}
 
       {events && (

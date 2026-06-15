@@ -62,6 +62,10 @@ interface Props {
   partnerName?: string
   /** Reason chips per date-candidate, shown on the detail card. */
   dateReasons?: Map<string, string[]>
+  /** Book a date in a mutual-free window on the selected day (relationship mode). */
+  onPlanDate?: (start: Date, end: Date) => Promise<void> | void
+  /** Minimum date length (hours) used to size a proposed booking. */
+  dateMinHours?: number
   /** Month whose card is selected (drives the Metrics section). */
   selectedMonth: Date
   onSelectMonth: (month: Date) => void
@@ -147,6 +151,8 @@ export default function FreeCalendar({
   partnerBusy,
   partnerName,
   dateReasons,
+  onPlanDate,
+  dateMinHours,
   selectedMonth,
   onSelectMonth,
 }: Props) {
@@ -292,6 +298,7 @@ export default function FreeCalendar({
 
       {selected && (
         <DayTimelineCard
+          key={selected}
           date={selected}
           slots={selectedSlots}
           windows={windows}
@@ -306,6 +313,8 @@ export default function FreeCalendar({
           partnerBusy={partnerBusy}
           partnerName={partnerName}
           reasons={selected ? dateReasons?.get(selected) : undefined}
+          onPlanDate={onPlanDate}
+          dateMinHours={dateMinHours}
           events={eventsForDate ? eventsForDate(selected) : undefined}
           calendarColors={calendarColors}
         />

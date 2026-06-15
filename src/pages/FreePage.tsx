@@ -19,6 +19,7 @@ import type { OverlayLayer } from '../components/FreeCalendar'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
 import { useSettings } from '../store/settings'
 import { getColor } from '../lib/colorConfig'
+import { createEvent } from '../api/calendar'
 import { useEvents } from '../hooks/useEvents'
 import { useCalendars } from '../hooks/useCalendars'
 import { eventsForDay } from '../lib/format'
@@ -354,6 +355,28 @@ export default function FreePage() {
     [nowMs],
   )
 
+  // Booking: create a tentative date event in a mutual-free window, then refresh
+  // the calendars that feed date detection so it shows immediately.
+  const planTargetId = settings.dateTargetCalendarId || settings.jointCalendarIds[0] || settings.blockingCalendarIds[0] || ''
+  // A successful booking refreshes the calendars (which briefly unmounts the
+  // card), so show the confirmation here at the page level where it survives.
+  const [bookedMsg, setBookedMsg] = useState<string | null>(null)
+  const planDate = useCallback(
+    async (start: Date, end: Date) => {
+      if (!planTargetId) throw new Error('Pick a target calendar in Settings → Relationship first.')
+      const title = settings.dateEventTitle || 'Date'
+      await createEvent(planTargetId, {
+        summary: title,
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+      })
+      setBookedMsg(`Booked "${title}" — ${format(start, 'EEE M/d, h:mm a')}`)
+      setNowMs(Date.now())
+      await Promise.all([refresh(), joint.refresh(), dateScan.refresh()])
+    },
+    [planTargetId, settings.dateEventTitle, refresh, joint, dateScan],
+  )
+
   const dayInfo = useCallback(
     (date: string): DayInfo => ({
       label: relativeDayLabel(new Date(date + 'T12:00:00'), new Date(nowMs)),
@@ -464,6 +487,14 @@ export default function FreePage() {
           )}
         </section>
       )}
+      {bookedMsg && (
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+          <span>❤️ {bookedMsg}</span>
+          <button onClick={() => setBookedMsg(null)} className="shrink-0 text-emerald-700/70 hover:text-emerald-700 dark:text-emerald-300/70" aria-label="Dismiss">
+            ✕
+          </button>
+        </div>
+      )}
       {error && <ErrorBanner message={error} />}
       {loading && <Spinner />}
       {!loading && !error && days.length === 0 && (
@@ -495,6 +526,8 @@ export default function FreePage() {
           partnerBusy={rel ? relationship.partnerBusy : undefined}
           partnerName={rel ? partnerName : undefined}
           dateReasons={rel ? relationship.dateReasons : undefined}
+          onPlanDate={rel ? planDate : undefined}
+          dateMinHours={settings.dateMinHours}
           selectedMonth={selectedMonth}
           onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
         />

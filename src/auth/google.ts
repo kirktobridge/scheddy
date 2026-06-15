@@ -1,6 +1,10 @@
 import { getSettings } from '../store/settings'
 
-const SCOPE = 'https://www.googleapis.com/auth/calendar.readonly'
+// Read everything, plus create events (calendar.events). We deliberately do NOT
+// request the full `calendar` scope — so the app can never create, modify, or
+// delete calendars — and the API layer implements only event creation (no
+// delete/update), so it cannot remove or alter existing events either.
+const SCOPE = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events'
 const TOKEN_KEY = 'scheddy.token'
 const GIS_SRC = 'https://accounts.google.com/gsi/client'
 
