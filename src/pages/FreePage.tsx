@@ -256,6 +256,8 @@ export default function FreePage() {
         count: settings.dateCandidateCount,
         isolationWindow: settings.isolationWindowDays,
         preference: settings.datePreference,
+        favorPartnerOff: settings.dateFavorPartnerOff,
+        partnerOff: notWorkingSet,
       }),
     )
 
@@ -263,6 +265,7 @@ export default function FreePage() {
     const dateReasons = new Map<string, string[]>()
     for (const dstr of dateSet) {
       const reasons: string[] = []
+      if (settings.dateFavorPartnerOff && notWorkingSet.has(dstr)) reasons.push(`${partnerName} off`)
       if (isWknd(dstr)) reasons.push('Weekend')
       const hrs = (overlap.get(dstr) ?? 0) / HOUR
       if (hrs > 0) reasons.push(`${Math.round(hrs * 10) / 10}h free together`)
@@ -298,6 +301,8 @@ export default function FreePage() {
     settings.dateCandidateCount,
     settings.isolationWindowDays,
     settings.datePreference,
+    settings.dateFavorPartnerOff,
+    partnerName,
     startMs,
     lookahead,
   ])

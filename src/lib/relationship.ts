@@ -163,16 +163,20 @@ export interface DateRankOpts {
   isolationWindow: number
   /** Day-type bias: prefer weekends, prefer weekdays, or treat both equally. */
   preference: 'weekend' | 'weekday' | 'either'
+  /** When true, days the partner is off work rank above days they work. */
+  favorPartnerOff?: boolean
+  /** Dates (yyyy-MM-dd) the partner isn't working — used when favorPartnerOff. */
+  partnerOff?: Set<string>
 }
 
 /**
  * Picks date candidates, at most one per week and never on back-to-back days.
- * Candidates are first ranked lexicographically — most isolated from any
- * blocking event (distance from either partner's commitments), then the
- * configured day-type bias, then most mutual free time, then earliest — and then
- * walked best-first: a day is taken only if its week has no pick yet and it isn't
- * adjacent to one already taken. So each week contributes its single best day,
- * spaced out from the others. Returns up to `count` picks.
+ * Candidates are first ranked lexicographically — partner's days off first (when
+ * favorPartnerOff), then most isolated from any blocking event (distance from
+ * either partner's commitments), then the configured day-type bias, then most
+ * mutual free time, then earliest — and then walked best-first: a day is taken
+ * only if its week has no pick yet and it isn't adjacent to one already taken. So
+ * each week contributes its single best day, spaced out. Returns up to `count`.
  */
 export function rankDateCandidates(
   eligible: string[],
@@ -184,8 +188,10 @@ export function rankDateCandidates(
   // +1 to a day in the preferred bucket so it sorts ahead; 0 when no preference.
   const dayBias = (date: string) =>
     opts.preference === 'weekend' ? isWknd(date) : opts.preference === 'weekday' ? 1 - isWknd(date) : 0
+  const offRank = (date: string) => (opts.favorPartnerOff && opts.partnerOff?.has(date) ? 1 : 0)
   const ranked = [...eligible].sort(
     (a, b) =>
+      offRank(b) - offRank(a) ||
       dayIsolation(b, blocked, opts.isolationWindow) - dayIsolation(a, blocked, opts.isolationWindow) ||
       dayBias(b) - dayBias(a) ||
       (overlap.get(b) ?? 0) - (overlap.get(a) ?? 0) ||

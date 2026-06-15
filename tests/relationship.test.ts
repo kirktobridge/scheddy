@@ -263,6 +263,23 @@ describe('rankDateCandidates', () => {
     expect(top).toHaveLength(2)
   })
 
+  it('prioritizes a partner-off day over a higher-ranked working day when favorPartnerOff', () => {
+    // 06-20 (Sat) would win on weekend bias, but 06-18 (Thu) is a partner off day.
+    const opts = {
+      count: 1,
+      isolationWindow: 3,
+      preference: 'weekend' as const,
+      favorPartnerOff: true,
+      partnerOff: new Set(['2026-06-18']),
+    }
+    const ov = overlap(['2026-06-18', 5], ['2026-06-20', 5])
+    expect(rankDateCandidates(['2026-06-18', '2026-06-20'], ov, new Set(), opts)).toEqual(['2026-06-18'])
+    // Without the flag, the weekend wins again.
+    expect(
+      rankDateCandidates(['2026-06-18', '2026-06-20'], ov, new Set(), { ...opts, favorPartnerOff: false }),
+    ).toEqual(['2026-06-20'])
+  })
+
   it('recommends at most one day per week', () => {
     // 06-18 and 06-19 are the same week (Sun 06-14 bucket); 06-19 has more overlap.
     const top = rankDateCandidates(

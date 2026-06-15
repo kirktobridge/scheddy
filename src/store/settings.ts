@@ -52,6 +52,8 @@ export interface Settings {
   partnerName: string
   /** Whether date candidates lean toward weekends, weekdays, or neither. */
   datePreference: 'weekend' | 'weekday' | 'either'
+  /** Whether date candidates prioritize days the partner is off work. */
+  dateFavorPartnerOff: boolean
   /** All of the partner's busy calendars — drives mutual free time + date-candidate isolation. */
   partnerBlockingCalendarIds: string[]
   /** Subset of the partner's calendars treated as "work" — drives the "not working" overlay. */
@@ -100,6 +102,7 @@ export const DEFAULT_SETTINGS: Settings = {
   relationshipMode: false,
   partnerName: '',
   datePreference: 'weekend',
+  dateFavorPartnerOff: true,
   partnerBlockingCalendarIds: [],
   partnerWorkCalendarIds: [],
   jointCalendarIds: [],

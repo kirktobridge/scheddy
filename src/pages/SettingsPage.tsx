@@ -1074,7 +1074,7 @@ function RelationshipPanel({
       </Section>
 
       {settings.relationshipMode && (
-        <Section title="Date options">
+        <Section title="Overlap">
           <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
             Overlap threshold (hours)
             <input
@@ -1086,6 +1086,13 @@ function RelationshipPanel({
               className={`w-20 px-2 py-1 text-right ${INPUT}`}
             />
           </label>
+          <p className="text-xs text-slate-500">Minimum shared free time for a day to count toward the "Our Overlap" highlight.</p>
+        </Section>
+      )}
+
+      {settings.relationshipMode && (
+        <Section title="Date picking">
+          <p className="text-xs text-slate-500">How the ❤️ date candidates are chosen and ranked.</p>
           <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
             Minimum date length (hours)
             <input
@@ -1108,15 +1115,13 @@ function RelationshipPanel({
               className={`w-20 px-2 py-1 text-right ${INPUT}`}
             />
           </label>
-          <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
-            Nudge when overdue (days, 0 = off)
+          <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+            Prefer days {settings.partnerName || 'partner'} is off work
             <input
-              type="number"
-              min={0}
-              max={365}
-              value={settings.dateCadenceDays}
-              onChange={(e) => update({ dateCadenceDays: Math.min(365, Math.max(0, Number(e.target.value) || 0)) })}
-              className={`w-20 px-2 py-1 text-right ${INPUT}`}
+              type="checkbox"
+              checked={settings.dateFavorPartnerOff}
+              onChange={(e) => update({ dateFavorPartnerOff: e.target.checked })}
+              className="h-4 w-4 accent-emerald-500"
             />
           </label>
           <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
@@ -1146,9 +1151,26 @@ function RelationshipPanel({
             </select>
           </label>
           <p className="text-xs text-slate-500">
-            A week that already has a matching event won't be offered as a date candidate. Add or edit keyword rules on
-            the Metrics page.
+            Candidates favor (in order) {settings.partnerName || 'partner'}'s days off, the most empty calendar around
+            them, your day preference, then the most shared free time — one per week, never back-to-back. A week that
+            already has a matching event is skipped (edit keyword rules on the Metrics page).
           </p>
+        </Section>
+      )}
+
+      {settings.relationshipMode && (
+        <Section title="Cadence">
+          <label className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300">
+            Nudge when overdue (days, 0 = off)
+            <input
+              type="number"
+              min={0}
+              max={365}
+              value={settings.dateCadenceDays}
+              onChange={(e) => update({ dateCadenceDays: Math.min(365, Math.max(0, Number(e.target.value) || 0)) })}
+              className={`w-20 px-2 py-1 text-right ${INPUT}`}
+            />
+          </label>
         </Section>
       )}
 
