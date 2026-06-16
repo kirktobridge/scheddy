@@ -610,7 +610,7 @@ export default function FreePage() {
           <div className="flex items-start gap-4">
             <div className="min-w-0 flex-1">{calendar}</div>
             <aside className="w-96 shrink-0">
-              <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto">
+              <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto px-1">
                 <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} dense />
                 {dayInView && dayCardEl}
               </div>
