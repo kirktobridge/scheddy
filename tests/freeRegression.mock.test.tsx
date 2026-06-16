@@ -138,22 +138,6 @@ describe('Free page regression — desktop', () => {
     expect(await screen.findByText('today')).toBeTruthy()
   })
 
-  it('preserves the panel scroll container across month nav, remounts it on swap', async () => {
-    mockMatch(true)
-    const user = userEvent.setup()
-    renderMock(<FreePage />)
-    await waitFor(() => screen.getByTitle('Next month'))
-
-    const aside = screen.getByLabelText('Collapse panel').parentElement as HTMLElement
-    const c1 = aside.querySelector('.overflow-y-auto')
-    // Metrics → metrics across nav: same node (key={panelMode} stable).
-    await user.click(screen.getByTitle('Next month'))
-    expect(aside.querySelector('.overflow-y-auto')).toBe(c1)
-    // Metrics → day: content type swap remounts the container.
-    await user.click(firstDayCell(xlCard()))
-    expect(aside.querySelector('.overflow-y-auto')).not.toBe(c1)
-  })
-
   it('Escape clears the selection (panel back to metrics)', async () => {
     mockMatch(true)
     const user = userEvent.setup()

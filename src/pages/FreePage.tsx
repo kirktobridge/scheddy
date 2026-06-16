@@ -58,9 +58,8 @@ export default function FreePage() {
   // Metrics follow whichever month card is selected in the calendar.
   const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()))
   const metrics = useMetrics(selectedMonth)
-  // Selected day (yyyy-MM-dd) drives the day-detail card; none = panel shows metrics.
+  // Selected day (yyyy-MM-dd) drives the day-detail card stacked above metrics.
   const [selected, setSelected] = useState<string | undefined>(undefined)
-  const [panelCollapsed, setPanelCollapsed] = useState(false)
   // xl: a right-side panel replaces the stacked day card / top metrics.
   const isDesktop = useMediaQuery('(min-width: 1280px)')
   // Free view horizon: clamp(minHorizonDays, last horizon-calendar event, maxHorizonDays).
@@ -450,10 +449,9 @@ export default function FreePage() {
     />
   ) : null
 
-  // Panel shows the day card only while the selected day is in the viewed month;
-  // paging away reverts to metrics without clearing the selection.
+  // Panel stacks the day card above metrics, but only while the selected day is
+  // in the viewed month; paging away hides the card without clearing selection.
   const dayInView = !!selected && isSameMonth(new Date(selected + 'T12:00:00'), selectedMonth)
-  const panelMode: 'day' | 'metrics' = dayInView ? 'day' : 'metrics'
 
   // Desktop: Escape clears the day selection (panel → metrics). Mobile uses the
   // sheet's own Escape handler, so guard on isDesktop to avoid double-handling.
@@ -609,27 +607,13 @@ export default function FreePage() {
           )
         }
         return (
-          <div className="flex items-start gap-4" style={{ ['--panel-width' as string]: '24rem' }}>
+          <div className="flex items-start gap-4">
             <div className="min-w-0 flex-1">{calendar}</div>
-            <aside
-              className={`relative shrink-0 transition-[width] duration-200 ${
-                panelCollapsed ? 'w-0' : 'w-[var(--panel-width)]'
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => setPanelCollapsed((c) => !c)}
-                title={panelCollapsed ? 'Expand panel' : 'Collapse panel'}
-                aria-label={panelCollapsed ? 'Expand panel' : 'Collapse panel'}
-                className="absolute -left-3 top-3 z-10 grid h-6 w-6 place-items-center rounded-full bg-white text-slate-600 shadow ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700"
-              >
-                {panelCollapsed ? '‹' : '›'}
-              </button>
-              {!panelCollapsed && (
-                <div key={panelMode} className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl">
-                  {panelMode === 'day' ? dayCardEl : <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} dense />}
-                </div>
-              )}
+            <aside className="w-96 shrink-0">
+              <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto">
+                {dayInView && dayCardEl}
+                <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} dense />
+              </div>
             </aside>
           </div>
         )

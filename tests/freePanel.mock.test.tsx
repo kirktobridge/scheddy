@@ -35,7 +35,7 @@ describe('Free view desktop panel (mock mode)', () => {
     delete window.matchMedia
   })
 
-  it('shows metrics by default and swaps to the day card on selection', async () => {
+  it('shows metrics by default and stacks the day card above metrics on selection', async () => {
     const user = userEvent.setup()
     renderMock(<FreePage />)
     expect(await screen.findByText('Availability')).toBeTruthy()
@@ -44,21 +44,9 @@ describe('Free view desktop panel (mock mode)', () => {
     // (the mobile top-of-page metrics are not rendered on desktop).
     await waitFor(() => expect(screen.getAllByText('Metrics')).toHaveLength(1))
 
-    // Selecting a day swaps the panel to that day's detail card.
+    // Selecting a day stacks that day's detail card above metrics; both stay visible.
     await user.click(await waitFor(firstDayCell, { timeout: 3000 }))
     expect(await screen.findByText('today')).toBeTruthy()
-    expect(screen.queryByText('Metrics')).toBeNull()
-  })
-
-  it('collapse toggle hides the panel content', async () => {
-    const user = userEvent.setup()
-    renderMock(<FreePage />)
-    await waitFor(() => expect(screen.getAllByText('Metrics')).toHaveLength(1))
-
-    await user.click(screen.getByLabelText('Collapse panel'))
-    expect(screen.queryByText('Metrics')).toBeNull()
-
-    await user.click(screen.getByLabelText('Expand panel'))
     expect(screen.getAllByText('Metrics')).toHaveLength(1)
   })
 })
