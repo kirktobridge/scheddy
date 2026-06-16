@@ -18,7 +18,7 @@ export default function MetricsStats({
   eveningDates,
   weekendDates,
   ruleResults,
-  activeKey,
+  activeKeys,
   toggle,
   colorFor,
   onColor,
@@ -36,7 +36,7 @@ export default function MetricsStats({
             <StatCard
               value={eveningDates.length}
               label={isCurrent ? 'unbooked evenings left' : 'unbooked evenings'}
-              active={activeKey === 'evenings'}
+              active={activeKeys.has('evenings')}
               color={colorFor('evenings')}
               dense={dense}
               onClick={() => toggle('evenings')}
@@ -45,7 +45,7 @@ export default function MetricsStats({
             <StatCard
               value={weekendDates.length}
               label={isCurrent ? 'free weekend days left' : 'free weekend days'}
-              active={activeKey === 'weekend'}
+              active={activeKeys.has('weekend')}
               color={colorFor('weekend')}
               dense={dense}
               onClick={() => toggle('weekend')}
@@ -56,7 +56,7 @@ export default function MetricsStats({
                 key={rule.id}
                 value={matched.length}
                 label={`${rule.icon} ${rule.name}`}
-                active={activeKey === `rule:${rule.id}`}
+                active={activeKeys.has(`rule:${rule.id}`)}
                 color={colorFor(`rule:${rule.id}`)}
                 dense={dense}
                 onClick={() => toggle(`rule:${rule.id}`)}

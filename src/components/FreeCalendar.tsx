@@ -37,10 +37,8 @@ interface Props {
   onSelectDay: (date: string) => void
   /** Free slots for any day — powers the desktop hover preview. Omit to disable. */
   slotsForDate?: (date: string) => Slot[]
-  /** Dates (yyyy-MM-dd) to highlight with a strong accent ring (metric overlay). */
-  overlay?: Set<string> | null
-  /** Highlight color for the lit overlay cells. */
-  overlayColor?: string
+  /** Lit metric-overlay cells: yyyy-MM-dd → highlight color (blended if several metrics overlap). */
+  overlay?: Map<string, string> | null
   /**
    * Extra highlight layers drawn on top of the metric overlay, each on its own
    * visual channel so they stack without clobbering: a background `tint`, an
@@ -153,7 +151,6 @@ export default function FreeCalendar({
   onSelectDay,
   slotsForDate,
   overlay,
-  overlayColor = '#fbbf24',
   layers,
   overlapBusy,
   overlapShadeColor,
@@ -230,17 +227,17 @@ export default function FreeCalendar({
           const pick = freeSet.has(dateStr)
           const today = isToday(day)
           const isSel = active && dateStr === selected
-          const lit = !!overlay?.has(dateStr) && inMonth
+          const overlayColor = inMonth ? overlay?.get(dateStr) : undefined
           const cellLayers = inMonth ? (layers ?? []).filter((l) => l.dates.has(dateStr)) : []
 
           // Each channel stacks independently: metric overlay + tint layers wash
           // the background; ring layers nest as inset borders; markers sit in the corner.
           const tints = [
-            ...(lit ? [overlayColor] : []),
+            ...(overlayColor ? [overlayColor] : []),
             ...cellLayers.filter((l) => l.style === 'tint').map((l) => l.color),
           ]
           const rings = [
-            ...(lit ? [overlayColor] : []),
+            ...(overlayColor ? [overlayColor] : []),
             ...cellLayers.filter((l) => l.style === 'ring').map((l) => l.color),
           ]
           const markers = cellLayers.filter((l) => l.style === 'marker')
@@ -273,9 +270,6 @@ export default function FreeCalendar({
                     : ''
               } ${highlighted ? 'z-20' : ''}`}
             >
-              {tints.map((c, i) => (
-                <div key={i} className="absolute inset-0" style={{ backgroundColor: `${c}4d` }} />
-              ))}
               {active && (
                 <DayFill
                   busy={busy}
@@ -287,6 +281,10 @@ export default function FreeCalendar({
                   overlapShadeColor={overlapShadeColor}
                 />
               )}
+              {/* Metric/layer tints wash over the availability fill, not under it. */}
+              {tints.map((c, i) => (
+                <div key={i} className="pointer-events-none absolute inset-0" style={{ backgroundColor: `${c}4d` }} />
+              ))}
               {markers.length > 0 && (
                 <span className="pointer-events-none absolute right-0.5 top-0.5 z-30 text-[11px] leading-none">
                   {markers.map((l) => l.mark ?? '●').join('')}

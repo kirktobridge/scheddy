@@ -19,6 +19,7 @@ import type { OverlayLayer } from '../components/FreeCalendar'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
 import { useSettings } from '../store/settings'
 import { getColor } from '../lib/colorConfig'
+import { mixColors } from '../lib/colorMix'
 import { createEvent } from '../api/calendar'
 import { useEvents } from '../hooks/useEvents'
 import { useHorizon } from '../hooks/useHorizon'
@@ -58,6 +59,24 @@ export default function FreePage() {
   // Metrics follow whichever month card is selected in the calendar.
   const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()))
   const metrics = useMetrics(selectedMonth)
+  // Per-date highlight color for the lit metrics. Days counted by several active
+  // metrics get the RYB blend of their colors (e.g. blue + yellow = green).
+  const metricOverlay = useMemo(() => {
+    const perDate = new Map<string, string[]>()
+    for (const key of metrics.activeKeys) {
+      const color = colorFor(key)
+      for (const date of metrics.dateSets.get(key) ?? []) {
+        perDate.set(date, [...(perDate.get(date) ?? []), color])
+      }
+    }
+    const blended = new Map<string, string>()
+    for (const [date, colors] of perDate) {
+      const mixed = mixColors(colors)
+      if (mixed) blended.set(date, mixed)
+    }
+    return blended
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metrics.activeKeys, metrics.dateSets, settings.metricColors])
   // Selected day (yyyy-MM-dd) drives the day-detail card stacked below metrics.
   const [selected, setSelected] = useState<string | undefined>(undefined)
   // xl: a right-side panel replaces the stacked day card / top metrics.
@@ -586,8 +605,7 @@ export default function FreePage() {
             selected={selected}
             onSelectDay={(d) => setSelected((prev) => (!isDesktop && prev === d ? undefined : d))}
             slotsForDate={slotsForDate}
-            overlay={metrics.overlay}
-            overlayColor={metrics.activeKey ? colorFor(metrics.activeKey) : undefined}
+            overlay={metricOverlay}
             layers={layers}
             overlapBusy={showOverlap ? relationship.overlapBusy : undefined}
             overlapShadeColor={overlapColor}

@@ -26,17 +26,18 @@ export interface Metrics {
   eveningDates: string[]
   weekendDates: string[]
   ruleResults: RuleResult[]
-  activeKey: string | null
+  /** Keys of every metric whose calendar overlay is currently lit (empty = none). */
+  activeKeys: Set<string>
   toggle: (key: string) => void
-  /** Dates (yyyy-MM-dd) for the lit metric, for the calendar overlay (null = none). */
-  overlay: Set<string> | null
+  /** Dates (yyyy-MM-dd) behind each toggleable metric, keyed by metric key. */
+  dateSets: Map<string, string[]>
 }
 
-/** Month-scoped metrics plus the one toggled overlay shared by the stats and rules blocks. */
+/** Month-scoped metrics plus the toggled overlays shared by the stats and rules blocks. */
 export function useMetrics(month: Date): Metrics {
   const [settings] = useSettings()
-  // Which metric's overlay is currently lit (null = none).
-  const [activeKey, setActiveKey] = useState<string | null>(null)
+  // Which metrics' overlays are currently lit (empty = none); multiple may stack.
+  const [activeKeys, setActiveKeys] = useState<Set<string>>(() => new Set())
   const now = new Date()
   const monthStart = startOfMonth(month)
   const monthEnd = endOfMonth(month)
@@ -91,13 +92,8 @@ export function useMetrics(month: Date): Metrics {
     return m
   }, [computed, ruleResults])
 
-  const overlay = useMemo(() => {
-    const dates = activeKey ? dateSets.get(activeKey) : null
-    return dates ? new Set(dates) : null
-  }, [activeKey, dateSets])
-
-  // Changing month invalidates any lit overlay.
-  useEffect(() => setActiveKey(null), [monthStart.getTime()])
+  // Changing month invalidates any lit overlays.
+  useEffect(() => setActiveKeys(new Set()), [monthStart.getTime()])
 
   return {
     month,
@@ -107,8 +103,13 @@ export function useMetrics(month: Date): Metrics {
     eveningDates: computed.eveningDates,
     weekendDates: computed.weekendDates,
     ruleResults,
-    activeKey,
-    toggle: (key) => setActiveKey((k) => (k === key ? null : key)),
-    overlay,
+    activeKeys,
+    toggle: (key) =>
+      setActiveKeys((prev) => {
+        const next = new Set(prev)
+        next.has(key) ? next.delete(key) : next.add(key)
+        return next
+      }),
+    dateSets,
   }
 }
