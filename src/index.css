@@ -10,3 +10,14 @@ body {
   @apply bg-slate-100 text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100;
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { addDays, differenceInCalendarDays, endOfDay, format, isSameMonth, isWeekend, startOfDay, startOfMonth } from 'date-fns'
 import { blockedDates, dayIsolation, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, buildBusy, matchRule } from '../lib/metrics'
@@ -438,6 +438,17 @@ export default function FreePage() {
   // paging away reverts to metrics without clearing the selection.
   const dayInView = !!selected && isSameMonth(new Date(selected + 'T12:00:00'), selectedMonth)
   const panelMode: 'day' | 'metrics' = dayInView ? 'day' : 'metrics'
+
+  // Desktop: Escape clears the day selection (panel → metrics). Mobile uses the
+  // sheet's own Escape handler, so guard on isDesktop to avoid double-handling.
+  useEffect(() => {
+    if (!isDesktop || !selected) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelected(undefined)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [isDesktop, selected])
 
   return (
     <div className="space-y-4">
