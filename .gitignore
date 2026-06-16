@@ -1,3 +1,4 @@
+.gitignore
 node_modules
 dist
 dev-dist
@@ -5,3 +6,4 @@ dev-dist
 .env.local
 *.local
 .SECRETS
+CLAUDE.md
