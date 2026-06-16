@@ -58,7 +58,7 @@ export default function FreePage() {
   // Metrics follow whichever month card is selected in the calendar.
   const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()))
   const metrics = useMetrics(selectedMonth)
-  // Selected day (yyyy-MM-dd) drives the day-detail card stacked above metrics.
+  // Selected day (yyyy-MM-dd) drives the day-detail card stacked below metrics.
   const [selected, setSelected] = useState<string | undefined>(undefined)
   // xl: a right-side panel replaces the stacked day card / top metrics.
   const isDesktop = useMediaQuery('(min-width: 1280px)')
@@ -449,7 +449,7 @@ export default function FreePage() {
     />
   ) : null
 
-  // Panel stacks the day card above metrics, but only while the selected day is
+  // Panel stacks the day card below metrics, but only while the selected day is
   // in the viewed month; paging away hides the card without clearing selection.
   const dayInView = !!selected && isSameMonth(new Date(selected + 'T12:00:00'), selectedMonth)
 
@@ -611,8 +611,8 @@ export default function FreePage() {
             <div className="min-w-0 flex-1">{calendar}</div>
             <aside className="w-96 shrink-0">
               <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto">
-                {dayInView && dayCardEl}
                 <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} dense />
+                {dayInView && dayCardEl}
               </div>
             </aside>
           </div>

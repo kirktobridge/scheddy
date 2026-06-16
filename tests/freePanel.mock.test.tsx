@@ -35,7 +35,7 @@ describe('Free view desktop panel (mock mode)', () => {
     delete window.matchMedia
   })
 
-  it('shows metrics by default and stacks the day card above metrics on selection', async () => {
+  it('shows metrics by default and stacks the day card below metrics on selection', async () => {
     const user = userEvent.setup()
     renderMock(<FreePage />)
     expect(await screen.findByText('Availability')).toBeTruthy()
