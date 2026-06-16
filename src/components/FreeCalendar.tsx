@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   addMonths,
   eachDayOfInterval,
@@ -12,6 +13,8 @@ import {
   startOfWeek,
 } from 'date-fns'
 import { dayTimeline, type BusyInterval, type Slot, type Windows } from '../lib/availability'
+import { fmtDay, fmtTime } from '../lib/format'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
@@ -32,6 +35,8 @@ interface Props {
   selected?: string
   /** Called when a day cell is clicked. */
   onSelectDay: (date: string) => void
+  /** Free slots for any day — powers the desktop hover preview. Omit to disable. */
+  slotsForDate?: (date: string) => Slot[]
   /** Dates (yyyy-MM-dd) to highlight with a strong accent ring (metric overlay). */
   overlay?: Set<string> | null
   /** Highlight color for the lit overlay cells. */
@@ -110,6 +115,32 @@ function DayFill({
   )
 }
 
+/** Lightweight free-time summary shown on cell hover (desktop). Fixed-positioned
+ *  and portaled to body so the cell's overflow-hidden can't clip it. */
+function HoverPreview({ date, slots, rect }: { date: string; slots: Slot[]; rect: DOMRect }) {
+  const freeMs = slots.reduce((sum, s) => sum + (s.freeTo.getTime() - s.freeFrom.getTime()), 0)
+  const hours = Math.round((freeMs / 3_600_000) * 10) / 10
+  const ranges = slots.slice(0, 2).map((s) => `${fmtTime(s.freeFrom)}–${fmtTime(s.freeTo)}`)
+  const placeAbove = rect.bottom + 140 > window.innerHeight
+  const left = Math.min(Math.max(rect.left + rect.width / 2, 8), window.innerWidth - 8)
+  return createPortal(
+    <div
+      aria-hidden
+      className="pointer-events-none fixed z-50 w-max max-w-[16rem] rounded-lg bg-slate-900 px-3 py-2 text-xs text-white shadow-lg dark:bg-slate-700"
+      style={{
+        left,
+        top: placeAbove ? rect.top - 8 : rect.bottom + 8,
+        transform: `translateX(-50%)${placeAbove ? ' translateY(-100%)' : ''}`,
+      }}
+    >
+      <p className="font-semibold">{fmtDay(date)}</p>
+      <p className="mt-0.5 text-emerald-300">{slots.length === 0 ? 'Fully booked' : `${hours}h free`}</p>
+      {ranges.length > 0 && <p className="mt-0.5 text-slate-300">{ranges.join('  ·  ')}</p>}
+    </div>,
+    document.body,
+  )
+}
+
 export default function FreeCalendar({
   days,
   windows,
@@ -120,6 +151,7 @@ export default function FreeCalendar({
   highlightPicks,
   selected,
   onSelectDay,
+  slotsForDate,
   overlay,
   overlayColor = '#fbbf24',
   layers,
@@ -141,6 +173,17 @@ export default function FreeCalendar({
   }, [days])
   const todayMs = startOfDay(now).getTime()
   const maxMs = maxDate.getTime()
+
+  // Desktop-only hover preview: a lightweight popover anchored to the cell.
+  const canHover = useMediaQuery('(min-width: 1280px) and (pointer: fine)')
+  const [hover, setHover] = useState<{ date: string; rect: DOMRect } | null>(null)
+  // Fixed-positioned popover goes stale on scroll — drop it.
+  useEffect(() => {
+    if (!hover) return
+    const clear = () => setHover(null)
+    window.addEventListener('scroll', clear, true)
+    return () => window.removeEventListener('scroll', clear, true)
+  }, [hover])
 
   const months = useMemo(() => {
     const first = startOfMonth(now)
@@ -210,12 +253,25 @@ export default function FreeCalendar({
               type="button"
               disabled={!active || (!blankSpillover && !inMonth)}
               onClick={() => onSelectDay(dateStr)}
+              onPointerEnter={
+                canHover && active && slotsForDate
+                  ? (e) => {
+                      if (e.pointerType !== 'touch') setHover({ date: dateStr, rect: e.currentTarget.getBoundingClientRect() })
+                    }
+                  : undefined
+              }
+              onPointerLeave={canHover ? () => setHover(null) : undefined}
+              onPointerDown={canHover ? () => setHover(null) : undefined}
               style={boxShadow ? { boxShadow } : undefined}
               className={`relative h-12 overflow-hidden rounded-lg text-left transition ${
                 active ? 'bg-slate-200 dark:bg-slate-600' : ''
-              } ${isSel ? 'z-10 shadow-md' : active ? 'hover:brightness-95 dark:hover:brightness-110' : ''} ${
-                highlighted ? 'z-20' : ''
-              }`}
+              } ${
+                isSel
+                  ? 'z-10 shadow-md ring-2 ring-emerald-500 ring-offset-1 ring-offset-white dark:ring-offset-slate-800'
+                  : active
+                    ? 'hover:brightness-95 dark:hover:brightness-110'
+                    : ''
+              } ${highlighted ? 'z-20' : ''}`}
             >
               {tints.map((c, i) => (
                 <div key={i} className="absolute inset-0" style={{ backgroundColor: `${c}4d` }} />
@@ -329,6 +385,8 @@ export default function FreeCalendar({
         </div>
         {renderMonth(viewMonth, false)}
       </div>
+
+      {hover && slotsForDate && <HoverPreview date={hover.date} slots={slotsForDate(hover.date)} rect={hover.rect} />}
     </div>
   )
 }

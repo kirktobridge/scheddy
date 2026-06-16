@@ -26,6 +26,7 @@ import { eventsForDay } from '../lib/format'
 import { type DayInfo, type SlotInfo } from '../components/SlotList'
 import FreeCalendar from '../components/FreeCalendar'
 import DayTimelineCard from '../components/DayTimelineCard'
+import BottomSheet from '../components/BottomSheet'
 import { ErrorBanner, Spinner } from '../components/Banner'
 import MetricsStats from '../components/MetricsStats'
 import { useMetrics } from '../hooks/useMetrics'
@@ -558,7 +559,8 @@ export default function FreePage() {
             dayStart={settings.dayStart}
             highlightPicks={highlightPicks}
             selected={selected}
-            onSelectDay={setSelected}
+            onSelectDay={(d) => setSelected((prev) => (!isDesktop && prev === d ? undefined : d))}
+            slotsForDate={slotsForDate}
             overlay={metrics.overlay}
             overlayColor={metrics.activeKey ? colorFor(metrics.activeKey) : undefined}
             layers={layers}
@@ -573,7 +575,9 @@ export default function FreePage() {
           return (
             <>
               {calendar}
-              {dayCardEl}
+              <BottomSheet open={!!selected} onClose={() => setSelected(undefined)}>
+                {dayCardEl}
+              </BottomSheet>
             </>
           )
         }
