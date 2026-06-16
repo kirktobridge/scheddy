@@ -224,7 +224,7 @@ export default function FreeCalendar({
           const inMonth = isSameMonth(day, month)
           // Spillover day shown on its own month's card — blank it here.
           if (blankSpillover && !inMonth && monthKeys.has(format(day, 'yyyy-MM'))) {
-            return <div key={dateStr} className="h-12" />
+            return <div key={dateStr} className="h-12 xl:h-24" />
           }
           const active = day.getTime() >= todayMs && day.getTime() <= maxMs
           const pick = freeSet.has(dateStr)
@@ -263,7 +263,7 @@ export default function FreeCalendar({
               onPointerLeave={canHover ? () => setHover(null) : undefined}
               onPointerDown={canHover ? () => setHover(null) : undefined}
               style={boxShadow ? { boxShadow } : undefined}
-              className={`relative h-12 overflow-hidden rounded-lg text-left transition ${
+              className={`relative h-12 xl:h-24 overflow-hidden rounded-lg text-left transition ${
                 active ? 'bg-slate-200 dark:bg-slate-600' : ''
               } ${
                 isSel

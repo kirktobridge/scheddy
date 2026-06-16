@@ -31,7 +31,7 @@ export default function App() {
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
       <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24 lg:px-8 lg:pb-8 lg:pt-8">
-        <div className="mx-auto w-full max-w-lg lg:max-w-5xl">
+        <div className="w-full">
           {tab === 'free' && <FreePage />}
           {tab === 'check' && <CheckPage />}
           {tab === 'settings' && <SettingsPage />}
