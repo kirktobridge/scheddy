@@ -157,6 +157,15 @@ export default function FreeCalendar({
   onSelectMonth,
 }: Props) {
   const freeSet = useMemo(() => new Set(days.map(([d]) => d)), [days])
+  // Top-pick counts per month ("yyyy-MM") for the nav badges.
+  const picksByMonth = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const [d] of days) {
+      const k = d.slice(0, 7)
+      m.set(k, (m.get(k) ?? 0) + 1)
+    }
+    return m
+  }, [days])
   const todayMs = startOfDay(now).getTime()
   const maxMs = maxDate.getTime()
   const [selected, setSelected] = useState(days[0]?.[0])
@@ -173,13 +182,128 @@ export default function FreeCalendar({
   // hidden to avoid showing the same date on two cards.
   const monthKeys = useMemo(() => new Set(months.map((m) => format(m, 'yyyy-MM'))), [months])
 
+  const nowMonth = startOfMonth(now)
+  const maxMonth = startOfMonth(maxDate)
+  // Single-month (xl) navigation operates on the lifted selectedMonth so the
+  // viewed month also drives the Metrics section.
+  const viewMonth = startOfMonth(selectedMonth)
+  const prevMonth = addMonths(viewMonth, -1)
+  const nextMonth = addMonths(viewMonth, 1)
+  const prevDisabled = viewMonth.getTime() <= nowMonth.getTime()
+  const nextDisabled = nextMonth.getTime() > maxMonth.getTime()
+
+  /** One month's grid card. `blankSpillover` blanks adjacent-month days that have
+   *  their own card (multi-month view); single view greys them instead. */
+  const renderMonth = (month: Date, blankSpillover: boolean) => {
+    // The rolling-window's first month starts at the current week.
+    const gridStart = isSameMonth(month, now) ? startOfWeek(now) : startOfWeek(startOfMonth(month))
+    const gridDays = eachDayOfInterval({ start: gridStart, end: endOfWeek(endOfMonth(month)) })
+    return (
+      <div className="grid grid-cols-7 gap-1">
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="pb-1 text-center text-[10px] font-medium text-slate-400 dark:text-slate-500">
+            {d}
+          </div>
+        ))}
+        {gridDays.map((day) => {
+          const dateStr = format(day, 'yyyy-MM-dd')
+          const inMonth = isSameMonth(day, month)
+          // Spillover day shown on its own month's card — blank it here.
+          if (blankSpillover && !inMonth && monthKeys.has(format(day, 'yyyy-MM'))) {
+            return <div key={dateStr} className="h-12" />
+          }
+          const active = day.getTime() >= todayMs && day.getTime() <= maxMs
+          const pick = freeSet.has(dateStr)
+          const today = isToday(day)
+          const isSel = active && dateStr === selected
+          const lit = !!overlay?.has(dateStr) && inMonth
+          const cellLayers = inMonth ? (layers ?? []).filter((l) => l.dates.has(dateStr)) : []
+
+          // Each channel stacks independently: metric overlay + tint layers wash
+          // the background; ring layers nest as inset borders; markers sit in the corner.
+          const tints = [
+            ...(lit ? [overlayColor] : []),
+            ...cellLayers.filter((l) => l.style === 'tint').map((l) => l.color),
+          ]
+          const rings = [
+            ...(lit ? [overlayColor] : []),
+            ...cellLayers.filter((l) => l.style === 'ring').map((l) => l.color),
+          ]
+          const markers = cellLayers.filter((l) => l.style === 'marker')
+          const boxShadow = rings.map((c, i) => `inset 0 0 0 ${2 + i * 2}px ${c}`).join(', ')
+          const highlighted = tints.length > 0 || rings.length > 0 || markers.length > 0
+
+          return (
+            <button
+              key={dateStr}
+              type="button"
+              disabled={!active}
+              onClick={() => setSelected(dateStr)}
+              style={boxShadow ? { boxShadow } : undefined}
+              className={`relative h-12 overflow-hidden rounded-lg text-left transition ${
+                active ? 'bg-slate-200 dark:bg-slate-600' : ''
+              } ${isSel ? 'z-10 shadow-md' : active ? 'hover:brightness-95 dark:hover:brightness-110' : ''} ${
+                highlighted ? 'z-20' : ''
+              }`}
+            >
+              {tints.map((c, i) => (
+                <div key={i} className="absolute inset-0" style={{ backgroundColor: `${c}4d` }} />
+              ))}
+              {active && (
+                <DayFill
+                  busy={busy}
+                  windows={windows}
+                  date={dateStr}
+                  now={now}
+                  dayStart={dayStart}
+                  overlapBusy={overlapShadeDates && !overlapShadeDates.has(dateStr) ? undefined : overlapBusy}
+                  overlapShadeColor={overlapShadeColor}
+                />
+              )}
+              {markers.length > 0 && (
+                <span className="pointer-events-none absolute right-0.5 top-0.5 z-30 text-[11px] leading-none">
+                  {markers.map((l) => l.mark ?? '●').join('')}
+                </span>
+              )}
+              {highlightPicks && pick && !isSel && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-base leading-none text-amber-500 dark:text-amber-400">
+                  ★
+                </span>
+              )}
+              <span
+                className={`absolute left-1 top-0.5 rounded px-0.5 text-[10px] leading-tight ${
+                  isSel
+                    ? 'bg-emerald-600 font-semibold text-white'
+                    : today
+                      ? 'font-bold text-emerald-700 dark:text-emerald-300'
+                      : !inMonth
+                        ? 'text-slate-300 dark:text-slate-600'
+                        : active
+                          ? 'bg-white/75 font-medium text-slate-700 dark:bg-slate-900/60 dark:text-slate-100'
+                          : 'text-slate-400 dark:text-slate-500'
+                }`}
+              >
+                {format(day, 'd')}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  /** "★ N" pick-count badge for a nav target month; nothing when zero. */
+  const NavBadge = ({ month }: { month: Date }) => {
+    const n = highlightPicks ? (picksByMonth.get(format(month, 'yyyy-MM')) ?? 0) : 0
+    if (n === 0) return null
+    return <span className="text-[10px] leading-none text-amber-500/80 dark:text-amber-400/80">★ {n}</span>
+  }
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {months.map((month, mi) => {
-          // First month starts at the current week — hide weeks already past.
-          const gridStart = mi === 0 ? startOfWeek(now) : startOfWeek(startOfMonth(month))
-          const gridDays = eachDayOfInterval({ start: gridStart, end: endOfWeek(endOfMonth(month)) })
+      {/* Below xl: existing multi-month compact grid. */}
+      <div className="grid gap-4 md:grid-cols-2 xl:hidden">
+        {months.map((month) => {
           const monthSelected = isSameMonth(month, selectedMonth)
           return (
             <div
@@ -201,99 +325,38 @@ export default function FreeCalendar({
                 {format(month, 'MMMM yyyy')}
                 {monthSelected && <span className="ml-1.5 text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">metrics</span>}
               </button>
-              <div className="grid grid-cols-7 gap-1">
-                {WEEKDAYS.map((d) => (
-                  <div key={d} className="pb-1 text-center text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                    {d}
-                  </div>
-                ))}
-                {gridDays.map((day) => {
-                  const dateStr = format(day, 'yyyy-MM-dd')
-                  const inMonth = isSameMonth(day, month)
-                  // Spillover day shown on its own month's card — blank it here.
-                  if (!inMonth && monthKeys.has(format(day, 'yyyy-MM'))) {
-                    return <div key={dateStr} className="h-12" />
-                  }
-                  const active = day.getTime() >= todayMs && day.getTime() <= maxMs
-                  const pick = freeSet.has(dateStr)
-                  const today = isToday(day)
-                  const isSel = active && dateStr === selected
-                  const lit = !!overlay?.has(dateStr) && inMonth
-                  const cellLayers = inMonth ? (layers ?? []).filter((l) => l.dates.has(dateStr)) : []
-
-                  // Each channel stacks independently: metric overlay + tint layers wash
-                  // the background; ring layers nest as inset borders; markers sit in the corner.
-                  const tints = [
-                    ...(lit ? [overlayColor] : []),
-                    ...cellLayers.filter((l) => l.style === 'tint').map((l) => l.color),
-                  ]
-                  const rings = [
-                    ...(lit ? [overlayColor] : []),
-                    ...cellLayers.filter((l) => l.style === 'ring').map((l) => l.color),
-                  ]
-                  const markers = cellLayers.filter((l) => l.style === 'marker')
-                  const boxShadow = rings.map((c, i) => `inset 0 0 0 ${2 + i * 2}px ${c}`).join(', ')
-                  const highlighted = tints.length > 0 || rings.length > 0 || markers.length > 0
-
-                  return (
-                    <button
-                      key={dateStr}
-                      type="button"
-                      disabled={!active}
-                      onClick={() => setSelected(dateStr)}
-                      style={boxShadow ? { boxShadow } : undefined}
-                      className={`relative h-12 overflow-hidden rounded-lg text-left transition ${
-                        active ? 'bg-slate-200 dark:bg-slate-600' : ''
-                      } ${isSel ? 'z-10 shadow-md' : active ? 'hover:brightness-95 dark:hover:brightness-110' : ''} ${
-                        highlighted ? 'z-20' : ''
-                      }`}
-                    >
-                      {tints.map((c, i) => (
-                        <div key={i} className="absolute inset-0" style={{ backgroundColor: `${c}4d` }} />
-                      ))}
-                      {active && (
-                        <DayFill
-                          busy={busy}
-                          windows={windows}
-                          date={dateStr}
-                          now={now}
-                          dayStart={dayStart}
-                          overlapBusy={overlapShadeDates && !overlapShadeDates.has(dateStr) ? undefined : overlapBusy}
-                          overlapShadeColor={overlapShadeColor}
-                        />
-                      )}
-                      {markers.length > 0 && (
-                        <span className="pointer-events-none absolute right-0.5 top-0.5 z-30 text-[11px] leading-none">
-                          {markers.map((l) => l.mark ?? '●').join('')}
-                        </span>
-                      )}
-                      {highlightPicks && pick && !isSel && (
-                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-base leading-none text-amber-500 dark:text-amber-400">
-                          ★
-                        </span>
-                      )}
-                      <span
-                        className={`absolute left-1 top-0.5 rounded px-0.5 text-[10px] leading-tight ${
-                          isSel
-                            ? 'bg-emerald-600 font-semibold text-white'
-                            : today
-                              ? 'font-bold text-emerald-700 dark:text-emerald-300'
-                              : !inMonth
-                                ? 'text-slate-300 dark:text-slate-600'
-                                : active
-                                  ? 'bg-white/75 font-medium text-slate-700 dark:bg-slate-900/60 dark:text-slate-100'
-                                  : 'text-slate-400 dark:text-slate-500'
-                        }`}
-                      >
-                        {format(day, 'd')}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+              {renderMonth(month, true)}
             </div>
           )
         })}
+      </div>
+
+      {/* xl and up: one month at a time with prev/next navigation. */}
+      <div className="hidden break-inside-avoid rounded-2xl bg-white p-3 shadow-sm xl:block dark:bg-slate-800 dark:shadow-none">
+        <div className="mb-2 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => onSelectMonth(prevMonth)}
+            disabled={prevDisabled}
+            title="Previous month"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-slate-600 transition hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-slate-600 dark:text-slate-300 dark:hover:text-emerald-400"
+          >
+            <span className="text-base leading-none">‹</span>
+            {!prevDisabled && <NavBadge month={prevMonth} />}
+          </button>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{format(viewMonth, 'MMMM yyyy')}</span>
+          <button
+            type="button"
+            onClick={() => onSelectMonth(nextMonth)}
+            disabled={nextDisabled}
+            title="Next month"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-slate-600 transition hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-slate-600 dark:text-slate-300 dark:hover:text-emerald-400"
+          >
+            {!nextDisabled && <NavBadge month={nextMonth} />}
+            <span className="text-base leading-none">›</span>
+          </button>
+        </div>
+        {renderMonth(viewMonth, false)}
       </div>
 
       {selected && (
