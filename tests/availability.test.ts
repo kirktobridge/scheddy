@@ -5,8 +5,10 @@ import {
   dayIsolation,
   eventsToBusy,
   findFreeSlots,
+  lastEventDate,
   mergeIntervals,
   rankFreeDays,
+  resolveHorizonDays,
   type BusyInterval,
   type Slot,
   type Windows,
@@ -293,5 +295,51 @@ describe('busyOverlapMs', () => {
     const busy = [busyInterval('2026-06-17T09:00', '2026-06-17T10:00')]
     expect(busyOverlapMs(busy, d('2026-06-17T12:00'), d('2026-06-17T08:00'))).toBe(0)
     expect(busyOverlapMs([], d('2026-06-17T08:00'), d('2026-06-17T12:00'))).toBe(0)
+  })
+})
+
+describe('lastEventDate', () => {
+  it('returns the latest non-cancelled event start, null when empty', () => {
+    expect(lastEventDate([])).toBeNull()
+    const events: GEvent[] = [
+      timed('2026-06-15T09:00', '2026-06-15T10:00'),
+      timed('2026-08-01T09:00', '2026-08-01T10:00'),
+      timed('2026-09-01T09:00', '2026-09-01T10:00', { status: 'cancelled' }),
+      { id: 'allday', start: { date: '2026-07-20' }, end: { date: '2026-07-21' } },
+    ]
+    expect(lastEventDate(events)).toEqual(d('2026-08-01T09:00'))
+  })
+
+  it('returns null when all events are cancelled', () => {
+    expect(lastEventDate([timed('2026-08-01T09:00', '2026-08-01T10:00', { status: 'cancelled' })])).toBeNull()
+  })
+})
+
+describe('resolveHorizonDays', () => {
+  const now = d('2026-06-16T00:00')
+
+  it('falls back to the floor with no anchor', () => {
+    expect(resolveHorizonDays(null, now, 45, 90)).toBe(45)
+  })
+
+  it('uses the anchor when within bounds', () => {
+    expect(resolveHorizonDays(d('2026-08-25T00:00'), now, 45, 90)).toBe(70)
+  })
+
+  it('clamps to the floor when the anchor is below it', () => {
+    expect(resolveHorizonDays(d('2026-06-30T00:00'), now, 45, 90)).toBe(45)
+  })
+
+  it('clamps to the floor when the anchor is in the past', () => {
+    expect(resolveHorizonDays(d('2026-05-01T00:00'), now, 45, 90)).toBe(45)
+  })
+
+  it('clamps to the ceiling when the anchor is beyond it', () => {
+    expect(resolveHorizonDays(d('2026-12-31T00:00'), now, 45, 90)).toBe(90)
+  })
+
+  it('lets the ceiling win when min > max (misconfig)', () => {
+    expect(resolveHorizonDays(d('2026-12-31T00:00'), now, 90, 45)).toBe(45)
+    expect(resolveHorizonDays(null, now, 90, 45)).toBe(45)
   })
 })

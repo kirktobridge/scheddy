@@ -1,6 +1,6 @@
-import { addDays, format, isWeekend, startOfDay } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, isWeekend, startOfDay } from 'date-fns'
 import type { GEvent } from '../api/calendar'
-import { fmtTime } from './format'
+import { eventStart, fmtTime } from './format'
 
 /** A window's name doubles as its identity and display label. */
 export type WindowKey = string
@@ -363,4 +363,34 @@ export function dayTimeline(
   ticks.push({ frac: 1, label: fmtTime(spanEnd) })
 
   return { segments, nowFrac, ticks }
+}
+
+/** Latest event start across the given events, or null if none (cancelled skipped). */
+export function lastEventDate(events: GEvent[]): Date | null {
+  let latest: Date | null = null
+  for (const ev of events) {
+    if (ev.status === 'cancelled') continue
+    const start = eventStart(ev)
+    if (Number.isNaN(start.getTime())) continue
+    if (!latest || start.getTime() > latest.getTime()) latest = start
+  }
+  return latest
+}
+
+/**
+ * Resolve the Free view horizon: clamp(min, last_event_anchor, max) in days.
+ * Ceiling always wins when min > max (misconfig-safe). A null anchor (no horizon
+ * calendars, no events, or only past events) collapses to the floor.
+ */
+export function resolveHorizonDays(
+  anchor: Date | null,
+  now: Date,
+  minDays: number,
+  maxDays: number,
+): number {
+  const floor = Math.max(1, minDays)
+  const ceil = Math.max(1, maxDays)
+  if (!anchor) return Math.min(ceil, floor)
+  const anchorDays = differenceInCalendarDays(startOfDay(anchor), startOfDay(now))
+  return Math.min(ceil, Math.max(floor, anchorDays))
 }

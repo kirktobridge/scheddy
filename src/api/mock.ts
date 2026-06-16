@@ -22,6 +22,8 @@ export const MOCK_SETTINGS: Partial<Settings> = {
   workCalendarIds: ['mock-work'],
   holidayCalendarIds: ['mock-holidays'],
   dayEventCalendarIds: ['mock-personal', 'mock-work', 'mock-us', 'mock-partner'],
+  // Work events run ~55 days out, anchoring the Free view horizon past the floor.
+  horizonCalendarIds: ['mock-work'],
   metricRules: [
     { id: 'trips', name: 'Trips', keyword: 'trip', icon: '✈️', matchDescription: false },
     // Dates live on the shared "Us" calendar — scoped so only those count.

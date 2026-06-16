@@ -224,3 +224,47 @@ describe('Free page regression — mobile', () => {
     expect(within(dialog2).getByText('today')).toBeTruthy()
   })
 })
+
+describe('Free page horizon — floor/anchor/ceiling', () => {
+  /** How many months forward the desktop nav can reach before "Next" disables. */
+  async function forwardMonths(user: ReturnType<typeof userEvent.setup>): Promise<number> {
+    const next = () => screen.getByTitle('Next month') as HTMLButtonElement
+    let count = 0
+    for (let i = 0; i < 24 && !next().disabled; i++) {
+      await user.click(next())
+      count++
+    }
+    return count
+  }
+
+  it('extends the range when horizon calendars have far-out events', async () => {
+    mockMatch(true)
+    const user = userEvent.setup()
+
+    // Floor only: no horizon calendars → ~7-day window.
+    const floor = renderMock(<FreePage />, { horizonCalendarIds: [], minHorizonDays: 7, maxHorizonDays: 120 })
+    await waitFor(() => screen.getByTitle('Next month'))
+    const floorMonths = await forwardMonths(user)
+    floor.unmount()
+
+    // Anchored: the mock "Work" calendar runs ~55 days out → wider window.
+    renderMock(<FreePage />, { horizonCalendarIds: ['mock-work'], minHorizonDays: 7, maxHorizonDays: 120 })
+    await waitFor(() => screen.getByTitle('Next month'))
+    const anchorMonths = await forwardMonths(user)
+
+    expect(anchorMonths).toBeGreaterThan(floorMonths)
+  })
+
+  it('caps the range at the ceiling even with far-out anchor events', async () => {
+    mockMatch(true)
+    const user = userEvent.setup()
+
+    // Ceiling 20 < anchor (~55d): window must cap well short of the anchor.
+    renderMock(<FreePage />, { horizonCalendarIds: ['mock-work'], minHorizonDays: 7, maxHorizonDays: 20 })
+    await waitFor(() => screen.getByTitle('Next month'))
+    const capped = await forwardMonths(user)
+
+    // 20 days reaches at most the next month (≤1 forward step).
+    expect(capped).toBeLessThanOrEqual(1)
+  })
+})

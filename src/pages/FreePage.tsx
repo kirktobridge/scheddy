@@ -21,6 +21,7 @@ import { useSettings } from '../store/settings'
 import { getColor } from '../lib/colorConfig'
 import { createEvent } from '../api/calendar'
 import { useEvents } from '../hooks/useEvents'
+import { useHorizon } from '../hooks/useHorizon'
 import { useCalendars } from '../hooks/useCalendars'
 import { eventsForDay } from '../lib/format'
 import { type DayInfo, type SlotInfo } from '../components/SlotList'
@@ -37,7 +38,6 @@ const DATE_LOOKBACK_DAYS = 365
 
 export default function FreePage() {
   const [settings, setSettings] = useSettings()
-  const lookahead = settings.lookaheadDays
   /** Shared accent for the "Our Overlap" + "Date Options" controls and overlap bar shading. */
   const overlapColor = getColor(settings, 'relationship.overlap')
   const colorFor = (key: string) => settings.metricColors[key] ?? getColor(settings, 'metric.default')
@@ -63,6 +63,8 @@ export default function FreePage() {
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   // xl: a right-side panel replaces the stacked day card / top metrics.
   const isDesktop = useMediaQuery('(min-width: 1280px)')
+  // Free view horizon: clamp(minHorizonDays, last horizon-calendar event, maxHorizonDays).
+  const { lookahead } = useHorizon(nowMs)
   const startMs = startOfDay(new Date(nowMs)).getTime()
   // Fetch one day past the lookahead so next-day warnings work on the last slot,
   // plus the isolation window so forward spacing is accurate at the end of the span.

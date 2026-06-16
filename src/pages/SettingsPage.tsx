@@ -299,7 +299,12 @@ export function CalendarsPanel({
   if (!calendars) return <p className="text-sm text-slate-500">Loading calendars…</p>
 
   const has = (
-    field: 'blockingCalendarIds' | 'workCalendarIds' | 'holidayCalendarIds' | 'dayEventCalendarIds',
+    field:
+      | 'blockingCalendarIds'
+      | 'workCalendarIds'
+      | 'holidayCalendarIds'
+      | 'dayEventCalendarIds'
+      | 'horizonCalendarIds',
     id: string,
   ) => settings[field].includes(id)
 
@@ -348,6 +353,13 @@ export function CalendarsPanel({
       dayEventCalendarIds: has('dayEventCalendarIds', id)
         ? settings.dayEventCalendarIds.filter((x) => x !== id)
         : [...settings.dayEventCalendarIds, id],
+    })
+
+  const toggleHorizon = (id: string) =>
+    update({
+      horizonCalendarIds: has('horizonCalendarIds', id)
+        ? settings.horizonCalendarIds.filter((x) => x !== id)
+        : [...settings.horizonCalendarIds, id],
     })
 
   const hasIn = (field: 'partnerBlockingCalendarIds' | 'partnerWorkCalendarIds' | 'jointCalendarIds', id: string) =>
@@ -443,6 +455,14 @@ export function CalendarsPanel({
       toggle: toggleDayEvents,
     },
     {
+      key: 'horizon',
+      label: 'Horizon',
+      help: 'the latest event here sets how far ahead the Free tab looks (bounded by the min/max in Availability).',
+      active: (id) => has('horizonCalendarIds', id),
+      disabled: () => false,
+      toggle: toggleHorizon,
+    },
+    {
       key: 'allDay',
       label: 'All-day',
       help: 'count this calendar’s all-day events as busy (e.g. a "Vacation" or "Anniversary" day), even with the global all-day setting off.',
@@ -486,6 +506,7 @@ export function CalendarsPanel({
     const other =
       has('holidayCalendarIds', id) ||
       has('dayEventCalendarIds', id) ||
+      has('horizonCalendarIds', id) ||
       hasIn('partnerBlockingCalendarIds', id) ||
       hasIn('partnerWorkCalendarIds', id) ||
       hasIn('jointCalendarIds', id)
@@ -673,20 +694,6 @@ function CellToggle({
 
 function AvailabilityPanel({ settings, update }: { settings: Settings; update: Update }) {
   const [newWindow, setNewWindow] = useState('')
-  // Calendar span is stored as days; the days slider caps at 60, so anything
-  // larger must have been entered as months.
-  const [spanUnit, setSpanUnit] = useState<'days' | 'months'>(
-    settings.lookaheadDays > 60 ? 'months' : 'days',
-  )
-
-  const changeSpanUnit = (unit: 'days' | 'months') => {
-    setSpanUnit(unit)
-    if (unit === 'months') {
-      update({ lookaheadDays: Math.min(3, Math.max(1, Math.round(settings.lookaheadDays / 30))) * 30 })
-    } else {
-      update({ lookaheadDays: Math.min(60, Math.max(7, settings.lookaheadDays)) })
-    }
-  }
 
   const dayStartHour = Number(settings.dayStart.split(':')[0]) || 0
 
@@ -802,37 +809,28 @@ function AvailabilityPanel({ settings, update }: { settings: Settings; update: U
           format={(v) => `${String(v).padStart(2, '0')}:00`}
           onChange={(v) => update({ dayStart: `${String(Math.min(23, v)).padStart(2, '0')}:00` })}
         />
-        <div className="text-sm text-slate-700 dark:text-slate-300">
-          <div className="flex items-center justify-between">
-            <span>Calendar span</span>
-            <select
-              value={spanUnit}
-              onChange={(e) => changeSpanUnit(e.target.value as 'days' | 'months')}
-              className={`px-2 py-1 ${INPUT}`}
-            >
-              <option value="days">Days</option>
-              <option value="months">Months</option>
-            </select>
-          </div>
-          {spanUnit === 'days' ? (
-            <SliderField
-              label=""
-              value={Math.min(60, Math.max(7, settings.lookaheadDays))}
-              min={7}
-              max={60}
-              format={(v) => `${v} days`}
-              onChange={(v) => update({ lookaheadDays: v })}
-            />
-          ) : (
-            <SliderField
-              label=""
-              value={Math.min(3, Math.max(1, Math.round(settings.lookaheadDays / 30)))}
-              min={1}
-              max={3}
-              format={(v) => `${v} month${v === 1 ? '' : 's'}`}
-              onChange={(v) => update({ lookaheadDays: v * 30 })}
-            />
-          )}
+        <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
+          <div className="font-medium">Planning horizon</div>
+          <SliderField
+            label="Minimum horizon"
+            value={settings.minHorizonDays}
+            min={7}
+            max={settings.maxHorizonDays - 1}
+            format={(v) => `${v} days`}
+            onChange={(v) => update({ minHorizonDays: Math.min(settings.maxHorizonDays - 1, Math.max(7, v)) })}
+          />
+          <SliderField
+            label="Maximum horizon"
+            value={settings.maxHorizonDays}
+            min={settings.minHorizonDays + 1}
+            max={365}
+            format={(v) => `${v} days`}
+            onChange={(v) => update({ maxHorizonDays: Math.min(365, Math.max(settings.minHorizonDays + 1, v)) })}
+          />
+          <p className="text-xs text-slate-500">
+            The Free view shows days up to the last event on your horizon calendars, bounded by the min and max above.
+            Mark horizon calendars in the Calendars tab.
+          </p>
         </div>
         <SliderField
           label="How open must a window be?"

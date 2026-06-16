@@ -33,8 +33,12 @@ export interface Settings {
   windows: Windows
   /** Earliest clock time ("HH:mm") shown on the Free view's availability bars. */
   dayStart: string
-  /** How many days ahead the Free view's calendar spans. */
-  lookaheadDays: number
+  /** Floor for the Free view horizon (days). Horizon never shrinks below this. */
+  minHorizonDays: number
+  /** Ceiling for the Free view horizon (days). Horizon never exceeds this. */
+  maxHorizonDays: number
+  /** Calendars whose latest event anchors the Free view horizon (empty = floor only). */
+  horizonCalendarIds: string[]
   freeSlotCount: number
   /** ±days window of concern when scoring how isolated a pick is from other blocking events. */
   isolationWindowDays: number
@@ -101,7 +105,9 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
   windows: DEFAULT_WINDOWS,
   dayStart: '08:00',
-  lookaheadDays: 60,
+  minHorizonDays: 45,
+  maxHorizonDays: 90,
+  horizonCalendarIds: [],
   freeSlotCount: 10,
   isolationWindowDays: 3,
   favorWeekends: true,
