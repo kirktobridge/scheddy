@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   blockedDates,
+  busyOverlapMs,
   dayIsolation,
   eventsToBusy,
   findFreeSlots,
@@ -210,5 +211,87 @@ describe('rankFreeDays', () => {
     expect(ranked).toHaveLength(2)
     const dates = ranked.map(([d]) => d)
     expect(dates).toEqual([...dates].sort())
+  })
+
+  describe('partner-busy factor', () => {
+    // Two weekdays, equal isolation + free time. The 17th's free window is half
+    // covered by partner busy; the 18th is partner-free.
+    const twoDays: [string, Slot[]][] = [freeDay('2026-06-17', 4), freeDay('2026-06-18', 4)]
+    const partnerBusyHalf17 = [busyInterval('2026-06-17T09:00', '2026-06-17T11:00')] // 2h of a 4h window
+
+    it('omitting partnerBusy leaves ranking byte-identical (date tiebreak)', () => {
+      const top = rankFreeDays(twoDays, new Set(), { count: 1, isolationWindow: 0, favorWeekends: false })
+      expect(top[0][0]).toBe('2026-06-17') // earliest date wins, as before
+    })
+
+    it('prefers the day the partner is busy over its free window', () => {
+      const top = rankFreeDays(twoDays, new Set(), {
+        count: 1,
+        isolationWindow: 0,
+        favorWeekends: false,
+        partnerBusy: partnerBusyHalf17,
+      })
+      expect(top[0][0]).toBe('2026-06-17')
+    })
+
+    it('ignores coverage below partnerBusyMinRatio (no boost)', () => {
+      // 1h of partner busy in a 4h window = 0.25 < default 0.5 → counts as 0,
+      // so the tie falls back to earliest date (the 17th regardless).
+      const partnerBusyQuarter18 = [busyInterval('2026-06-18T09:00', '2026-06-18T10:00')]
+      const top = rankFreeDays(twoDays, new Set(), {
+        count: 1,
+        isolationWindow: 0,
+        favorWeekends: false,
+        partnerBusy: partnerBusyQuarter18,
+      })
+      expect(top[0][0]).toBe('2026-06-17')
+    })
+
+    it('falls back gracefully when no day has the partner busy', () => {
+      const ranked = rankFreeDays(twoDays, new Set(), {
+        count: 2,
+        isolationWindow: 0,
+        favorWeekends: false,
+        partnerBusy: [busyInterval('2026-06-25T09:00', '2026-06-25T11:00')], // irrelevant day
+      })
+      expect(ranked.map(([d]) => d)).toEqual(['2026-06-17', '2026-06-18'])
+    })
+
+    it('never overrides a clearly more isolated day (precedence guardrail)', () => {
+      const blocked = new Set(['2026-06-18']) // neighbor of the 17th → low isolation
+      const entries: [string, Slot[]][] = [
+        freeDay('2026-06-17', 4), // partner busy, but isolation 1
+        freeDay('2026-06-22', 4), // partner free, isolation 3
+      ]
+      const top = rankFreeDays(entries, blocked, {
+        count: 1,
+        isolationWindow: 3,
+        favorWeekends: false,
+        partnerBusy: partnerBusyHalf17,
+      })
+      expect(top[0][0]).toBe('2026-06-22') // isolation still wins
+    })
+  })
+})
+
+describe('busyOverlapMs', () => {
+  const HOUR = 60 * 60 * 1000
+  it('sums merged busy minutes inside the range', () => {
+    const busy = mergeIntervals([
+      busyInterval('2026-06-17T09:00', '2026-06-17T10:00'),
+      busyInterval('2026-06-17T11:00', '2026-06-17T12:00'),
+    ])
+    expect(busyOverlapMs(busy, d('2026-06-17T08:00'), d('2026-06-17T12:00'))).toBe(2 * HOUR)
+  })
+
+  it('clips overlap to the range bounds', () => {
+    const busy = [busyInterval('2026-06-17T07:00', '2026-06-17T09:00')]
+    expect(busyOverlapMs(busy, d('2026-06-17T08:00'), d('2026-06-17T12:00'))).toBe(1 * HOUR)
+  })
+
+  it('returns 0 for an empty or inverted range', () => {
+    const busy = [busyInterval('2026-06-17T09:00', '2026-06-17T10:00')]
+    expect(busyOverlapMs(busy, d('2026-06-17T12:00'), d('2026-06-17T08:00'))).toBe(0)
+    expect(busyOverlapMs([], d('2026-06-17T08:00'), d('2026-06-17T12:00'))).toBe(0)
   })
 })

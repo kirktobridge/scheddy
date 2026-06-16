@@ -204,17 +204,38 @@ export function dayIsolation(date: string, blocked: Set<string>, n: number): num
   return Math.min(reach(-1), reach(1))
 }
 
+/** Milliseconds of merged `busy` that fall within [from, to). */
+export function busyOverlapMs(busy: BusyInterval[], from: Date, to: Date): number {
+  const span = to.getTime() - from.getTime()
+  if (span <= 0) return 0
+  const free = freeGaps(busy, from, to).reduce((sum, g) => sum + (g.end.getTime() - g.start.getTime()), 0)
+  return span - free
+}
+
 export interface RankOpts {
   count: number
   isolationWindow: number
   favorWeekends: boolean
+  /**
+   * When set, days where the partner is busy during the user's free windows are
+   * preferred (so solo time lands while the partner is occupied, keeping shared-
+   * free time open). Soft tiebreaker only — ranks below isolation and free time.
+   */
+  partnerBusy?: BusyInterval[]
+  /**
+   * A slot only counts toward the partner-busy factor when the partner covers at
+   * least this fraction of its free stretch. Default 0.5. Ignored unless
+   * `partnerBusy` is set.
+   */
+  partnerBusyMinRatio?: number
 }
 
 /**
  * Ranks free days for the "top N" picks, lexicographically: most isolated from
  * other blocking events first, then most total free time (bucketed to 30 min so
- * weekends can still break realistic ties), then weekends. Returns the top
- * `count`, re-sorted by date for calendar display.
+ * weekends can still break realistic ties), then (optionally) days the partner is
+ * busy during the free windows, then weekends. Returns the top `count`, re-sorted
+ * by date for calendar display.
  */
 export function rankFreeDays(
   entries: [string, Slot[]][],
@@ -225,11 +246,26 @@ export function rankFreeDays(
   const HALF_HOUR = 30 * 60 * 1000
   const freeBucket = (s: Slot[]) => Math.round(freeMs(s) / HALF_HOUR)
   const weekendRank = (date: string) => (isWeekend(new Date(date + 'T12:00:00')) ? 1 : 0)
+  // Sum of partner-busy minutes across slots whose coverage clears the threshold,
+  // bucketed to 30 min so a marginal advantage can't flip a clearly-better day.
+  const minRatio = opts.partnerBusyMinRatio ?? 0.5
+  const partnerBusyBucket = (s: Slot[]) => {
+    if (!opts.partnerBusy) return 0
+    let ms = 0
+    for (const slot of s) {
+      const len = slot.freeTo.getTime() - slot.freeFrom.getTime()
+      if (len <= 0) continue
+      const overlap = busyOverlapMs(opts.partnerBusy, slot.freeFrom, slot.freeTo)
+      if (overlap / len + 1e-9 >= minRatio) ms += overlap
+    }
+    return Math.round(ms / HALF_HOUR)
+  }
   return [...entries]
     .sort(([da, sa], [db, sb]) => {
       return (
         dayIsolation(db, blocked, opts.isolationWindow) - dayIsolation(da, blocked, opts.isolationWindow) ||
         freeBucket(sb) - freeBucket(sa) ||
+        partnerBusyBucket(sb) - partnerBusyBucket(sa) ||
         (opts.favorWeekends ? weekendRank(db) - weekendRank(da) : 0) ||
         da.localeCompare(db)
       )

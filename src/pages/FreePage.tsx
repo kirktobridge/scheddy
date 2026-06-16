@@ -141,6 +141,20 @@ export default function FreePage() {
     () => new Set(settings.allDayBlockingCalendarIds),
     [settings.allDayBlockingCalendarIds],
   )
+
+  // Partner/joint streams run through the same builder as personal events, so
+  // rule overrides and the per-calendar all-day policy apply consistently. Lifted
+  // to page level so both the relationship overlays and the "top free days" ranking
+  // (which can lean toward partner-busy times) share one computation.
+  const busyOpts = useMemo(
+    () => ({ rules: settings.metricRules, allDay, allDayCalendarIds }),
+    [settings.metricRules, allDay, allDayCalendarIds],
+  )
+  const jointBusy = useMemo(() => buildBusy(joint.events ?? [], busyOpts), [joint.events, busyOpts])
+  const partnerBusy = useMemo(
+    () => mergeIntervals([...buildBusy(partner.events ?? [], busyOpts), ...jointBusy]),
+    [partner.events, busyOpts, jointBusy],
+  )
   // nonWorkEvents/workEvents are already rule-overridden (events, above), so
   // convert directly — pass the same all-day policy used everywhere else.
   const nonWorkBusy = useMemo(
@@ -173,6 +187,9 @@ export default function FreePage() {
       count: settings.freeSlotCount,
       isolationWindow: settings.isolationWindowDays,
       favorWeekends: settings.favorWeekends,
+      // Lean toward windows the partner is busy (keeps shared-free time open),
+      // but only as a soft tiebreaker and only in relationship mode.
+      partnerBusy: rel && settings.freeFavorPartnerBusy ? partnerBusy : undefined,
     })
   }, [
     events,
@@ -183,6 +200,9 @@ export default function FreePage() {
     settings.freeSlotCount,
     settings.isolationWindowDays,
     settings.favorWeekends,
+    rel,
+    settings.freeFavorPartnerBusy,
+    partnerBusy,
     startMs,
     nowMs,
     lookahead,
@@ -227,12 +247,8 @@ export default function FreePage() {
     }
     if (!rel) return empty
     const HOUR = 60 * 60 * 1000
-    // Partner/joint streams run through the same builder as personal events, so
-    // rule overrides and the per-calendar all-day policy apply consistently —
-    // otherwise an all-day joint event would silently never block the partner.
-    const busyOpts = { rules: settings.metricRules, allDay, allDayCalendarIds }
-    const jointBusy = buildBusy(joint.events ?? [], busyOpts)
-    const partnerBusy = mergeIntervals([...buildBusy(partner.events ?? [], busyOpts), ...jointBusy])
+    // busyOpts/jointBusy/partnerBusy are lifted to page level (above) so the free-
+    // day ranking can share them; partnerWork stays local to this overlay.
     const partnerWorkBusy = buildBusy(partnerWork.events ?? [], busyOpts)
     const myBusy = mergeIntervals([...combinedBusy, ...jointBusy])
     const dates = datesInRange(new Date(startMs), addDays(new Date(startMs), lookahead))
@@ -294,12 +310,10 @@ export default function FreePage() {
     }
   }, [
     rel,
-    allDay,
-    allDayCalendarIds,
-    settings.metricRules,
-    partner.events,
+    busyOpts,
+    jointBusy,
+    partnerBusy,
     partnerWork.events,
-    joint.events,
     combinedBusy,
     workBusy,
     dateMatches,

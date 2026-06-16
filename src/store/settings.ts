@@ -60,6 +60,12 @@ export interface Settings {
   datePreference: 'weekend' | 'weekday' | 'either'
   /** Whether date candidates prioritize days the partner is off work. */
   dateFavorPartnerOff: boolean
+  /**
+   * Whether the "top free days" picks lean toward times the partner is busy, so
+   * solo time lands while they're occupied and mutual-free time stays open. Soft
+   * tiebreaker (see rankFreeDays); only active when relationshipMode is on.
+   */
+  freeFavorPartnerBusy: boolean
   /** Precedence of the date-ranking factors, highest priority first. */
   dateRankOrder: DateRankFactor[]
   /** All of the partner's busy calendars — drives mutual free time + date-candidate isolation. */
@@ -111,6 +117,7 @@ export const DEFAULT_SETTINGS: Settings = {
   partnerName: '',
   datePreference: 'weekend',
   dateFavorPartnerOff: true,
+  freeFavorPartnerBusy: false,
   dateRankOrder: DATE_RANK_FACTORS,
   partnerBlockingCalendarIds: [],
   partnerWorkCalendarIds: [],

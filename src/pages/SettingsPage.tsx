@@ -1125,6 +1125,19 @@ function RelationshipPanel({
             />
           </label>
           <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
+            Favor times {settings.partnerName || 'partner'} is busy for my Top picks
+            <input
+              type="checkbox"
+              checked={settings.freeFavorPartnerBusy}
+              onChange={(e) => update({ freeFavorPartnerBusy: e.target.checked })}
+              className="h-4 w-4 accent-emerald-500"
+            />
+          </label>
+          <p className="text-xs text-slate-500">
+            Nudges the ★ Top free-day picks toward windows {settings.partnerName || 'partner'} is already busy,
+            so your shared-free time stays open. Soft tiebreaker — it never overrides a clearly more open day.
+          </p>
+          <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
             Day preference
             <select
               value={settings.datePreference}
