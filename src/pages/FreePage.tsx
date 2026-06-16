@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { addDays, differenceInCalendarDays, endOfDay, format, isWeekend, startOfDay, startOfMonth } from 'date-fns'
+import { addDays, differenceInCalendarDays, endOfDay, format, isSameMonth, isWeekend, startOfDay, startOfMonth } from 'date-fns'
 import { blockedDates, dayIsolation, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, buildBusy, matchRule } from '../lib/metrics'
 import {
@@ -25,9 +25,11 @@ import { useCalendars } from '../hooks/useCalendars'
 import { eventsForDay } from '../lib/format'
 import { type DayInfo, type SlotInfo } from '../components/SlotList'
 import FreeCalendar from '../components/FreeCalendar'
+import DayTimelineCard from '../components/DayTimelineCard'
 import { ErrorBanner, Spinner } from '../components/Banner'
 import MetricsStats from '../components/MetricsStats'
 import { useMetrics } from '../hooks/useMetrics'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 
 /** How far back to scan for the most recent past date (cadence nudge). */
 const DATE_LOOKBACK_DAYS = 365
@@ -55,6 +57,11 @@ export default function FreePage() {
   // Metrics follow whichever month card is selected in the calendar.
   const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()))
   const metrics = useMetrics(selectedMonth)
+  // Selected day (yyyy-MM-dd) drives the day-detail card; none = panel shows metrics.
+  const [selected, setSelected] = useState<string | undefined>(undefined)
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
+  // xl: a right-side panel replaces the stacked day card / top metrics.
+  const isDesktop = useMediaQuery('(min-width: 1280px)')
   const startMs = startOfDay(new Date(nowMs)).getTime()
   // Fetch one day past the lookahead so next-day warnings work on the last slot,
   // plus the isolation window so forward spacing is accurate at the end of the span.
@@ -400,9 +407,40 @@ export default function FreePage() {
     [events, nonWorkEvents, settings.windows],
   )
 
+  // Day-detail card for the selected day (panel on desktop, stacked on mobile).
+  const selectedSlots = useMemo(() => (selected ? slotsForDate(selected) : []), [selected, slotsForDate])
+  const dayCardEl = selected ? (
+    <DayTimelineCard
+      key={selected}
+      date={selected}
+      slots={selectedSlots}
+      windows={settings.windows}
+      busy={combinedBusy}
+      now={new Date(nowMs)}
+      dayStart={settings.dayStart}
+      windowOrder={winKeys}
+      dayInfo={dayInfo}
+      slotInfo={slotInfo}
+      overlapBusy={showOverlap && overlapHighlight.has(selected) ? relationship.overlapBusy : undefined}
+      overlapShadeColor={overlapColor}
+      partnerBusy={rel ? relationship.partnerBusy : undefined}
+      partnerName={rel ? partnerName : undefined}
+      reasons={rel ? relationship.dateReasons.get(selected) : undefined}
+      events={settings.dayEventCalendarIds.length ? eventsForDate(selected) : undefined}
+      calendarColors={calColors}
+      onPlanDate={rel ? planDate : undefined}
+      dateMinHours={settings.dateMinHours}
+    />
+  ) : null
+
+  // Panel shows the day card only while the selected day is in the viewed month;
+  // paging away reverts to metrics without clearing the selection.
+  const dayInView = !!selected && isSameMonth(new Date(selected + 'T12:00:00'), selectedMonth)
+  const panelMode: 'day' | 'metrics' = dayInView ? 'day' : 'metrics'
+
   return (
     <div className="space-y-4">
-      <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} />
+      {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} />}
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Availability</h1>
         <div className="flex items-center gap-2">
@@ -509,36 +547,62 @@ export default function FreePage() {
           No free slots in the next {lookahead} days. Busy life!
         </p>
       )}
-      {!loading && !error && days.length > 0 && (
-        <FreeCalendar
-          days={days}
-          windows={settings.windows}
-          busy={combinedBusy}
-          now={new Date(nowMs)}
-          maxDate={addDays(new Date(startMs), lookahead)}
-          dayStart={settings.dayStart}
-          highlightPicks={highlightPicks}
-          windowOrder={winKeys}
-          slotsForDate={slotsForDate}
-          dayInfo={dayInfo}
-          slotInfo={slotInfo}
-          eventsForDate={settings.dayEventCalendarIds.length ? eventsForDate : undefined}
-          calendarColors={calColors}
-          overlay={metrics.overlay}
-          overlayColor={metrics.activeKey ? colorFor(metrics.activeKey) : undefined}
-          layers={layers}
-          overlapBusy={showOverlap ? relationship.overlapBusy : undefined}
-          overlapShadeColor={overlapColor}
-          overlapShadeDates={overlapHighlight}
-          partnerBusy={rel ? relationship.partnerBusy : undefined}
-          partnerName={rel ? partnerName : undefined}
-          dateReasons={rel ? relationship.dateReasons : undefined}
-          onPlanDate={rel ? planDate : undefined}
-          dateMinHours={settings.dateMinHours}
-          selectedMonth={selectedMonth}
-          onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
-        />
-      )}
+      {!loading && !error && days.length > 0 && (() => {
+        const calendar = (
+          <FreeCalendar
+            days={days}
+            windows={settings.windows}
+            busy={combinedBusy}
+            now={new Date(nowMs)}
+            maxDate={addDays(new Date(startMs), lookahead)}
+            dayStart={settings.dayStart}
+            highlightPicks={highlightPicks}
+            selected={selected}
+            onSelectDay={setSelected}
+            overlay={metrics.overlay}
+            overlayColor={metrics.activeKey ? colorFor(metrics.activeKey) : undefined}
+            layers={layers}
+            overlapBusy={showOverlap ? relationship.overlapBusy : undefined}
+            overlapShadeColor={overlapColor}
+            overlapShadeDates={overlapHighlight}
+            selectedMonth={selectedMonth}
+            onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
+          />
+        )
+        if (!isDesktop) {
+          return (
+            <>
+              {calendar}
+              {dayCardEl}
+            </>
+          )
+        }
+        return (
+          <div className="flex items-start gap-4" style={{ ['--panel-width' as string]: '24rem' }}>
+            <div className="min-w-0 flex-1">{calendar}</div>
+            <aside
+              className={`relative shrink-0 transition-[width] duration-200 ${
+                panelCollapsed ? 'w-0' : 'w-[var(--panel-width)]'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setPanelCollapsed((c) => !c)}
+                title={panelCollapsed ? 'Expand panel' : 'Collapse panel'}
+                aria-label={panelCollapsed ? 'Expand panel' : 'Collapse panel'}
+                className="absolute -left-3 top-3 z-10 grid h-6 w-6 place-items-center rounded-full bg-white text-slate-600 shadow ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700"
+              >
+                {panelCollapsed ? '‹' : '›'}
+              </button>
+              {!panelCollapsed && (
+                <div key={panelMode} className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl">
+                  {panelMode === 'day' ? dayCardEl : <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} dense />}
+                </div>
+              )}
+            </aside>
+          </div>
+        )
+      })()}
     </div>
   )
 }

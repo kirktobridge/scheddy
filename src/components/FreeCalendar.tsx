@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   addMonths,
   eachDayOfInterval,
@@ -11,10 +11,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from 'date-fns'
-import { dayTimeline, type BusyInterval, type Slot, type WindowKey, type Windows } from '../lib/availability'
-import type { GEvent } from '../api/calendar'
-import DayTimelineCard from './DayTimelineCard'
-import type { DayInfo, SlotInfo } from './SlotList'
+import { dayTimeline, type BusyInterval, type Slot, type Windows } from '../lib/availability'
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
@@ -31,15 +28,10 @@ interface Props {
   dayStart: string
   /** When true, star the top free-day picks. */
   highlightPicks: boolean
-  windowOrder: WindowKey[]
-  /** Free slots for any selectable day (powers the detail card). */
-  slotsForDate: (date: string) => Slot[]
-  dayInfo: (date: string) => DayInfo
-  slotInfo: (slot: Slot) => SlotInfo
-  /** That day's events for the detail card's schedule list; omit to hide the schedule. */
-  eventsForDate?: (date: string) => GEvent[]
-  /** calendarId → color for the schedule row dots. */
-  calendarColors?: Map<string, string | undefined>
+  /** Currently selected day (yyyy-MM-dd); controlled by the parent. */
+  selected?: string
+  /** Called when a day cell is clicked. */
+  onSelectDay: (date: string) => void
   /** Dates (yyyy-MM-dd) to highlight with a strong accent ring (metric overlay). */
   overlay?: Set<string> | null
   /** Highlight color for the lit overlay cells. */
@@ -56,16 +48,6 @@ interface Props {
   overlapShadeColor?: string
   /** Limit the overlap shading to these dates (omit = all days). */
   overlapShadeDates?: Set<string>
-  /** Partner's merged busy — drives the partner lane in the detail card. */
-  partnerBusy?: BusyInterval[]
-  /** Partner's display name for the detail card lane label. */
-  partnerName?: string
-  /** Reason chips per date-candidate, shown on the detail card. */
-  dateReasons?: Map<string, string[]>
-  /** Book a date in a mutual-free window on the selected day (relationship mode). */
-  onPlanDate?: (start: Date, end: Date) => Promise<void> | void
-  /** Minimum date length (hours) used to size a proposed booking. */
-  dateMinHours?: number
   /** Month whose card is selected (drives the Metrics section). */
   selectedMonth: Date
   onSelectMonth: (month: Date) => void
@@ -136,23 +118,14 @@ export default function FreeCalendar({
   maxDate,
   dayStart,
   highlightPicks,
-  windowOrder,
-  slotsForDate,
-  dayInfo,
-  slotInfo,
-  eventsForDate,
-  calendarColors,
+  selected,
+  onSelectDay,
   overlay,
   overlayColor = '#fbbf24',
   layers,
   overlapBusy,
   overlapShadeColor,
   overlapShadeDates,
-  partnerBusy,
-  partnerName,
-  dateReasons,
-  onPlanDate,
-  dateMinHours,
   selectedMonth,
   onSelectMonth,
 }: Props) {
@@ -168,8 +141,6 @@ export default function FreeCalendar({
   }, [days])
   const todayMs = startOfDay(now).getTime()
   const maxMs = maxDate.getTime()
-  const [selected, setSelected] = useState(days[0]?.[0])
-  const selectedSlots = useMemo(() => (selected ? slotsForDate(selected) : []), [selected, slotsForDate])
 
   const months = useMemo(() => {
     const first = startOfMonth(now)
@@ -237,8 +208,8 @@ export default function FreeCalendar({
             <button
               key={dateStr}
               type="button"
-              disabled={!active}
-              onClick={() => setSelected(dateStr)}
+              disabled={!active || (!blankSpillover && !inMonth)}
+              onClick={() => onSelectDay(dateStr)}
               style={boxShadow ? { boxShadow } : undefined}
               className={`relative h-12 overflow-hidden rounded-lg text-left transition ${
                 active ? 'bg-slate-200 dark:bg-slate-600' : ''
@@ -358,30 +329,6 @@ export default function FreeCalendar({
         </div>
         {renderMonth(viewMonth, false)}
       </div>
-
-      {selected && (
-        <DayTimelineCard
-          key={selected}
-          date={selected}
-          slots={selectedSlots}
-          windows={windows}
-          busy={busy}
-          now={now}
-          dayStart={dayStart}
-          windowOrder={windowOrder}
-          dayInfo={dayInfo}
-          slotInfo={slotInfo}
-          overlapBusy={overlapShadeDates && selected && !overlapShadeDates.has(selected) ? undefined : overlapBusy}
-          overlapShadeColor={overlapShadeColor}
-          partnerBusy={partnerBusy}
-          partnerName={partnerName}
-          reasons={selected ? dateReasons?.get(selected) : undefined}
-          onPlanDate={onPlanDate}
-          dateMinHours={dateMinHours}
-          events={eventsForDate ? eventsForDate(selected) : undefined}
-          calendarColors={calendarColors}
-        />
-      )}
     </div>
   )
 }

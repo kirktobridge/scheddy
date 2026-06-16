@@ -6,6 +6,8 @@ interface Props extends Metrics {
   colorFor: (key: string) => string
   /** Persist a new highlight color for a metric key. */
   onColor: (key: string, color: string) => void
+  /** Compact 2-up layout for the narrow desktop side panel. */
+  dense?: boolean
 }
 
 /** "Metrics" header + the toggleable stat cards (free-time + keyword rules). Top of the Free page. */
@@ -20,6 +22,7 @@ export default function MetricsStats({
   toggle,
   colorFor,
   onColor,
+  dense,
 }: Props) {
   return (
     <section className="space-y-3">
@@ -29,12 +32,13 @@ export default function MetricsStats({
       {loading && <Spinner />}
       {!loading && !error && (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className={`grid grid-cols-2 ${dense ? 'gap-2' : 'gap-3 lg:grid-cols-4'}`}>
             <StatCard
               value={eveningDates.length}
               label={isCurrent ? 'unbooked evenings left' : 'unbooked evenings'}
               active={activeKey === 'evenings'}
               color={colorFor('evenings')}
+              dense={dense}
               onClick={() => toggle('evenings')}
               onColor={(c) => onColor('evenings', c)}
             />
@@ -43,6 +47,7 @@ export default function MetricsStats({
               label={isCurrent ? 'free weekend days left' : 'free weekend days'}
               active={activeKey === 'weekend'}
               color={colorFor('weekend')}
+              dense={dense}
               onClick={() => toggle('weekend')}
               onColor={(c) => onColor('weekend', c)}
             />
@@ -53,6 +58,7 @@ export default function MetricsStats({
                 label={`${rule.icon} ${rule.name}`}
                 active={activeKey === `rule:${rule.id}`}
                 color={colorFor(`rule:${rule.id}`)}
+                dense={dense}
                 onClick={() => toggle(`rule:${rule.id}`)}
                 onColor={(c) => onColor(`rule:${rule.id}`, c)}
               />
@@ -73,6 +79,7 @@ function StatCard({
   label,
   active,
   color,
+  dense,
   onClick,
   onColor,
 }: {
@@ -80,6 +87,7 @@ function StatCard({
   label: string
   active: boolean
   color: string
+  dense?: boolean
   onClick: () => void
   onColor: (color: string) => void
 }) {
@@ -90,12 +98,12 @@ function StatCard({
         onClick={onClick}
         aria-pressed={active}
         style={active ? { boxShadow: `0 0 0 2px ${color}` } : undefined}
-        className={`w-full rounded-xl p-4 text-center shadow-sm transition dark:shadow-none ${
+        className={`w-full rounded-xl text-center shadow-sm transition dark:shadow-none ${dense ? 'p-3' : 'p-4'} ${
           active ? 'bg-white dark:bg-slate-800' : 'bg-white hover:brightness-95 dark:bg-slate-800 dark:hover:brightness-110'
         }`}
       >
         <p
-          className={`text-3xl font-bold ${active ? '' : 'text-emerald-600 dark:text-emerald-400'}`}
+          className={`font-bold ${dense ? 'text-2xl' : 'text-3xl'} ${active ? '' : 'text-emerald-600 dark:text-emerald-400'}`}
           style={active ? { color } : undefined}
         >
           {value}
