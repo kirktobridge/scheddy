@@ -43,8 +43,8 @@ describe('Free page hover preview + selected ring (desktop)', () => {
     fireEvent.pointerEnter(cell, { pointerType: 'mouse' })
     // Preview shows a duration ("Xh free") or the fully-booked fallback.
     expect(await screen.findByText(/h free$|Fully booked/)).toBeTruthy()
-    // Hovering must not select a day — the panel still shows Metrics.
-    expect(screen.getAllByText('Metrics')).toHaveLength(1)
+    // Hovering must not select a day — the panel still shows its empty prompt.
+    expect(screen.getByText(/Pick a day/)).toBeTruthy()
 
     fireEvent.pointerLeave(cell)
     await waitFor(() => expect(screen.queryByText(/h free$|Fully booked/)).toBeNull())

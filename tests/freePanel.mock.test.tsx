@@ -35,18 +35,21 @@ describe('Free view desktop panel (mock mode)', () => {
     delete window.matchMedia
   })
 
-  it('shows metrics by default and stacks the day card below metrics on selection', async () => {
+  it('shows the metric bar; the right panel holds the day card on selection', async () => {
     const user = userEvent.setup()
     renderMock(<FreePage />)
     expect(await screen.findByText('Availability')).toBeTruthy()
 
-    // Default (no day selected): the panel shows the Metrics block — and only once
-    // (the mobile top-of-page metrics are not rendered on desktop).
-    await waitFor(() => expect(screen.getAllByText('Metrics')).toHaveLength(1))
+    // The metric selector bar is present (top of page) and the right panel is
+    // empty until a day is picked.
+    await waitFor(() => expect(screen.getByText(/unbooked evenings/)).toBeTruthy())
+    expect(screen.getByText(/Pick a day/)).toBeTruthy()
 
-    // Selecting a day stacks that day's detail card above metrics; both stay visible.
+    // Selecting a day fills the right panel with that day's detail card; the
+    // metric bar stays put.
     await user.click(await waitFor(firstDayCell, { timeout: 3000 }))
     expect(await screen.findByText('today')).toBeTruthy()
-    expect(screen.getAllByText('Metrics')).toHaveLength(1)
+    expect(screen.queryByText(/Pick a day/)).toBeNull()
+    expect(screen.getByText(/unbooked evenings/)).toBeTruthy()
   })
 })

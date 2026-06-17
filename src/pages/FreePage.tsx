@@ -625,15 +625,24 @@ export default function FreePage() {
           )
         }
         return (
-          <div className="flex items-start gap-4">
-            <div className="min-w-0 flex-1">{calendar}</div>
-            <aside className="w-96 shrink-0">
-              <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto px-1">
-                <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} dense />
-                {dayInView && dayCardEl}
-              </div>
-            </aside>
-          </div>
+          <>
+            {/* Full-width metric selector bar above the calendar/day-card row. */}
+            <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} bar />
+            <div className="flex items-start gap-4 pt-2">
+              <div className="min-w-0 flex-1">{calendar}</div>
+              <aside className="w-96 shrink-0">
+                <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto px-1">
+                  {dayInView ? (
+                    dayCardEl
+                  ) : (
+                    <p className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                      Pick a day to see its free time.
+                    </p>
+                  )}
+                </div>
+              </aside>
+            </div>
+          </>
         )
       })()}
     </div>

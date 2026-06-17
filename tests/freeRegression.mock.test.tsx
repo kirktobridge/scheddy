@@ -138,7 +138,7 @@ describe('Free page regression — desktop', () => {
     expect(await screen.findByText('today')).toBeTruthy()
   })
 
-  it('Escape clears the selection (panel back to metrics)', async () => {
+  it('Escape clears the selection (panel back to its empty prompt)', async () => {
     mockMatch(true)
     const user = userEvent.setup()
     renderMock(<FreePage />)
@@ -147,7 +147,7 @@ describe('Free page regression — desktop', () => {
     await user.click(firstDayCell(xlCard()))
     await screen.findByText('today')
     await user.keyboard('{Escape}')
-    await waitFor(() => expect(screen.getByText('Metrics')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/Pick a day/)).toBeTruthy())
     expect(screen.queryByText('today')).toBeNull()
   })
 

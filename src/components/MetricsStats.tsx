@@ -6,8 +6,10 @@ interface Props extends Metrics {
   colorFor: (key: string) => string
   /** Persist a new highlight color for a metric key. */
   onColor: (key: string, color: string) => void
-  /** Compact 2-up layout for the narrow desktop side panel. */
+  /** Compact card sizing (smaller padding/numbers). */
   dense?: boolean
+  /** Full-width single-row layout (the desktop selector bar) instead of a grid. */
+  bar?: boolean
 }
 
 /** "Metrics" header + the toggleable stat cards (free-time + keyword rules). Top of the Free page. */
@@ -23,22 +25,25 @@ export default function MetricsStats({
   colorFor,
   onColor,
   dense,
+  bar,
 }: Props) {
+  const cardClass = bar ? 'min-w-0 flex-1 basis-32' : ''
   return (
-    <section className="space-y-3">
-      <h2 className="text-xl font-bold">Metrics</h2>
+    <section className="space-y-2">
+      {!bar && <h2 className="text-xl font-bold">Metrics</h2>}
 
       {error && <ErrorBanner message={error} />}
       {loading && <Spinner />}
       {!loading && !error && (
         <>
-          <div className={`grid grid-cols-2 ${dense ? 'gap-2' : 'gap-3 lg:grid-cols-4'}`}>
+          <div className={bar ? 'flex flex-wrap gap-2' : `grid grid-cols-2 ${dense ? 'gap-2' : 'gap-3 lg:grid-cols-4'}`}>
             <StatCard
               value={eveningDates.length}
               label={isCurrent ? 'unbooked evenings left' : 'unbooked evenings'}
               active={activeKeys.has('evenings')}
               color={colorFor('evenings')}
-              dense={dense}
+              dense={dense || bar}
+              wrapperClass={cardClass}
               onClick={() => toggle('evenings')}
               onColor={(c) => onColor('evenings', c)}
             />
@@ -47,7 +52,8 @@ export default function MetricsStats({
               label={isCurrent ? 'free weekend days left' : 'free weekend days'}
               active={activeKeys.has('weekend')}
               color={colorFor('weekend')}
-              dense={dense}
+              dense={dense || bar}
+              wrapperClass={cardClass}
               onClick={() => toggle('weekend')}
               onColor={(c) => onColor('weekend', c)}
             />
@@ -58,16 +64,19 @@ export default function MetricsStats({
                 label={`${rule.icon} ${rule.name}`}
                 active={activeKeys.has(`rule:${rule.id}`)}
                 color={colorFor(`rule:${rule.id}`)}
-                dense={dense}
+                dense={dense || bar}
+                wrapperClass={cardClass}
                 onClick={() => toggle(`rule:${rule.id}`)}
                 onColor={(c) => onColor(`rule:${rule.id}`, c)}
               />
             ))}
           </div>
-          <p className="text-xs text-slate-500">
-            Tap a metric to highlight the days it counts on the calendar; use the color dot to set its highlight color.
-            Keyword metrics match events on your selected calendars by title; edit rules in Settings.
-          </p>
+          {!bar && (
+            <p className="text-xs text-slate-500">
+              Tap a metric to highlight the days it counts on the calendar; use the color dot to set its highlight color.
+              Keyword metrics match events on your selected calendars by title; edit rules in Settings.
+            </p>
+          )}
         </>
       )}
     </section>
@@ -80,6 +89,7 @@ function StatCard({
   active,
   color,
   dense,
+  wrapperClass,
   onClick,
   onColor,
 }: {
@@ -88,11 +98,12 @@ function StatCard({
   active: boolean
   color: string
   dense?: boolean
+  wrapperClass?: string
   onClick: () => void
   onColor: (color: string) => void
 }) {
   return (
-    <div className="relative">
+    <div className={`relative ${wrapperClass ?? ''}`}>
       <button
         type="button"
         onClick={onClick}
