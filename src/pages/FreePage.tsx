@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { addDays, differenceInCalendarDays, endOfDay, format, isSameMonth, isWeekend, startOfDay, startOfMonth } from 'date-fns'
+import { addDays, differenceInCalendarDays, endOfDay, endOfMonth, format, isSameMonth, isWeekend, startOfDay, startOfMonth } from 'date-fns'
 import { blockedDates, dayIsolation, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, buildBusy, matchRule } from '../lib/metrics'
 import {
@@ -272,7 +272,10 @@ export default function FreePage() {
     // day ranking can share them; partnerWork stays local to this overlay.
     const partnerWorkBusy = buildBusy(partnerWork.events ?? [], busyOpts)
     const myBusy = mergeIntervals([...combinedBusy, ...jointBusy])
-    const dates = datesInRange(new Date(startMs), addDays(new Date(startMs), lookahead))
+    // Count only the displayed month, clamped to the valid horizon (today → lookahead).
+    const from = Math.max(startOfMonth(selectedMonth).getTime(), startMs)
+    const to = Math.min(endOfMonth(selectedMonth).getTime(), addDays(new Date(startMs), lookahead).getTime())
+    const dates = to >= from ? datesInRange(new Date(from), new Date(to)) : []
 
     const overlap = overlapByDate(myBusy, partnerBusy, settings.windows, dates, settings.dayStart)
     const notWorkingSet = notWorkingDates(partnerWorkBusy, dates)
@@ -351,6 +354,7 @@ export default function FreePage() {
     partnerName,
     startMs,
     lookahead,
+    selectedMonth,
   ])
 
   // Days the overlap highlight covers = union of whichever subset cards are on.
