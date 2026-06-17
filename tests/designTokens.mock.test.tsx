@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderMock } from './helpers/mockApp'
-import { AppearancePanel } from '../src/pages/SettingsPage'
+import AppearancePanel from '../src/pages/settings/AppearancePanel'
 import { applyTokenVars, getToken } from '../src/lib/designTokens'
 import { getSettings, useSettings } from '../src/store/settings'
 

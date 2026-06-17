@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderMock } from './helpers/mockApp'
 import { MOCK_CALENDARS } from '../src/api/mock'
-import { CalendarsPanel } from '../src/pages/SettingsPage'
+import CalendarsPanel from '../src/pages/settings/CalendarsPanel'
 import { useSettings, type Settings } from '../src/store/settings'
 
 // CalendarsPanel is prop-driven; this wrapper feeds it the live settings store
