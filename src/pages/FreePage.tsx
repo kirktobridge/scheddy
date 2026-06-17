@@ -18,7 +18,7 @@ import {
 import type { OverlayLayer } from '../components/FreeCalendar'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
 import { useSettings } from '../store/settings'
-import { getColor } from '../lib/colorConfig'
+import { getColor } from '../lib/designTokens'
 import { mixColors } from '../lib/colorMix'
 import { createEvent } from '../api/calendar'
 import { useEvents } from '../hooks/useEvents'

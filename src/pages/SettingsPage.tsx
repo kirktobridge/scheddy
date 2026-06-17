@@ -4,8 +4,8 @@ import { listCalendars, type GCalendar } from '../api/calendar'
 import { DEFAULT_WINDOWS, windowKeys } from '../lib/availability'
 import { getSettings, useSettings, type DateRankFactor, type MetricRule, type Settings } from '../store/settings'
 import { ErrorBanner } from '../components/Banner'
-import ColorField from '../components/ColorField'
-import { COLOR_GROUPS, getColor } from '../lib/colorConfig'
+import TokenField from '../components/TokenField'
+import { TOKEN_GROUPS, getColor, getToken } from '../lib/designTokens'
 import { normalizeRankOrder, resolveDateRule } from '../lib/relationship'
 
 const INPUT =
@@ -217,14 +217,20 @@ function AccountPanel({
   )
 }
 
-function AppearancePanel({ settings, update }: { settings: Settings; update: Update }) {
-  const setColor = (key: string, hex: string) =>
-    update({ colors: { ...settings.colors, [key]: hex } })
-  const resetColor = (key: string) => {
-    const { [key]: _, ...rest } = settings.colors
-    update({ colors: rest })
+export function AppearancePanel({ settings, update }: { settings: Settings; update: Update }) {
+  const setToken = (key: string, value: string) =>
+    update({ tokens: { ...settings.tokens, [key]: value } })
+  const resetToken = (key: string) => {
+    const { [key]: _, ...rest } = settings.tokens
+    update({ tokens: rest })
   }
-  const hasOverrides = Object.keys(settings.colors).length > 0
+  const resetGroup = (keys: string[]) => {
+    const rest = { ...settings.tokens }
+    for (const k of keys) delete rest[k]
+    update({ tokens: rest })
+  }
+  const groupHasOverrides = (keys: string[]) => keys.some((k) => k in settings.tokens)
+  const hasOverrides = Object.keys(settings.tokens).length > 0
 
   return (
     <>
@@ -245,34 +251,60 @@ function AppearancePanel({ settings, update }: { settings: Settings; update: Upd
           ))}
         </div>
       </Section>
-      {COLOR_GROUPS.map((group) => (
-        <Section key={group.id} title={group.title}>
-          {group.description && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">{group.description}</p>
-          )}
-          <div className="rounded-lg bg-white px-3 py-1 shadow-sm dark:bg-slate-800 dark:shadow-none">
-            {group.entries.map((entry) => (
-              <ColorField
-                key={entry.key}
-                label={entry.label}
-                description={entry.description}
-                value={getColor(settings, entry.key)}
-                fallback={entry.default}
-                onChange={(hex) => setColor(entry.key, hex)}
-                onReset={() => resetColor(entry.key)}
-              />
-            ))}
-          </div>
-        </Section>
-      ))}
-      {hasOverrides && (
-        <button
-          onClick={() => update({ colors: {} })}
-          className="rounded-lg bg-rose-500/20 px-3 py-1.5 text-sm text-rose-600 dark:text-rose-400"
-        >
-          Reset all colors
-        </button>
-      )}
+
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+            Design tokens
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Live controls for every CSS variable the app theme is built from.
+          </p>
+        </div>
+        {hasOverrides && (
+          <button
+            onClick={() => update({ tokens: {} })}
+            className="shrink-0 rounded-lg bg-rose-500/20 px-3 py-1.5 text-sm text-rose-600 dark:text-rose-400"
+          >
+            Reset all
+          </button>
+        )}
+      </div>
+
+      {TOKEN_GROUPS.map((group) => {
+        const keys = group.entries.map((e) => e.key)
+        return (
+          <Section
+            key={group.id}
+            title={group.title}
+            action={
+              groupHasOverrides(keys) && (
+                <button
+                  onClick={() => resetGroup(keys)}
+                  className="text-xs text-slate-500 underline dark:text-slate-400"
+                >
+                  Reset group
+                </button>
+              )
+            }
+          >
+            {group.description && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">{group.description}</p>
+            )}
+            <div className="rounded-lg bg-white px-3 py-1 shadow-sm dark:bg-slate-800 dark:shadow-none">
+              {group.entries.map((entry) => (
+                <TokenField
+                  key={entry.key}
+                  entry={entry}
+                  value={getToken(settings, entry.key)}
+                  onChange={(value) => setToken(entry.key, value)}
+                  onReset={() => resetToken(entry.key)}
+                />
+              ))}
+            </div>
+          </Section>
+        )
+      })}
     </>
   )
 }
@@ -1327,10 +1359,21 @@ function SliderField({
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  action,
+  children,
+}: {
+  title: string
+  action?: React.ReactNode
+  children: React.ReactNode
+}) {
   return (
     <section className="space-y-2">
-      <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">{title}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
   )

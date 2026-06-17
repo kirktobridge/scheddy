@@ -3,7 +3,7 @@ import FreePage from './pages/FreePage'
 import CheckPage from './pages/CheckPage'
 import SettingsPage from './pages/SettingsPage'
 import { useSettings } from './store/settings'
-import { applyColorVars } from './lib/colorConfig'
+import { applyTokenVars } from './lib/designTokens'
 
 type Tab = 'free' | 'check' | 'settings'
 
@@ -25,8 +25,8 @@ export default function App() {
   }, [settings.theme])
 
   useEffect(() => {
-    applyColorVars(settings)
-  }, [settings.colors])
+    applyTokenVars(settings)
+  }, [settings.tokens])
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">

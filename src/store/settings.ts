@@ -53,8 +53,8 @@ export interface Settings {
   metricRules: MetricRule[]
   /** Per-metric calendar highlight color, keyed by metric key ('evenings', 'weekend', 'rule:<id>'). */
   metricColors: Record<string, string>
-  /** Overrides for the app's configurable semantic colors, keyed by colorConfig entry key. */
-  colors: Record<string, string>
+  /** Overrides for the app's configurable design tokens, keyed by designTokens entry key. */
+  tokens: Record<string, string>
 
   /** Relationship mode: surfaces a partner's availability on the Free view (see relationship.ts). */
   relationshipMode: boolean
@@ -118,7 +118,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: 'date-nights', name: 'Date nights', keyword: 'date', icon: '❤️', matchDescription: false },
   ],
   metricColors: {},
-  colors: {},
+  tokens: {},
   relationshipMode: false,
   partnerName: '',
   datePreference: 'weekend',
@@ -152,6 +152,9 @@ function loadSettings(): Settings {
       // as-is rather than merging defaults back in — otherwise a removed
       // default window would reappear on reload.
       windows: parsed.windows ?? DEFAULT_SETTINGS.windows,
+      // Design-token overrides were once stored under `colors`; fold any legacy
+      // map into `tokens` so existing customizations survive the rename.
+      tokens: { ...(parsed.colors ?? {}), ...(parsed.tokens ?? {}) },
     }
   } catch {
     return DEFAULT_SETTINGS
