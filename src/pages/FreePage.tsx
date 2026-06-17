@@ -31,6 +31,7 @@ import DayTimelineCard from '../components/DayTimelineCard'
 import BottomSheet from '../components/BottomSheet'
 import { ErrorBanner, Spinner } from '../components/Banner'
 import MetricsStats from '../components/MetricsStats'
+import RelationshipStats from '../components/RelationshipStats'
 import { useMetrics } from '../hooks/useMetrics'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 
@@ -49,7 +50,6 @@ export default function FreePage() {
   const [highlightPicks, setHighlightPicks] = useState(true)
   const rel = settings.relationshipMode
   const partnerName = settings.partnerName || 'Partner'
-  const relOpen = settings.relationshipPanelOpen
   const [showNotWorking, setShowNotWorking] = useState(false)
   const [showOverlap, setShowOverlap] = useState(false)
   const [showOverlapWeekends, setShowOverlapWeekends] = useState(false)
@@ -257,6 +257,7 @@ export default function FreePage() {
   const relationship = useMemo(() => {
     const empty = {
       notWorkingSet: new Set<string>(),
+      overlapSet: new Set<string>(),
       overlapWeekendSet: new Set<string>(),
       overlapWeeknightSet: new Set<string>(),
       bothOffSet: new Set<string>(),
@@ -320,6 +321,7 @@ export default function FreePage() {
     }
     return {
       notWorkingSet,
+      overlapSet,
       overlapWeekendSet,
       overlapWeeknightSet,
       bothOffSet,
@@ -351,17 +353,15 @@ export default function FreePage() {
     lookahead,
   ])
 
-  // Days the overlap highlight covers = intersection of whichever subset chips
-  // are on (a day must satisfy every selected subset). Empty when none are on.
+  // Days the overlap highlight covers = union of whichever subset cards are on.
+  // Empty when none are on.
   const overlapHighlight = useMemo(() => {
     if (!rel || !showOverlap) return new Set<string>()
-    const sets: Set<string>[] = []
-    if (showOverlapWeekends) sets.push(relationship.overlapWeekendSet)
-    if (showOverlapWeeknights) sets.push(relationship.overlapWeeknightSet)
-    if (showOverlapOffDays) sets.push(relationship.bothOffSet)
-    if (sets.length === 0) return new Set<string>()
-    const [first, ...rest] = sets
-    return new Set([...first].filter((d) => rest.every((s) => s.has(d))))
+    const out = new Set<string>()
+    if (showOverlapWeekends) for (const d of relationship.overlapWeekendSet) out.add(d)
+    if (showOverlapWeeknights) for (const d of relationship.overlapWeeknightSet) out.add(d)
+    if (showOverlapOffDays) for (const d of relationship.bothOffSet) out.add(d)
+    return out
   }, [rel, showOverlap, showOverlapWeekends, showOverlapWeeknights, showOverlapOffDays, relationship])
 
   const layers = useMemo<OverlayLayer[]>(() => {
@@ -483,9 +483,46 @@ export default function FreePage() {
     return () => document.removeEventListener('keydown', onKey)
   }, [isDesktop, selected])
 
+  const nudgeTitle = dateNudge
+    ? `Last date: ${dateNudge.last ? relDayLabel(dateNudge.last) : 'none yet'} · Next: ${
+        dateNudge.next ? relDayLabel(dateNudge.next) : 'none scheduled'
+      }`
+    : undefined
+  // "Me & {Partner}" relationship cards, shared by the mobile stack and desktop bar.
+  const relCards = (bar: boolean) => (
+    <RelationshipStats
+      bar={bar}
+      partnerName={partnerName}
+      partnerOff={relationship.notWorkingSet.size}
+      overlapTotal={relationship.overlapSet.size}
+      overlapWeekends={relationship.overlapWeekendSet.size}
+      overlapWeeknights={relationship.overlapWeeknightSet.size}
+      bothOff={relationship.bothOffSet.size}
+      dateOptions={relationship.dateSet.size}
+      partnerOffColor={getColor(settings, 'relationship.partnerOff')}
+      overlapColor={overlapColor}
+      dateColor={getColor(settings, 'relationship.dateMarker')}
+      showNotWorking={showNotWorking}
+      showOverlap={showOverlap}
+      showOverlapWeekends={showOverlapWeekends}
+      showOverlapWeeknights={showOverlapWeeknights}
+      showOverlapOffDays={showOverlapOffDays}
+      showDates={showDates}
+      onToggleNotWorking={() => setShowNotWorking((v) => !v)}
+      onToggleOverlap={() => setShowOverlap((v) => !v)}
+      onToggleWeekends={() => setShowOverlapWeekends((v) => !v)}
+      onToggleWeeknights={() => setShowOverlapWeeknights((v) => !v)}
+      onToggleOffDays={() => setShowOverlapOffDays((v) => !v)}
+      onToggleDates={() => setShowDates((v) => !v)}
+      overdue={!!dateNudge?.overdue}
+      nudgeTitle={nudgeTitle}
+    />
+  )
+
   return (
     <div className="space-y-4">
       {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} />}
+      {!isDesktop && rel && relCards(false)}
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Availability</h1>
         <div className="flex items-center gap-2">
@@ -512,71 +549,6 @@ export default function FreePage() {
           </button>
         </div>
       </header>
-      {rel && (
-        <section className="rounded-xl border border-slate-200 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={() => setSettings({ relationshipPanelOpen: !relOpen })}
-            aria-expanded={relOpen}
-            className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-left text-sm"
-          >
-            <span className="font-semibold text-slate-800 dark:text-slate-100">Me &amp; {partnerName}</span>
-            {dateNudge && (
-              <span className="text-slate-500 dark:text-slate-400">
-                Last date: {dateNudge.last ? relDayLabel(dateNudge.last) : 'none yet'}
-              </span>
-            )}
-            {dateNudge?.overdue && (
-              <span className="rounded-full bg-pink-500 px-2 py-0.5 text-xs font-medium text-pink-950">Overdue</span>
-            )}
-            {dateNudge && (
-              <span className="text-slate-500 dark:text-slate-400">
-                · Next: {dateNudge.next ? relDayLabel(dateNudge.next) : 'none scheduled'}
-              </span>
-            )}
-            <span className="ml-auto text-slate-400 dark:text-slate-500">{relOpen ? '▴' : '▾'}</span>
-          </button>
-          {relOpen && (
-            <div className="space-y-2 border-t border-slate-200 px-3 py-2 dark:border-slate-700">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <RelToggle active={showNotWorking} onClick={() => setShowNotWorking((v) => !v)} title={`Days ${partnerName} isn't working`} color="bg-blue-500 text-blue-950">
-                  {partnerName}'s Off Days
-                </RelToggle>
-                <RelToggle active={showOverlap} onClick={() => setShowOverlap((v) => !v)} title="Highlight overlapping availability" color="bg-pink-500 text-pink-950">
-                  ⇄ Our Overlap
-                </RelToggle>
-                <RelToggle active={showDates} onClick={() => setShowDates((v) => !v)} title={`Top ${settings.dateCandidateCount} date candidates`} color="bg-pink-500 text-pink-950">
-                  ❤️ Date Options
-                </RelToggle>
-              </div>
-              {showOverlap && (
-                <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-200 pt-2 dark:border-slate-700">
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Overlap</span>
-                  <RelToggle
-                    active={showOverlapWeekends}
-                    onClick={() => setShowOverlapWeekends((v) => { if (!v) setShowOverlapWeeknights(false); return !v })}
-                    title="Weekend days with mutual free time"
-                    color="bg-pink-500 text-pink-950"
-                  >
-                    Weekends
-                  </RelToggle>
-                  <RelToggle
-                    active={showOverlapWeeknights}
-                    onClick={() => setShowOverlapWeeknights((v) => { if (!v) setShowOverlapWeekends(false); return !v })}
-                    title="Weekday evenings with mutual free time"
-                    color="bg-pink-500 text-pink-950"
-                  >
-                    Weeknights
-                  </RelToggle>
-                  <RelToggle active={showOverlapOffDays} onClick={() => setShowOverlapOffDays((v) => !v)} title="Days you're both off work" color="bg-pink-500 text-pink-950">
-                    Off days
-                  </RelToggle>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-      )}
       {bookedMsg && (
         <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
           <span>❤️ {bookedMsg}</span>
@@ -626,8 +598,11 @@ export default function FreePage() {
         }
         return (
           <>
-            {/* Full-width metric selector bar above the calendar/day-card row. */}
-            <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} bar />
+            {/* Selector band above the calendar: Metrics group + Me & Partner group. */}
+            <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+              <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} bar />
+              {rel && relCards(true)}
+            </div>
             <div className="flex items-start gap-4 pt-2">
               <div className="min-w-0 flex-1">{calendar}</div>
               <aside className="w-96 shrink-0">
@@ -646,34 +621,5 @@ export default function FreePage() {
         )
       })()}
     </div>
-  )
-}
-
-/** Relationship-mode overlay toggle — mirrors the "★ Top N" button styling. */
-function RelToggle({
-  active,
-  onClick,
-  title,
-  color,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  title: string
-  /** Tailwind bg+text classes for the active state. */
-  color: string
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      title={title}
-      className={`rounded-md px-2 py-1 text-xs ${
-        active ? `${color} font-medium` : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-      }`}
-    >
-      {children}
-    </button>
   )
 }

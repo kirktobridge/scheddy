@@ -1,5 +1,6 @@
 import type { Metrics } from '../hooks/useMetrics'
 import { ErrorBanner, Spinner } from './Banner'
+import StatCard from './StatCard'
 
 interface Props extends Metrics {
   /** Highlight color for a metric key (with default fallback). */
@@ -30,7 +31,11 @@ export default function MetricsStats({
   const cardClass = bar ? 'w-40' : ''
   return (
     <section className="space-y-2">
-      {!bar && <h2 className="text-xl font-bold">Metrics</h2>}
+      {bar ? (
+        <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Metrics</h2>
+      ) : (
+        <h2 className="text-xl font-bold">Metrics</h2>
+      )}
 
       {error && <ErrorBanner message={error} />}
       {loading && <Spinner />}
@@ -80,60 +85,5 @@ export default function MetricsStats({
         </>
       )}
     </section>
-  )
-}
-
-function StatCard({
-  value,
-  label,
-  active,
-  color,
-  dense,
-  wrapperClass,
-  onClick,
-  onColor,
-}: {
-  value: number
-  label: string
-  active: boolean
-  color: string
-  dense?: boolean
-  wrapperClass?: string
-  onClick: () => void
-  onColor: (color: string) => void
-}) {
-  return (
-    <div className={`relative ${wrapperClass ?? ''}`}>
-      <button
-        type="button"
-        onClick={onClick}
-        aria-pressed={active}
-        style={active ? { boxShadow: `0 0 0 2px ${color}` } : undefined}
-        className={`w-full rounded-xl text-center shadow-sm transition dark:shadow-none ${dense ? 'p-3' : 'p-4'} ${
-          active ? 'bg-white dark:bg-slate-800' : 'bg-white hover:brightness-95 dark:bg-slate-800 dark:hover:brightness-110'
-        }`}
-      >
-        <p
-          className={`font-bold ${dense ? 'text-2xl' : 'text-3xl'} ${active ? '' : 'text-emerald-600 dark:text-emerald-400'}`}
-          style={active ? { color } : undefined}
-        >
-          {value}
-        </p>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{label}</p>
-      </button>
-      <label
-        title="Set highlight color"
-        className="absolute right-1.5 top-1.5 h-4 w-4 cursor-pointer rounded-full border border-black/10 shadow-sm dark:border-white/20"
-        style={{ backgroundColor: color }}
-      >
-        <input
-          type="color"
-          value={color}
-          onChange={(e) => onColor(e.target.value)}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          aria-label={`Highlight color for ${label}`}
-        />
-      </label>
-    </div>
   )
 }

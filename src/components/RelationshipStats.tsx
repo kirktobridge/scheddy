@@ -1,0 +1,145 @@
+import StatCard from './StatCard'
+
+interface Props {
+  partnerName: string
+  /** Full-width single-row layout (desktop selector bar) instead of a grid. */
+  bar?: boolean
+  // Counts
+  partnerOff: number
+  overlapTotal: number
+  overlapWeekends: number
+  overlapWeeknights: number
+  bothOff: number
+  dateOptions: number
+  // Highlight colors (semantic tokens; edited in Settings → Colors)
+  partnerOffColor: string
+  overlapColor: string
+  dateColor: string
+  // Active flags
+  showNotWorking: boolean
+  showOverlap: boolean
+  showOverlapWeekends: boolean
+  showOverlapWeeknights: boolean
+  showOverlapOffDays: boolean
+  showDates: boolean
+  // Toggles
+  onToggleNotWorking: () => void
+  onToggleOverlap: () => void
+  onToggleWeekends: () => void
+  onToggleWeeknights: () => void
+  onToggleOffDays: () => void
+  onToggleDates: () => void
+  // Date cadence
+  overdue: boolean
+  nudgeTitle?: string
+}
+
+const OverdueBadge = () => (
+  <span className="rounded-full bg-pink-500 px-2 py-0.5 text-[10px] font-medium text-pink-950">Overdue</span>
+)
+
+/** "Me & {Partner}" relationship overlays rendered as metric-style cards. */
+export default function RelationshipStats({
+  partnerName,
+  bar,
+  partnerOff,
+  overlapTotal,
+  overlapWeekends,
+  overlapWeeknights,
+  bothOff,
+  dateOptions,
+  partnerOffColor,
+  overlapColor,
+  dateColor,
+  showNotWorking,
+  showOverlap,
+  showOverlapWeekends,
+  showOverlapWeeknights,
+  showOverlapOffDays,
+  showDates,
+  onToggleNotWorking,
+  onToggleOverlap,
+  onToggleWeekends,
+  onToggleWeeknights,
+  onToggleOffDays,
+  onToggleDates,
+  overdue,
+  nudgeTitle,
+}: Props) {
+  const cardClass = bar ? 'w-40' : ''
+  const rowClass = bar ? 'flex flex-wrap gap-2' : 'grid grid-cols-2 gap-3'
+  return (
+    <section className="space-y-2">
+      {bar ? (
+        <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+          Me &amp; {partnerName}
+        </h2>
+      ) : (
+        <h2 className="text-xl font-bold">Me &amp; {partnerName}</h2>
+      )}
+      <div className={rowClass}>
+        <StatCard
+          value={partnerOff}
+          label={`${partnerName} off work`}
+          active={showNotWorking}
+          color={partnerOffColor}
+          dense={bar}
+          wrapperClass={cardClass}
+          onClick={onToggleNotWorking}
+        />
+        <StatCard
+          value={overlapTotal}
+          label="⇄ Our Overlap"
+          active={showOverlap}
+          color={overlapColor}
+          dense={bar}
+          wrapperClass={cardClass}
+          title="Days with enough mutual free time — tap for sub-filters"
+          onClick={onToggleOverlap}
+        />
+        <StatCard
+          value={dateOptions}
+          label="❤️ Date Options"
+          active={showDates}
+          color={dateColor}
+          dense={bar}
+          wrapperClass={cardClass}
+          title={nudgeTitle}
+          footer={overdue ? <OverdueBadge /> : undefined}
+          onClick={onToggleDates}
+        />
+      </div>
+      {showOverlap && (
+        <div className={`${rowClass} border-t border-slate-200 pt-2 dark:border-slate-700`}>
+          <StatCard
+            value={overlapWeekends}
+            label="Weekends"
+            active={showOverlapWeekends}
+            color={overlapColor}
+            dense={bar}
+            wrapperClass={cardClass}
+            onClick={onToggleWeekends}
+          />
+          <StatCard
+            value={overlapWeeknights}
+            label="Weeknights"
+            active={showOverlapWeeknights}
+            color={overlapColor}
+            dense={bar}
+            wrapperClass={cardClass}
+            onClick={onToggleWeeknights}
+          />
+          <StatCard
+            value={bothOff}
+            label="Both off"
+            active={showOverlapOffDays}
+            color={overlapColor}
+            dense={bar}
+            wrapperClass={cardClass}
+            onClick={onToggleOffDays}
+          />
+        </div>
+      )}
+    </section>
+  )
+}
