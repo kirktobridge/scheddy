@@ -27,7 +27,7 @@ export default function MetricsStats({
   dense,
   bar,
 }: Props) {
-  const cardClass = bar ? 'min-w-0 flex-1 basis-32' : ''
+  const cardClass = bar ? 'w-40' : ''
   return (
     <section className="space-y-2">
       {!bar && <h2 className="text-xl font-bold">Metrics</h2>}
