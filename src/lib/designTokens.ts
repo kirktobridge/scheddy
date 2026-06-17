@@ -22,7 +22,33 @@ export interface TokenEntry {
   min?: number
   max?: number
   step?: number
+  /** `font` dropdowns: selectable stacks (value is the full font-family list). */
+  options?: { label: string; value: string }[]
 }
+
+/** Shared font-stack choices for the typography dropdowns. */
+const SANS_FONTS: { label: string; value: string }[] = [
+  {
+    label: 'System default',
+    value:
+      'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+  },
+  { label: 'Helvetica / Arial', value: '"Helvetica Neue", Helvetica, Arial, sans-serif' },
+  { label: 'Verdana', value: 'Verdana, Geneva, Tahoma, sans-serif' },
+  { label: 'Trebuchet', value: '"Trebuchet MS", system-ui, sans-serif' },
+  { label: 'Georgia (serif)', value: 'Georgia, Cambria, "Times New Roman", serif' },
+]
+
+const MONO_FONTS: { label: string; value: string }[] = [
+  {
+    label: 'System default',
+    value:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  },
+  { label: 'Courier', value: '"Courier New", Courier, monospace' },
+  { label: 'Consolas', value: 'Consolas, "Liberation Mono", monospace' },
+  { label: 'Menlo / Monaco', value: 'Menlo, Monaco, monospace' },
+]
 
 export interface TokenGroup {
   id: string
@@ -104,8 +130,8 @@ export const TOKEN_GROUPS: TokenGroup[] = [
         label: 'UI font',
         type: 'font',
         description: 'Font stack for all interface text.',
-        default:
-          'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+        default: SANS_FONTS[0].value,
+        options: SANS_FONTS,
         cssVars: ['--font-sans'],
       },
       {
@@ -113,8 +139,8 @@ export const TOKEN_GROUPS: TokenGroup[] = [
         label: 'Monospace font',
         type: 'font',
         description: 'Used for hex values and other code-like text.',
-        default:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        default: MONO_FONTS[0].value,
+        options: MONO_FONTS,
         cssVars: ['--font-mono'],
       },
       {

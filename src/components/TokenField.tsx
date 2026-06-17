@@ -37,7 +37,7 @@ export default function TokenField({
       </div>
       {entry.type === 'color' && <ColorControl entry={entry} value={value} onChange={onChange} />}
       {entry.type === 'length' && <LengthControl entry={entry} value={value} onChange={onChange} />}
-      {entry.type === 'font' && <FontControl value={value} onChange={onChange} />}
+      {entry.type === 'font' && <FontControl entry={entry} value={value} onChange={onChange} />}
       {!isDefault && (
         <button
           onClick={onReset}
@@ -130,28 +130,32 @@ function LengthControl({
   )
 }
 
-/** Free-text font stack; commits any non-empty value on blur/Enter. */
-function FontControl({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const [text, setText] = useState(value)
-  useEffect(() => setText(value), [value])
-
-  const commit = (raw: string) => {
-    const v = raw.trim()
-    if (v) onChange(v)
-    else setText(value) // revert
-  }
-
+/** Dropdown of curated font stacks; a value outside the list shows as "Custom". */
+function FontControl({
+  entry,
+  value,
+  onChange,
+}: {
+  entry: TokenEntry
+  value: string
+  onChange: (value: string) => void
+}) {
+  const options = entry.options ?? []
+  const known = options.some((o) => o.value === value)
   return (
-    <input
-      type="text"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={(e) => commit(e.target.value)}
-      onKeyDown={(e) => e.key === 'Enter' && commit((e.target as HTMLInputElement).value)}
-      spellCheck={false}
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
       style={{ fontFamily: value }}
-      className={`w-44 px-2 py-1 text-right text-xs ${FIELD}`}
-      aria-label="Font value"
-    />
+      className={`w-44 px-2 py-1 text-xs ${FIELD}`}
+      aria-label={`${entry.label} value`}
+    >
+      {!known && <option value={value}>Custom</option>}
+      {options.map((o) => (
+        <option key={o.label} value={o.value} style={{ fontFamily: o.value }}>
+          {o.label}
+        </option>
+      ))}
+    </select>
   )
 }

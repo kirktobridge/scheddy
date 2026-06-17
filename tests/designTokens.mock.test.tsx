@@ -43,6 +43,14 @@ describe('AppearancePanel — design tokens', () => {
     expect(getSettings().tokens['spacing.base']).toBe('0.3rem')
   })
 
+  it('fonts are dropdowns whose choice persists', async () => {
+    const user = userEvent.setup()
+    renderPanel()
+    const select = screen.getByLabelText('UI font value') as HTMLSelectElement
+    await user.selectOptions(select, 'Verdana, Geneva, Tahoma, sans-serif')
+    expect(getSettings().tokens['font.sans']).toBe('Verdana, Geneva, Tahoma, sans-serif')
+  })
+
   it('Reset all clears every override', async () => {
     const user = userEvent.setup()
     renderPanel()
