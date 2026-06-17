@@ -4,6 +4,8 @@ interface Props {
   partnerName: string
   /** Full-width single-row layout (desktop selector bar) instead of a grid. */
   bar?: boolean
+  /** Slate card backgrounds, for sitting inside the white calendar card. */
+  tinted?: boolean
   // Counts
   partnerOff: number
   overlapTotal: number
@@ -42,6 +44,7 @@ const OverdueBadge = () => (
 export default function RelationshipStats({
   partnerName,
   bar,
+  tinted,
   partnerOff,
   overlapTotal,
   overlapWeekends,
@@ -84,6 +87,7 @@ export default function RelationshipStats({
           active={showNotWorking}
           color={partnerOffColor}
           dense={bar}
+          tinted={tinted}
           wrapperClass={cardClass}
           onClick={onToggleNotWorking}
         />
@@ -93,6 +97,7 @@ export default function RelationshipStats({
           active={showOverlap}
           color={overlapColor}
           dense={bar}
+          tinted={tinted}
           wrapperClass={cardClass}
           title="Days with enough mutual free time — tap for sub-filters"
           onClick={onToggleOverlap}
@@ -103,6 +108,7 @@ export default function RelationshipStats({
           active={showDates}
           color={dateColor}
           dense={bar}
+          tinted={tinted}
           wrapperClass={cardClass}
           title={nudgeTitle}
           footer={overdue ? <OverdueBadge /> : undefined}

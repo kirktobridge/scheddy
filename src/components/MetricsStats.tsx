@@ -11,6 +11,8 @@ interface Props extends Metrics {
   dense?: boolean
   /** Full-width single-row layout (the desktop selector bar) instead of a grid. */
   bar?: boolean
+  /** Slate card backgrounds, for sitting inside the white calendar card. */
+  tinted?: boolean
 }
 
 /** "Metrics" header + the toggleable stat cards (free-time + keyword rules). Top of the Free page. */
@@ -27,6 +29,7 @@ export default function MetricsStats({
   onColor,
   dense,
   bar,
+  tinted,
 }: Props) {
   const cardClass = bar ? 'w-40' : ''
   return (
@@ -48,6 +51,7 @@ export default function MetricsStats({
               active={activeKeys.has('evenings')}
               color={colorFor('evenings')}
               dense={dense || bar}
+              tinted={tinted}
               wrapperClass={cardClass}
               onClick={() => toggle('evenings')}
               onColor={(c) => onColor('evenings', c)}
@@ -58,6 +62,7 @@ export default function MetricsStats({
               active={activeKeys.has('weekend')}
               color={colorFor('weekend')}
               dense={dense || bar}
+              tinted={tinted}
               wrapperClass={cardClass}
               onClick={() => toggle('weekend')}
               onColor={(c) => onColor('weekend', c)}
@@ -70,6 +75,7 @@ export default function MetricsStats({
                 active={activeKeys.has(`rule:${rule.id}`)}
                 color={colorFor(`rule:${rule.id}`)}
                 dense={dense || bar}
+                tinted={tinted}
                 wrapperClass={cardClass}
                 onClick={() => toggle(`rule:${rule.id}`)}
                 onColor={(c) => onColor(`rule:${rule.id}`, c)}

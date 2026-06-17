@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   addMonths,
@@ -54,6 +54,8 @@ interface Props {
   /** Month whose card is selected (drives the Metrics section). */
   selectedMonth: Date
   onSelectMonth: (month: Date) => void
+  /** Content rendered at the top of the xl single-month card, above the days. */
+  headerSlot?: ReactNode
 }
 
 export interface OverlayLayer {
@@ -157,6 +159,7 @@ export default function FreeCalendar({
   overlapShadeDates,
   selectedMonth,
   onSelectMonth,
+  headerSlot,
 }: Props) {
   const freeSet = useMemo(() => new Set(days.map(([d]) => d)), [days])
   // Top-pick counts per month ("yyyy-MM") for the nav badges.
@@ -358,6 +361,9 @@ export default function FreeCalendar({
 
       {/* xl and up: one month at a time with prev/next navigation. */}
       <div className="hidden break-inside-avoid rounded-2xl bg-white p-3 shadow-sm xl:block dark:bg-slate-800 dark:shadow-none">
+        {headerSlot && (
+          <div className="mb-3 border-b border-slate-200 pb-3 dark:border-slate-700">{headerSlot}</div>
+        )}
         <div className="mb-2 flex items-center justify-between">
           <button
             type="button"
@@ -366,10 +372,10 @@ export default function FreeCalendar({
             title="Previous month"
             className="flex items-center gap-1.5 rounded-md px-2 py-1 text-slate-600 transition hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-slate-600 dark:text-slate-300 dark:hover:text-emerald-400"
           >
-            <span className="text-base leading-none">‹</span>
+            <span className="text-2xl leading-none">‹</span>
             {!prevDisabled && <NavBadge month={prevMonth} />}
           </button>
-          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{format(viewMonth, 'MMMM yyyy')}</span>
+          <span className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">{format(viewMonth, 'MMMM yyyy')}</span>
           <button
             type="button"
             onClick={() => onSelectMonth(nextMonth)}

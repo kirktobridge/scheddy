@@ -7,6 +7,7 @@ export default function StatCard({
   active,
   color,
   dense,
+  tinted,
   wrapperClass,
   title,
   footer,
@@ -18,6 +19,8 @@ export default function StatCard({
   active: boolean
   color: string
   dense?: boolean
+  /** Slate background so the card stands out inside a white container. */
+  tinted?: boolean
   wrapperClass?: string
   /** Tooltip on the card button. */
   title?: string
@@ -27,6 +30,13 @@ export default function StatCard({
   /** When provided, a color-dot picker is shown to recolor the highlight. */
   onColor?: (color: string) => void
 }) {
+  const bg = tinted
+    ? active
+      ? 'bg-white dark:bg-slate-900'
+      : 'bg-slate-100 hover:brightness-95 dark:bg-slate-700/60 dark:hover:brightness-110'
+    : active
+      ? 'bg-white dark:bg-slate-800'
+      : 'bg-white hover:brightness-95 dark:bg-slate-800 dark:hover:brightness-110'
   return (
     <div className={`relative ${wrapperClass ?? ''}`}>
       <button
@@ -35,9 +45,7 @@ export default function StatCard({
         aria-pressed={active}
         title={title}
         style={active ? { boxShadow: `0 0 0 2px ${color}` } : undefined}
-        className={`w-full rounded-xl text-center shadow-sm transition dark:shadow-none ${dense ? 'p-3' : 'p-4'} ${
-          active ? 'bg-white dark:bg-slate-800' : 'bg-white hover:brightness-95 dark:bg-slate-800 dark:hover:brightness-110'
-        }`}
+        className={`w-full rounded-xl text-center shadow-sm transition dark:shadow-none ${dense ? 'p-3' : 'p-4'} ${bg}`}
       >
         <p
           className={`font-bold ${dense ? 'text-2xl' : 'text-3xl'} ${active ? '' : 'text-emerald-600 dark:text-emerald-400'}`}

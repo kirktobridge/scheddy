@@ -8,7 +8,7 @@ import { applyTokenVars } from './lib/designTokens'
 type Tab = 'free' | 'check' | 'settings'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'free', label: 'Free', icon: '🕐' },
+  { id: 'free', label: 'Scheduler', icon: '🕐' },
   { id: 'check', label: 'Check', icon: '🔍' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ]

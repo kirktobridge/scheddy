@@ -38,7 +38,7 @@ describe('Free view desktop panel (mock mode)', () => {
   it('shows the metric bar; the right panel holds the day card on selection', async () => {
     const user = userEvent.setup()
     renderMock(<FreePage />)
-    expect(await screen.findByText('Availability')).toBeTruthy()
+    expect(await screen.findByText(/unbooked evenings/)).toBeTruthy()
 
     // The metric selector bar is present (top of page) and the right panel is
     // empty until a day is picked.

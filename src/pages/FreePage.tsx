@@ -496,6 +496,7 @@ export default function FreePage() {
   const relCards = (bar: boolean) => (
     <RelationshipStats
       bar={bar}
+      tinted={bar}
       partnerName={partnerName}
       partnerOff={relationship.notWorkingSet.size}
       overlapTotal={relationship.overlapSet.size}
@@ -527,8 +528,7 @@ export default function FreePage() {
     <div className="space-y-4">
       {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} />}
       {!isDesktop && rel && relCards(false)}
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Availability</h1>
+      <header className="flex items-center justify-end">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setHighlightPicks((v) => !v)}
@@ -588,6 +588,14 @@ export default function FreePage() {
             overlapShadeDates={overlapHighlight}
             selectedMonth={selectedMonth}
             onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
+            headerSlot={
+              isDesktop ? (
+                <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+                  <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} bar tinted />
+                  {rel && relCards(true)}
+                </div>
+              ) : undefined
+            }
           />
         )
         if (!isDesktop) {
@@ -602,12 +610,7 @@ export default function FreePage() {
         }
         return (
           <>
-            {/* Selector band above the calendar: Metrics group + Me & Partner group. */}
-            <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
-              <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} bar />
-              {rel && relCards(true)}
-            </div>
-            <div className="flex items-start gap-4 pt-2">
+            <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">{calendar}</div>
               <aside className="w-96 shrink-0">
                 <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto px-1">

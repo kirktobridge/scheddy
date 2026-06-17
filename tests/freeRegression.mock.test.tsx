@@ -46,7 +46,7 @@ describe('Free page regression — desktop', () => {
     mockMatch(true)
     const user = userEvent.setup()
     renderMock(<FreePage />)
-    await screen.findByText('Availability')
+    await screen.findByText(/unbooked evenings/)
     await waitFor(() => screen.getByTitle('Next month'))
 
     const prev = screen.getByTitle('Previous month') as HTMLButtonElement
@@ -96,7 +96,7 @@ describe('Free page regression — desktop', () => {
   it('flips the hover popover above the cell near the viewport bottom', async () => {
     mockMatch(true)
     renderMock(<FreePage />)
-    await screen.findByText('Availability')
+    await screen.findByText(/unbooked evenings/)
     const cell = await waitFor(() => firstDayCell())
 
     cell.getBoundingClientRect = () =>
@@ -176,7 +176,7 @@ describe('Free page regression — mobile', () => {
   it('keeps the multi-month compact layout below xl', async () => {
     mockMatch(false)
     renderMock(<FreePage />)
-    await screen.findByText('Availability')
+    await screen.findByText(/unbooked evenings/)
     await waitFor(() => firstDayCell())
     // More than one month card is visible.
     expect(screen.getAllByText(/[A-Z][a-z]+ 20\d\d/).length).toBeGreaterThan(1)
@@ -186,7 +186,7 @@ describe('Free page regression — mobile', () => {
     mockMatch(false)
     const user = userEvent.setup()
     renderMock(<FreePage />)
-    await screen.findByText('Availability')
+    await screen.findByText(/unbooked evenings/)
 
     // Open, then swipe the handle down past the 80px threshold → closes.
     await user.click(await waitFor(() => firstDayCell()))
