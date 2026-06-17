@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays } from 'date-fns'
+import { addDays, startOfMonth } from 'date-fns'
 import { mockCreateEvent, mockEventsMulti } from '../src/api/mock'
 import { matchRule } from '../src/lib/metrics'
 import { eventDates } from '../src/lib/format'
@@ -9,7 +9,9 @@ const tripRule = { id: 'trips', name: 'Trips', keyword: 'trip', icon: '✈️', 
 
 describe('mock data — trips scenario', () => {
   const now = new Date()
-  const events = mockEventsMulti(ids, addDays(now, -10), addDays(now, 60))
+  // Span the whole current month (matching the metric scan) so the early-month
+  // trip is captured no matter what day of the month "now" falls on.
+  const events = mockEventsMulti(ids, startOfMonth(now), addDays(now, 60))
 
   it('seeds two trips in the window', () => {
     const trips = matchRule(events, tripRule)
