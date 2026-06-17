@@ -35,9 +35,6 @@ export default function TokenField({
           <div className="text-xs text-slate-500 dark:text-slate-400">{entry.description}</div>
         )}
       </div>
-      {entry.type === 'color' && <ColorControl entry={entry} value={value} onChange={onChange} />}
-      {entry.type === 'length' && <LengthControl entry={entry} value={value} onChange={onChange} />}
-      {entry.type === 'font' && <FontControl entry={entry} value={value} onChange={onChange} />}
       {!isDefault && (
         <button
           onClick={onReset}
@@ -47,6 +44,9 @@ export default function TokenField({
           Reset
         </button>
       )}
+      {entry.type === 'color' && <ColorControl entry={entry} value={value} onChange={onChange} />}
+      {entry.type === 'length' && <LengthControl entry={entry} value={value} onChange={onChange} />}
+      {entry.type === 'font' && <FontControl entry={entry} value={value} onChange={onChange} />}
     </div>
   )
 }
