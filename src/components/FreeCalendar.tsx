@@ -206,8 +206,8 @@ export default function FreeCalendar({
   /** One month's grid card. `blankSpillover` blanks adjacent-month days that have
    *  their own card (multi-month view); single view greys them instead. */
   const renderMonth = (month: Date, blankSpillover: boolean) => {
-    // The rolling-window's first month starts at the current week.
-    const gridStart = isSameMonth(month, now) ? startOfWeek(now) : startOfWeek(startOfMonth(month))
+    // Always show the whole month; past days render inactive (greyed, unselectable).
+    const gridStart = startOfWeek(startOfMonth(month))
     const gridDays = eachDayOfInterval({ start: gridStart, end: endOfWeek(endOfMonth(month)) })
     return (
       <div className="grid grid-cols-7 gap-1">
