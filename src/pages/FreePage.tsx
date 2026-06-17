@@ -525,7 +525,7 @@ export default function FreePage() {
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-0 xl:flex-col xl:gap-4 xl:space-y-0">
       {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} />}
       {!isDesktop && rel && relCards(false)}
       <header className="flex items-center justify-end">
@@ -610,8 +610,8 @@ export default function FreePage() {
         }
         return (
           <>
-            <div className="flex items-start gap-4">
-              <div className="min-w-0 flex-1">{calendar}</div>
+            <div className="flex items-start gap-4 xl:min-h-0 xl:flex-1 xl:items-stretch">
+              <div className="min-w-0 flex-1 xl:h-full">{calendar}</div>
               <aside className="w-96 shrink-0">
                 <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto px-1">
                   {dayInView ? (

@@ -208,12 +208,18 @@ export default function FreeCalendar({
 
   /** One month's grid card. `blankSpillover` blanks adjacent-month days that have
    *  their own card (multi-month view); single view greys them instead. */
-  const renderMonth = (month: Date, blankSpillover: boolean) => {
+  const renderMonth = (month: Date, blankSpillover: boolean, fill = false) => {
     // Always show the whole month; past days render inactive (greyed, unselectable).
     const gridStart = startOfWeek(startOfMonth(month))
     const gridDays = eachDayOfInterval({ start: gridStart, end: endOfWeek(endOfMonth(month)) })
+    // fill: stretch the grid to its container's height with the weekday header row
+    // auto-sized and the week rows sharing the remaining height equally.
     return (
-      <div className="grid grid-cols-7 gap-1">
+      <div
+        className={`grid grid-cols-7 gap-1${
+          fill ? ' min-h-0 flex-1 [grid-auto-rows:1fr] [grid-template-rows:auto]' : ''
+        }`}
+      >
         {WEEKDAYS.map((d) => (
           <div key={d} className="pb-1 text-center text-[10px] font-medium text-slate-400 dark:text-slate-500">
             {d}
@@ -224,7 +230,7 @@ export default function FreeCalendar({
           const inMonth = isSameMonth(day, month)
           // Spillover day shown on its own month's card — blank it here.
           if (blankSpillover && !inMonth && monthKeys.has(format(day, 'yyyy-MM'))) {
-            return <div key={dateStr} className="h-12 xl:h-24" />
+            return <div key={dateStr} className={fill ? '' : 'h-12 xl:h-24'} />
           }
           const active = day.getTime() >= todayMs && day.getTime() <= maxMs
           const pick = freeSet.has(dateStr)
@@ -263,7 +269,7 @@ export default function FreeCalendar({
               onPointerLeave={canHover ? () => setHover(null) : undefined}
               onPointerDown={canHover ? () => setHover(null) : undefined}
               style={boxShadow ? { boxShadow } : undefined}
-              className={`relative h-12 xl:h-24 overflow-hidden rounded-lg text-left transition ${
+              className={`relative ${fill ? 'h-full min-h-12' : 'h-12 xl:h-24'} overflow-hidden rounded-lg text-left transition ${
                 active ? 'bg-slate-200 dark:bg-slate-600' : ''
               } ${
                 isSel
@@ -328,7 +334,7 @@ export default function FreeCalendar({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 xl:flex xl:h-full xl:flex-col xl:space-y-0">
       {/* Below xl: existing multi-month compact grid. */}
       <div className="grid gap-4 md:grid-cols-2 xl:hidden">
         {months.map((month) => {
@@ -360,7 +366,7 @@ export default function FreeCalendar({
       </div>
 
       {/* xl and up: one month at a time with prev/next navigation. */}
-      <div className="hidden break-inside-avoid rounded-2xl bg-white p-3 shadow-sm xl:block dark:bg-slate-800 dark:shadow-none">
+      <div className="hidden break-inside-avoid rounded-2xl bg-white p-3 shadow-sm xl:flex xl:min-h-0 xl:flex-1 xl:flex-col dark:bg-slate-800 dark:shadow-none">
         {headerSlot && (
           <div className="mb-3 border-b border-slate-200 pb-3 dark:border-slate-700">{headerSlot}</div>
         )}
@@ -387,7 +393,7 @@ export default function FreeCalendar({
             <span className="text-base leading-none">›</span>
           </button>
         </div>
-        {renderMonth(viewMonth, false)}
+        {renderMonth(viewMonth, false, true)}
       </div>
 
       {hover && slotsForDate && <HoverPreview date={hover.date} slots={slotsForDate(hover.date)} rect={hover.rect} />}
