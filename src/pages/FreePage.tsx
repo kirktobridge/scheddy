@@ -589,7 +589,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
             onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
             headerSlot={
               isDesktop ? (
-                <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+                <div className="flex items-start gap-x-6">
                   <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} bar tinted topPicks={topPicks} />
                   {rel && relCards(true)}
                 </div>
