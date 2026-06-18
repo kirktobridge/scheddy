@@ -612,7 +612,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
             <div className="flex items-start gap-4 xl:min-h-0 xl:flex-1 xl:items-stretch">
               <div className="min-w-0 flex-1 xl:h-full">{calendar}</div>
               <aside className="w-96 shrink-0">
-                <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto px-1">
+                <div className="sticky top-0 max-h-full overflow-y-auto px-1">
                   {dayInView ? (
                     dayCardEl
                   ) : (
