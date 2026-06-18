@@ -34,9 +34,12 @@ export default function MetricsStats({
   tinted,
   topPicks,
 }: Props) {
-  const cardClass = bar ? 'w-36' : ''
+  const cardClass = bar ? 'min-w-0 flex-1' : ''
+  // Grow proportionally to card count so every card across both bar groups ends
+  // up the same width — keeping the whole band on one row.
+  const cardCount = 2 + ruleResults.length + (topPicks ? 1 : 0)
   return (
-    <section className="space-y-2">
+    <section className={bar ? 'min-w-0 space-y-2' : 'space-y-2'} style={bar ? { flexBasis: 0, flexGrow: cardCount } : undefined}>
       {bar ? (
         <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Metrics</h2>
       ) : (
@@ -47,7 +50,7 @@ export default function MetricsStats({
       {loading && <Spinner />}
       {!loading && !error && (
         <>
-          <div className={bar ? 'flex flex-wrap gap-2' : `grid grid-cols-2 ${dense ? 'gap-2' : 'gap-3 lg:grid-cols-4'}`}>
+          <div className={bar ? 'flex gap-2' : `grid grid-cols-2 ${dense ? 'gap-2' : 'gap-3 lg:grid-cols-4'}`}>
             <StatCard
               value={eveningDates.length}
               label={isCurrent ? 'unbooked evenings left' : 'unbooked evenings'}

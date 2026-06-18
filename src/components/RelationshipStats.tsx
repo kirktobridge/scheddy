@@ -69,10 +69,10 @@ export default function RelationshipStats({
   overdue,
   nudgeTitle,
 }: Props) {
-  const cardClass = bar ? 'w-36' : ''
-  const rowClass = bar ? 'flex flex-wrap gap-2' : 'grid grid-cols-2 gap-3'
+  const cardClass = bar ? 'min-w-0 flex-1' : ''
+  const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-3'
   return (
-    <section className="space-y-2">
+    <section className={bar ? 'min-w-0 space-y-2' : 'space-y-2'} style={bar ? { flexBasis: 0, flexGrow: 3 } : undefined}>
       {bar ? (
         <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
           Me &amp; {partnerName}
