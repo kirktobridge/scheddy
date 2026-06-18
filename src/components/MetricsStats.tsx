@@ -13,6 +13,8 @@ interface Props extends Metrics {
   bar?: boolean
   /** Slate card backgrounds, for sitting inside the white calendar card. */
   tinted?: boolean
+  /** "★ Top picks" advanced metric: star-highlight toggle with a month pick count. */
+  topPicks?: { count: number; active: boolean; color: string; onToggle: () => void }
 }
 
 /** "Metrics" header + the toggleable stat cards (free-time + keyword rules). Top of the Free page. */
@@ -30,8 +32,9 @@ export default function MetricsStats({
   dense,
   bar,
   tinted,
+  topPicks,
 }: Props) {
-  const cardClass = bar ? 'w-40' : ''
+  const cardClass = bar ? 'w-36' : ''
   return (
     <section className="space-y-2">
       {bar ? (
@@ -81,6 +84,18 @@ export default function MetricsStats({
                 onColor={(c) => onColor(`rule:${rule.id}`, c)}
               />
             ))}
+            {topPicks && (
+              <StatCard
+                value={topPicks.count}
+                label="★ Top picks"
+                active={topPicks.active}
+                color={topPicks.color}
+                dense={dense || bar}
+                tinted={tinted}
+                wrapperClass={cardClass}
+                onClick={topPicks.onToggle}
+              />
+            )}
           </div>
           {!bar && (
             <p className="text-xs text-slate-500">

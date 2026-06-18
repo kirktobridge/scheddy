@@ -69,7 +69,7 @@ export default function RelationshipStats({
   overdue,
   nudgeTitle,
 }: Props) {
-  const cardClass = bar ? 'w-40' : ''
+  const cardClass = bar ? 'w-36' : ''
   const rowClass = bar ? 'flex flex-wrap gap-2' : 'grid grid-cols-2 gap-3'
   return (
     <section className="space-y-2">

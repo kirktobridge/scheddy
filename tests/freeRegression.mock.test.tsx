@@ -73,8 +73,8 @@ describe('Free page regression — desktop', () => {
     )
     expect(badged).toBe(true)
 
-    // Turning off "★ Top" hides all badges.
-    await user.click(screen.getByRole('button', { name: /Top \d/ }))
+    // Turning off "★ Top picks" hides all badges.
+    await user.click(screen.getByRole('button', { name: /Top picks/ }))
     expect(screen.getByTitle('Next month').textContent).not.toMatch(/★\s*\d/)
   })
 

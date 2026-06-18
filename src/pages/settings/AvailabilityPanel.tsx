@@ -84,36 +84,7 @@ export default function AvailabilityPanel({ settings, update }: { settings: Sett
         </button>
       </Section>
 
-      <Section title="Free slots">
-        <SliderField
-          label="Days on home screen"
-          value={settings.freeSlotCount}
-          min={0}
-          max={10}
-          format={(v) => String(v)}
-          onChange={(v) => update({ freeSlotCount: v })}
-        />
-        <SliderField
-          label="Spacing window"
-          value={settings.isolationWindowDays}
-          min={0}
-          max={7}
-          format={(v) => `± ${v} day${v === 1 ? '' : 's'}`}
-          onChange={(v) => update({ isolationWindowDays: v })}
-        />
-        <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
-          Favor weekends
-          <input
-            type="checkbox"
-            checked={settings.favorWeekends}
-            onChange={(e) => update({ favorWeekends: e.target.checked })}
-            className="h-4 w-4 accent-emerald-500"
-          />
-        </label>
-        <p className="text-xs text-slate-500">
-          Picks prefer days with the most empty calendar within ± this many days, then the most free time, then
-          weekends.
-        </p>
+      <Section title="Availability window">
         <SliderField
           label="Show availability from"
           value={dayStartHour}

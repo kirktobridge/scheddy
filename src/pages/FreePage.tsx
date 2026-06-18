@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, differenceInCalendarDays, endOfDay, endOfMonth, format, isSameMonth, isWeekend, startOfDay, startOfMonth } from 'date-fns'
 import { blockedDates, dayIsolation, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, buildBusy, matchRule } from '../lib/metrics'
@@ -38,7 +38,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 /** How far back to scan for the most recent past date (cadence nudge). */
 const DATE_LOOKBACK_DAYS = 365
 
-export default function FreePage() {
+export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) {
   const [settings, setSettings] = useSettings()
   /** Shared accent for the "Our Overlap" + "Date Options" controls and overlap bar shading. */
   const overlapColor = getColor(settings, 'relationship.overlap')
@@ -89,6 +89,18 @@ export default function FreePage() {
   const endMs = addDays(new Date(startMs), lookahead + settings.isolationWindowDays + 1).getTime()
 
   const { events: rawEvents, loading, error, refresh } = useEvents(startMs, endMs)
+  // The Refresh control lives in the nav (App); it bumps refreshTick. Re-fetch and
+  // reset "now" when it changes, skipping the initial mount (data already loads then).
+  const didMountRef = useRef(false)
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true
+      return
+    }
+    setNowMs(Date.now())
+    void refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTick])
   // Keyword-rule overrides (force-block Free events, per-rule all-day flips)
   // are baked into the events before they become busy intervals below.
   const events = useMemo(
@@ -227,6 +239,12 @@ export default function FreePage() {
     nowMs,
     lookahead,
   ])
+
+  // How many of the top picks fall in the displayed month — the "★ Top picks" card count.
+  const topPicksCount = useMemo(
+    () => days.filter(([d]) => isSameMonth(new Date(d + 'T12:00:00'), selectedMonth)).length,
+    [days, selectedMonth],
+  )
 
   // Free slots for any single day (no threshold) — powers the detail card when
   // an arbitrary calendar day is selected.
@@ -487,6 +505,12 @@ export default function FreePage() {
     return () => document.removeEventListener('keydown', onKey)
   }, [isDesktop, selected])
 
+  const topPicks = {
+    count: topPicksCount,
+    active: highlightPicks,
+    color: getColor(settings, 'metric.default'),
+    onToggle: () => setHighlightPicks((v) => !v),
+  }
   const nudgeTitle = dateNudge
     ? `Last date: ${dateNudge.last ? relDayLabel(dateNudge.last) : 'none yet'} · Next: ${
         dateNudge.next ? relDayLabel(dateNudge.next) : 'none scheduled'
@@ -526,33 +550,8 @@ export default function FreePage() {
 
   return (
     <div className="space-y-4 xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-0 xl:flex-col xl:gap-4 xl:space-y-0">
-      {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} />}
+      {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} topPicks={topPicks} />}
       {!isDesktop && rel && relCards(false)}
-      <header className="flex items-center justify-end">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setHighlightPicks((v) => !v)}
-            aria-pressed={highlightPicks}
-            title={`${highlightPicks ? 'Hide' : 'Show'} the ${settings.freeSlotCount} most-free days`}
-            className={`rounded-lg px-3 py-1.5 text-sm ${
-              highlightPicks
-                ? 'bg-emerald-500 font-medium text-emerald-950'
-                : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-            }`}
-          >
-            ★ Top {settings.freeSlotCount}
-          </button>
-          <button
-            onClick={() => {
-              setNowMs(Date.now())
-              void refresh()
-            }}
-            className="rounded-lg bg-slate-200 px-3 py-1.5 text-sm text-slate-700 active:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:active:bg-slate-700"
-          >
-            ↻ Refresh
-          </button>
-        </div>
-      </header>
       {bookedMsg && (
         <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
           <span>❤️ {bookedMsg}</span>
@@ -591,7 +590,7 @@ export default function FreePage() {
             headerSlot={
               isDesktop ? (
                 <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
-                  <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} bar tinted />
+                  <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} bar tinted topPicks={topPicks} />
                   {rel && relCards(true)}
                 </div>
               ) : undefined
