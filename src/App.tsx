@@ -55,14 +55,16 @@ export default function App() {
               {t.label}
             </button>
           ))}
-          <button
-            onClick={() => setRefreshTick((t) => t + 1)}
-            title="Reload calendars"
-            className="flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-slate-500 lg:mt-auto lg:flex-none lg:flex-row lg:justify-center lg:gap-2 lg:rounded-lg lg:bg-slate-200 lg:py-2.5 lg:text-sm lg:font-bold lg:uppercase lg:tracking-wide lg:text-slate-700 dark:text-slate-400 dark:lg:bg-slate-700 dark:lg:text-slate-200"
-          >
-            <span className="text-xl leading-none lg:text-base">↻</span>
-            Refresh
-          </button>
+          {tab === 'free' && (
+            <button
+              onClick={() => setRefreshTick((t) => t + 1)}
+              title="Reload calendars"
+              className="flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-slate-500 lg:mt-auto lg:flex-none lg:flex-row lg:justify-center lg:gap-2 lg:rounded-lg lg:bg-slate-200 lg:py-2.5 lg:text-sm lg:font-bold lg:uppercase lg:tracking-wide lg:text-slate-700 dark:text-slate-400 dark:lg:bg-slate-700 dark:lg:text-slate-200"
+            >
+              <span className="text-xl leading-none lg:text-base">↻</span>
+              Refresh
+            </button>
+          )}
         </div>
       </nav>
     </div>
