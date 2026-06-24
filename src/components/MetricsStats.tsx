@@ -11,6 +11,8 @@ interface Props extends Metrics {
   dense?: boolean
   /** Full-width single-row layout (the desktop selector bar) instead of a grid. */
   bar?: boolean
+  /** Compact 2-column side-panel column (the desktop left rail). */
+  panel?: boolean
   /** Slate card backgrounds, for sitting inside the white calendar card. */
   tinted?: boolean
   /** "★ Top picks" advanced metric: star-highlight toggle with a month pick count.
@@ -38,17 +40,19 @@ export default function MetricsStats({
   onColor,
   dense,
   bar,
+  panel,
   tinted,
   topPicks,
 }: Props) {
   const cardClass = bar ? 'min-w-0 flex-1' : ''
-  const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-3'
+  const compact = dense || bar || panel
+  const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-2'
   // Grow proportionally to card count so every card across both bar groups ends
   // up the same width — keeping the whole band on one row.
   const cardCount = 2 + ruleResults.length + (topPicks ? 1 : 0)
   return (
     <section className={bar ? 'min-w-0 space-y-2' : 'space-y-2'} style={bar ? { flexBasis: 0, flexGrow: cardCount } : undefined}>
-      {bar ? (
+      {bar || panel ? (
         <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Metrics</h2>
       ) : (
         <h2 className="text-xl font-bold">Metrics</h2>
@@ -58,13 +62,13 @@ export default function MetricsStats({
       {loading && <Spinner />}
       {!loading && !error && (
         <>
-          <div className={bar ? 'flex gap-2' : `grid grid-cols-2 ${dense ? 'gap-2' : 'gap-3 lg:grid-cols-4'}`}>
+          <div className={bar ? 'flex gap-2' : `grid grid-cols-2 ${compact ? 'gap-2' : 'gap-3 lg:grid-cols-4'}`}>
             <StatCard
               value={eveningDates.length}
               label={isCurrent ? 'unbooked evenings left' : 'unbooked evenings'}
               active={activeKeys.has('evenings')}
               color={colorFor('evenings')}
-              dense={dense || bar}
+              dense={compact}
               tinted={tinted}
               wrapperClass={cardClass}
               onClick={() => toggle('evenings')}
@@ -75,7 +79,7 @@ export default function MetricsStats({
               label={isCurrent ? 'free weekend days left' : 'free weekend days'}
               active={activeKeys.has('weekend')}
               color={colorFor('weekend')}
-              dense={dense || bar}
+              dense={compact}
               tinted={tinted}
               wrapperClass={cardClass}
               onClick={() => toggle('weekend')}
@@ -88,7 +92,7 @@ export default function MetricsStats({
                 label={`${rule.icon} ${rule.name}`}
                 active={activeKeys.has(`rule:${rule.id}`)}
                 color={colorFor(`rule:${rule.id}`)}
-                dense={dense || bar}
+                dense={compact}
                 tinted={tinted}
                 wrapperClass={cardClass}
                 onClick={() => toggle(`rule:${rule.id}`)}
@@ -101,7 +105,7 @@ export default function MetricsStats({
                 label="★ Top picks"
                 active={topPicks.active}
                 color={topPicks.color}
-                dense={dense || bar}
+                dense={compact}
                 tinted={tinted}
                 wrapperClass={cardClass}
                 onClick={topPicks.onToggle}
@@ -115,14 +119,14 @@ export default function MetricsStats({
                 label={`★ Top ${topPicks.weekPicks.n} this week`}
                 active={topPicks.weekPicks.active}
                 color={topPicks.weekPicks.color}
-                dense={dense || bar}
+                dense={compact}
                 tinted={tinted}
                 wrapperClass={cardClass}
                 onClick={topPicks.weekPicks.onToggle}
               />
             </div>
           )}
-          {!bar && (
+          {!bar && !panel && (
             <p className="text-xs text-slate-500">
               Tap a metric to highlight the days it counts on the calendar; use the color dot to set its highlight color.
               Keyword metrics match events on your selected calendars by title; edit rules in Settings.

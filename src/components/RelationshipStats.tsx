@@ -4,6 +4,8 @@ interface Props {
   partnerName: string
   /** Full-width single-row layout (desktop selector bar) instead of a grid. */
   bar?: boolean
+  /** Compact 2-column side-panel column (the desktop left rail). */
+  panel?: boolean
   /** Slate card backgrounds, for sitting inside the white calendar card. */
   tinted?: boolean
   // Counts
@@ -44,6 +46,7 @@ const OverdueBadge = () => (
 export default function RelationshipStats({
   partnerName,
   bar,
+  panel,
   tinted,
   partnerOff,
   overlapTotal,
@@ -70,10 +73,11 @@ export default function RelationshipStats({
   nudgeTitle,
 }: Props) {
   const cardClass = bar ? 'min-w-0 flex-1' : ''
-  const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-3'
+  const compact = bar || panel
+  const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-2'
   return (
     <section className={bar ? 'min-w-0 space-y-2' : 'space-y-2'} style={bar ? { flexBasis: 0, flexGrow: 3 } : undefined}>
-      {bar ? (
+      {bar || panel ? (
         <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
           Me &amp; {partnerName}
         </h2>
@@ -86,7 +90,7 @@ export default function RelationshipStats({
           label={`${partnerName} off work`}
           active={showNotWorking}
           color={partnerOffColor}
-          dense={bar}
+          dense={compact}
           tinted={tinted}
           wrapperClass={cardClass}
           onClick={onToggleNotWorking}
@@ -96,7 +100,7 @@ export default function RelationshipStats({
           label="⇄ Our Overlap"
           active={showOverlap}
           color={overlapColor}
-          dense={bar}
+          dense={compact}
           tinted={tinted}
           wrapperClass={cardClass}
           title="Days with enough mutual free time — tap for sub-filters"
@@ -107,7 +111,7 @@ export default function RelationshipStats({
           label="❤️ Date Options"
           active={showDates}
           color={dateColor}
-          dense={bar}
+          dense={compact}
           tinted={tinted}
           wrapperClass={cardClass}
           title={nudgeTitle}
@@ -122,7 +126,7 @@ export default function RelationshipStats({
             label="Weekends"
             active={showOverlapWeekends}
             color={overlapColor}
-            dense={bar}
+            dense={compact}
             wrapperClass={cardClass}
             onClick={onToggleWeekends}
           />
@@ -131,7 +135,7 @@ export default function RelationshipStats({
             label="Weeknights"
             active={showOverlapWeeknights}
             color={overlapColor}
-            dense={bar}
+            dense={compact}
             wrapperClass={cardClass}
             onClick={onToggleWeeknights}
           />
@@ -140,7 +144,7 @@ export default function RelationshipStats({
             label="Both off"
             active={showOverlapOffDays}
             color={overlapColor}
-            dense={bar}
+            dense={compact}
             wrapperClass={cardClass}
             onClick={onToggleOffDays}
           />

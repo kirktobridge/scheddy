@@ -546,10 +546,11 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
       }`
     : undefined
   // "Me & {Partner}" relationship cards, shared by the mobile stack and desktop bar.
-  const relCards = (bar: boolean) => (
+  const relCards = (variant: 'mobile' | 'bar' | 'panel') => (
     <RelationshipStats
-      bar={bar}
-      tinted={bar}
+      bar={variant === 'bar'}
+      panel={variant === 'panel'}
+      tinted={variant !== 'mobile'}
       partnerName={partnerName}
       partnerOff={relationship.notWorkingSet.size}
       overlapTotal={relationship.overlapSet.size}
@@ -580,7 +581,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   return (
     <div className="space-y-4 xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-0 xl:flex-col xl:gap-4 xl:space-y-0">
       {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} topPicks={topPicks} />}
-      {!isDesktop && rel && relCards(false)}
+      {!isDesktop && rel && relCards('mobile')}
       {bookedMsg && (
         <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
           <span>❤️ {bookedMsg}</span>
@@ -616,14 +617,6 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
             overlapShadeDates={overlapHighlight}
             selectedMonth={selectedMonth}
             onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
-            headerSlot={
-              isDesktop ? (
-                <div className="flex items-start gap-x-6">
-                  <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} bar tinted topPicks={topPicks} />
-                  {rel && relCards(true)}
-                </div>
-              ) : undefined
-            }
           />
         )
         if (!isDesktop) {
@@ -639,6 +632,12 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
         return (
           <>
             <div className="flex items-start gap-4 xl:min-h-0 xl:flex-1 xl:items-stretch">
+              <aside className="w-96 shrink-0">
+                <div className="sticky top-0 max-h-full space-y-3 overflow-y-auto px-1">
+                  <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} panel tinted topPicks={topPicks} />
+                  {rel && relCards('panel')}
+                </div>
+              </aside>
               <div className="min-w-0 flex-1 xl:h-full">{calendar}</div>
               <aside className="w-96 shrink-0">
                 <div className="sticky top-0 max-h-full overflow-y-auto px-1">

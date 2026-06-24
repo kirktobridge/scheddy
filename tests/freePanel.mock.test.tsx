@@ -35,18 +35,18 @@ describe('Free view desktop panel (mock mode)', () => {
     delete window.matchMedia
   })
 
-  it('shows the metric bar; the right panel holds the day card on selection', async () => {
+  it('shows the metric panel; the right panel holds the day card on selection', async () => {
     const user = userEvent.setup()
     renderMock(<FreePage />)
     expect(await screen.findByText(/unbooked evenings/)).toBeTruthy()
 
-    // The metric selector bar is present (top of page) and the right panel is
+    // The metric selector column is present (left rail) and the right panel is
     // empty until a day is picked.
     await waitFor(() => expect(screen.getByText(/unbooked evenings/)).toBeTruthy())
     expect(screen.getByText(/Pick a day/)).toBeTruthy()
 
     // Selecting a day fills the right panel with that day's detail card; the
-    // metric bar stays put.
+    // metric column stays put.
     await user.click(await waitFor(firstDayCell, { timeout: 3000 }))
     expect(await screen.findByText('today')).toBeTruthy()
     expect(screen.queryByText(/Pick a day/)).toBeNull()
