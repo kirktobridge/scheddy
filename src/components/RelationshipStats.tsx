@@ -76,6 +76,87 @@ export default function RelationshipStats({
   const compact = bar || panel
   const square = !!panel
   const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-2'
+
+  const partnerCard = (
+    <StatCard
+      value={partnerOff}
+      label={`${partnerName} off work`}
+      active={showNotWorking}
+      color={partnerOffColor}
+      dense={compact}
+      square={square}
+      tinted={tinted}
+      wrapperClass={cardClass}
+      onClick={onToggleNotWorking}
+    />
+  )
+  const dateCard = (
+    <StatCard
+      value={dateOptions}
+      label="❤️ Date Options"
+      active={showDates}
+      color={dateColor}
+      dense={compact}
+      square={square}
+      tinted={tinted}
+      wrapperClass={cardClass}
+      title={nudgeTitle}
+      footer={overdue ? <OverdueBadge /> : undefined}
+      onClick={onToggleDates}
+    />
+  )
+  // "Our Overlap" expands into sub-filters: in the rail it becomes a full-width
+  // bar (parent), elsewhere it's just another card in the row.
+  const overlapCard = (
+    <StatCard
+      value={overlapTotal}
+      label="⇄ Our Overlap"
+      active={showOverlap}
+      color={overlapColor}
+      dense={compact}
+      square={panel ? false : square}
+      wide={panel}
+      tinted={tinted}
+      wrapperClass={cardClass}
+      title="Days with enough mutual free time — tap for sub-filters"
+      onClick={onToggleOverlap}
+    />
+  )
+  const overlapSubRow = showOverlap && (
+    <div className={`${panel ? 'grid grid-cols-3 gap-2' : rowClass} border-t border-slate-200 pt-2 dark:border-slate-700`}>
+      <StatCard
+        value={overlapWeekends}
+        label="Weekends"
+        active={showOverlapWeekends}
+        color={overlapColor}
+        dense={compact}
+        square={panel ? false : square}
+        wrapperClass={cardClass}
+        onClick={onToggleWeekends}
+      />
+      <StatCard
+        value={overlapWeeknights}
+        label="Weeknights"
+        active={showOverlapWeeknights}
+        color={overlapColor}
+        dense={compact}
+        square={panel ? false : square}
+        wrapperClass={cardClass}
+        onClick={onToggleWeeknights}
+      />
+      <StatCard
+        value={bothOff}
+        label="Both off"
+        active={showOverlapOffDays}
+        color={overlapColor}
+        dense={compact}
+        square={panel ? false : square}
+        wrapperClass={cardClass}
+        onClick={onToggleOffDays}
+      />
+    </div>
+  )
+
   return (
     <section className={bar ? 'min-w-0 space-y-2' : 'space-y-2'} style={bar ? { flexBasis: 0, flexGrow: 3 } : undefined}>
       {panel ? (
@@ -89,77 +170,26 @@ export default function RelationshipStats({
       ) : (
         <h2 className="text-xl font-bold">Me &amp; {partnerName}</h2>
       )}
-      <div className={rowClass}>
-        <StatCard
-          value={partnerOff}
-          label={`${partnerName} off work`}
-          active={showNotWorking}
-          color={partnerOffColor}
-          dense={compact}
-          square={square}
-          tinted={tinted}
-          wrapperClass={cardClass}
-          onClick={onToggleNotWorking}
-        />
-        <StatCard
-          value={overlapTotal}
-          label="⇄ Our Overlap"
-          active={showOverlap}
-          color={overlapColor}
-          dense={compact}
-          square={square}
-          tinted={tinted}
-          wrapperClass={cardClass}
-          title="Days with enough mutual free time — tap for sub-filters"
-          onClick={onToggleOverlap}
-        />
-        <StatCard
-          value={dateOptions}
-          label="❤️ Date Options"
-          active={showDates}
-          color={dateColor}
-          dense={compact}
-          square={square}
-          tinted={tinted}
-          wrapperClass={cardClass}
-          title={nudgeTitle}
-          footer={overdue ? <OverdueBadge /> : undefined}
-          onClick={onToggleDates}
-        />
-      </div>
-      {showOverlap && (
-        <div className={`${rowClass} border-t border-slate-200 pt-2 dark:border-slate-700`}>
-          <StatCard
-            value={overlapWeekends}
-            label="Weekends"
-            active={showOverlapWeekends}
-            color={overlapColor}
-            dense={compact}
-            square={square}
-            wrapperClass={cardClass}
-            onClick={onToggleWeekends}
-          />
-          <StatCard
-            value={overlapWeeknights}
-            label="Weeknights"
-            active={showOverlapWeeknights}
-            color={overlapColor}
-            dense={compact}
-            square={square}
-            wrapperClass={cardClass}
-            onClick={onToggleWeeknights}
-          />
-          <StatCard
-            value={bothOff}
-            label="Both off"
-            active={showOverlapOffDays}
-            color={overlapColor}
-            dense={compact}
-            square={square}
-            wrapperClass={cardClass}
-            onClick={onToggleOffDays}
-          />
-        </div>
+      {panel ? (
+        <>
+          {/* Non-expanding cards on top; the "Our Overlap" parent drops to the
+              bottom as a full-width bar with its sub-filters directly beneath. */}
+          <div className="grid grid-cols-2 gap-2">
+            {partnerCard}
+            {dateCard}
+          </div>
+          {overlapCard}
+          {overlapSubRow}
+        </>
+      ) : (
+        <>
+          <div className={rowClass}>
+            {partnerCard}
+            {overlapCard}
+            {dateCard}
+          </div>
+          {overlapSubRow}
+        </>
       )}
     </section>
   )

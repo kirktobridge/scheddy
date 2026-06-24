@@ -104,7 +104,9 @@ export default function MetricsStats({
                 onColor={(c) => onColor(`rule:${rule.id}`, c)}
               />
             ))}
-            {topPicks && (
+            {/* In the rail, the expandable "★ Top picks" parent drops below the
+                grid as a full-width bar (see after this div). */}
+            {topPicks && !panel && (
               <StatCard
                 value={topPicks.count}
                 label="★ Top picks"
@@ -118,15 +120,27 @@ export default function MetricsStats({
               />
             )}
           </div>
+          {topPicks && panel && (
+            <StatCard
+              value={topPicks.count}
+              label="★ Top picks"
+              active={topPicks.active}
+              color={topPicks.color}
+              dense={compact}
+              wide
+              tinted={tinted}
+              onClick={topPicks.onToggle}
+            />
+          )}
           {topPicks?.active && topPicks.weekPicks && (
-            <div className={`${rowClass} border-t border-slate-200 pt-2 dark:border-slate-700`}>
+            <div className={`${panel ? 'grid grid-cols-1 gap-2' : rowClass} border-t border-slate-200 pt-2 dark:border-slate-700`}>
               <StatCard
                 value={topPicks.weekPicks.count}
                 label={`★ Top ${topPicks.weekPicks.n} this week`}
                 active={topPicks.weekPicks.active}
                 color={topPicks.weekPicks.color}
                 dense={compact}
-                square={square}
+                square={panel ? false : square}
                 tinted={tinted}
                 wrapperClass={cardClass}
                 onClick={topPicks.weekPicks.onToggle}

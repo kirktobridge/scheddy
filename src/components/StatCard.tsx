@@ -9,6 +9,7 @@ export default function StatCard({
   color,
   dense,
   square,
+  wide,
   tinted,
   wrapperClass,
   title,
@@ -23,6 +24,8 @@ export default function StatCard({
   dense?: boolean
   /** Square aspect ratio with centered content (the desktop side rail). */
   square?: boolean
+  /** Full-width short rectangle with value + label inline (expandable "parent" cards). */
+  wide?: boolean
   /** Slate background so the card stands out inside a white container. */
   tinted?: boolean
   wrapperClass?: string
@@ -51,7 +54,13 @@ export default function StatCard({
         title={title}
         style={active ? { backgroundColor: color } : undefined}
         className={`w-full rounded-xl text-center shadow-sm transition dark:shadow-none ${
-          square ? 'flex aspect-square flex-col items-center justify-center p-2' : dense ? 'p-3' : 'p-4'
+          square
+            ? 'flex aspect-square flex-col items-center justify-center p-2'
+            : wide
+              ? 'flex w-full items-center justify-center gap-2 p-2.5'
+              : dense
+                ? 'p-3'
+                : 'p-4'
         } ${bg}`}
       >
         <p
@@ -61,7 +70,7 @@ export default function StatCard({
           {value}
         </p>
         <p
-          className={`mt-1 text-xs ${active ? '' : 'text-slate-500 dark:text-slate-400'}`}
+          className={`text-xs ${wide ? '' : 'mt-1'} ${active ? '' : 'text-slate-500 dark:text-slate-400'}`}
           style={active ? { color: text, opacity: 0.7 } : undefined}
         >
           {label}
