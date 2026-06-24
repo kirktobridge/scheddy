@@ -131,6 +131,14 @@ export default function MetricsPanel({
           onChange={(v) => update({ freeSlotCount: v })}
         />
         <SliderField
+          label="Top picks this week"
+          value={settings.freeSlotCountWeek}
+          min={0}
+          max={7}
+          format={(v) => String(v)}
+          onChange={(v) => update({ freeSlotCountWeek: v })}
+        />
+        <SliderField
           label="Spacing window"
           value={settings.isolationWindowDays}
           min={0}

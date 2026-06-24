@@ -78,6 +78,25 @@ describe('Free page regression — desktop', () => {
     expect(screen.getByTitle('Next month').textContent).not.toMatch(/★\s*\d/)
   })
 
+  it('drills "★ Top picks" down to a "Top N this week" sub-card', async () => {
+    mockMatch(true)
+    const user = userEvent.setup()
+    renderMock(<FreePage />)
+    await waitFor(() => screen.getByTitle('Next month'))
+
+    // Expanded by default (★ Top picks starts active); the sub-card shows N₂ = 3.
+    const sub = await screen.findByRole('button', { name: /Top 3 this week/ })
+    expect(sub.getAttribute('aria-pressed')).toBe('false')
+
+    // Toggling the sub-card flips its highlight on.
+    await user.click(sub)
+    expect(screen.getByRole('button', { name: /Top 3 this week/ }).getAttribute('aria-pressed')).toBe('true')
+
+    // Collapsing "★ Top picks" hides the sub-card.
+    await user.click(screen.getByRole('button', { name: /★ Top picks/ }))
+    expect(screen.queryByRole('button', { name: /Top 3 this week/ })).toBeNull()
+  })
+
   it('drops the selected-cell ring after navigating away from its month', async () => {
     mockMatch(true)
     const user = userEvent.setup()

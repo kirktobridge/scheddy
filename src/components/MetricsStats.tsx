@@ -13,8 +13,15 @@ interface Props extends Metrics {
   bar?: boolean
   /** Slate card backgrounds, for sitting inside the white calendar card. */
   tinted?: boolean
-  /** "★ Top picks" advanced metric: star-highlight toggle with a month pick count. */
-  topPicks?: { count: number; active: boolean; color: string; onToggle: () => void }
+  /** "★ Top picks" advanced metric: star-highlight toggle with a month pick count.
+   *  When active, drills down to a "Top N this week" sub-card. */
+  topPicks?: {
+    count: number
+    active: boolean
+    color: string
+    onToggle: () => void
+    weekPicks?: { count: number; n: number; active: boolean; color: string; onToggle: () => void }
+  }
 }
 
 /** "Metrics" header + the toggleable stat cards (free-time + keyword rules). Top of the Free page. */
@@ -35,6 +42,7 @@ export default function MetricsStats({
   topPicks,
 }: Props) {
   const cardClass = bar ? 'min-w-0 flex-1' : ''
+  const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-3'
   // Grow proportionally to card count so every card across both bar groups ends
   // up the same width — keeping the whole band on one row.
   const cardCount = 2 + ruleResults.length + (topPicks ? 1 : 0)
@@ -100,6 +108,20 @@ export default function MetricsStats({
               />
             )}
           </div>
+          {topPicks?.active && topPicks.weekPicks && (
+            <div className={`${rowClass} border-t border-slate-200 pt-2 dark:border-slate-700`}>
+              <StatCard
+                value={topPicks.weekPicks.count}
+                label={`★ Top ${topPicks.weekPicks.n} this week`}
+                active={topPicks.weekPicks.active}
+                color={topPicks.weekPicks.color}
+                dense={dense || bar}
+                tinted={tinted}
+                wrapperClass={cardClass}
+                onClick={topPicks.weekPicks.onToggle}
+              />
+            </div>
+          )}
           {!bar && (
             <p className="text-xs text-slate-500">
               Tap a metric to highlight the days it counts on the calendar; use the color dot to set its highlight color.

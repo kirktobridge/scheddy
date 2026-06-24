@@ -40,6 +40,8 @@ export interface Settings {
   /** Calendars whose latest event anchors the Free view horizon (empty = floor only). */
   horizonCalendarIds: string[]
   freeSlotCount: number
+  /** How many top picks to surface for the focused week (the "★ Top picks" drill-down). */
+  freeSlotCountWeek: number
   /** ±days window of concern when scoring how isolated a pick is from other blocking events. */
   isolationWindowDays: number
   /** Whether weekends break ties when ranking the top free days. */
@@ -109,6 +111,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxHorizonDays: 90,
   horizonCalendarIds: [],
   freeSlotCount: 10,
+  freeSlotCountWeek: 3,
   isolationWindowDays: 3,
   favorWeekends: true,
   freeThreshold: 0.75,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { addDays, differenceInCalendarDays, endOfDay, endOfMonth, format, isSameMonth, isWeekend, startOfDay, startOfMonth } from 'date-fns'
+import { addDays, differenceInCalendarDays, endOfDay, endOfMonth, endOfWeek, format, isSameMonth, isWeekend, startOfDay, startOfMonth, startOfWeek } from 'date-fns'
 import { blockedDates, dayIsolation, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, buildBusy, matchRule } from '../lib/metrics'
 import {
@@ -48,6 +48,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   // Refresh recomputes "now" too, so stale slots disappear on pull.
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [highlightPicks, setHighlightPicks] = useState(true)
+  const [showWeekPicks, setShowWeekPicks] = useState(false)
   const rel = settings.relationshipMode
   const partnerName = settings.partnerName || 'Partner'
   const [showNotWorking, setShowNotWorking] = useState(false)
@@ -198,47 +199,62 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     [workEvents, allDay, allDayCalendarIds],
   )
 
-  // The "top N" picks: among all days in the lookahead that have a slot meeting
-  // the threshold, rank by isolation from other blocking events, then total free
-  // time, then weekends (see rankFreeDays), and order the result by date.
-  const days = useMemo<[string, Slot[]][]>(() => {
-    if (!events) return []
+  // All days in the lookahead with a slot meeting the threshold, keyed by date —
+  // the candidate pool the rankings below draw from. Independent of the selected
+  // day so picking a day doesn't re-run findFreeSlots.
+  const byDate = useMemo<Map<string, Slot[]>>(() => {
+    const map = new Map<string, Slot[]>()
+    if (!events) return map
     const found = findFreeSlots(nonWorkBusy, settings.windows, new Date(startMs), addDays(new Date(startMs), lookahead), {
       threshold: settings.freeThreshold,
       now: new Date(nowMs),
     })
-    const byDate = new Map<string, Slot[]>()
     for (const slot of found) {
       const a = adjustForWork(slot, workBusy)
       if (!a) continue
-      const list = byDate.get(a.date) ?? []
+      const list = map.get(a.date) ?? []
       list.push(a)
-      byDate.set(a.date, list)
+      map.set(a.date, list)
     }
-    return rankFreeDays([...byDate.entries()], blockedDates(nonWorkBusy), {
-      count: settings.freeSlotCount,
+    return map
+  }, [events, nonWorkBusy, workBusy, settings.windows, settings.freeThreshold, startMs, nowMs, lookahead])
+
+  // Dates with any blocking event — drives the isolation scoring in rankFreeDays.
+  const blocked = useMemo(() => blockedDates(nonWorkBusy), [nonWorkBusy])
+
+  // Ranking factors shared by the month picks and the week drill-down: prefer
+  // isolation, then most free time, then weekends. The partner-busy soft
+  // tiebreaker only applies in relationship mode.
+  const rankOpts = useMemo(
+    () => ({
       isolationWindow: settings.isolationWindowDays,
       favorWeekends: settings.favorWeekends,
       // Lean toward windows the partner is busy (keeps shared-free time open),
       // but only as a soft tiebreaker and only in relationship mode.
       partnerBusy: rel && settings.freeFavorPartnerBusy ? partnerBusy : undefined,
+    }),
+    [settings.isolationWindowDays, settings.favorWeekends, rel, settings.freeFavorPartnerBusy, partnerBusy],
+  )
+
+  // The "top N" picks across the lookahead, ordered by date (see rankFreeDays).
+  const days = useMemo<[string, Slot[]][]>(
+    () => rankFreeDays([...byDate.entries()], blocked, { count: settings.freeSlotCount, ...rankOpts }),
+    [byDate, blocked, settings.freeSlotCount, rankOpts],
+  )
+
+  // The "top N₂" picks for the focused week — the week of the selected day, else
+  // the week containing today. A fresh ranking scoped to that week, capped at N₂.
+  const weekPicks = useMemo<Set<string>>(() => {
+    const anchor = new Date((selected ?? format(new Date(nowMs), 'yyyy-MM-dd')) + 'T12:00:00')
+    const from = startOfWeek(anchor)
+    const to = endOfWeek(anchor)
+    const inWeek = [...byDate.entries()].filter(([d]) => {
+      const day = new Date(d + 'T12:00:00')
+      return day >= from && day <= to
     })
-  }, [
-    events,
-    nonWorkBusy,
-    workBusy,
-    settings.windows,
-    settings.freeThreshold,
-    settings.freeSlotCount,
-    settings.isolationWindowDays,
-    settings.favorWeekends,
-    rel,
-    settings.freeFavorPartnerBusy,
-    partnerBusy,
-    startMs,
-    nowMs,
-    lookahead,
-  ])
+    const ranked = rankFreeDays(inWeek, blocked, { count: settings.freeSlotCountWeek, ...rankOpts })
+    return new Set(ranked.map(([d]) => d))
+  }, [byDate, blocked, selected, nowMs, settings.freeSlotCountWeek, rankOpts])
 
   // How many of the top picks fall in the displayed month — the "★ Top picks" card count.
   const topPicksCount = useMemo(
@@ -387,13 +403,16 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   }, [rel, showOverlap, showOverlapWeekends, showOverlapWeeknights, showOverlapOffDays, relationship])
 
   const layers = useMemo<OverlayLayer[]>(() => {
-    if (!rel) return []
     const out: OverlayLayer[] = []
+    // The week-pick ring works in solo and relationship mode alike.
+    if (showWeekPicks && weekPicks.size)
+      out.push({ key: 'week-picks', dates: weekPicks, color: getColor(settings, 'metric.default'), style: 'ring' })
+    if (!rel) return out
     if (showNotWorking) out.push({ key: 'not-working', dates: relationship.notWorkingSet, color: getColor(settings, 'relationship.partnerOff'), style: 'tint' })
     if (showOverlap && overlapHighlight.size) out.push({ key: 'overlap', dates: overlapHighlight, color: overlapColor, style: 'ring' })
     if (showDates) out.push({ key: 'dates', dates: relationship.dateSet, color: getColor(settings, 'relationship.dateMarker'), style: 'marker', mark: '❤️' })
     return out
-  }, [rel, showNotWorking, showOverlap, showDates, overlapHighlight, relationship, settings, overlapColor])
+  }, [rel, showNotWorking, showOverlap, showDates, showWeekPicks, weekPicks, overlapHighlight, relationship, settings, overlapColor])
 
   // Cadence nudge: how long since the last date and when the next one is, from
   // the dedicated date scan (spans a year back through the lookahead).
@@ -510,6 +529,13 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     active: highlightPicks,
     color: getColor(settings, 'metric.default'),
     onToggle: () => setHighlightPicks((v) => !v),
+    weekPicks: {
+      count: weekPicks.size,
+      n: settings.freeSlotCountWeek,
+      active: showWeekPicks,
+      color: getColor(settings, 'metric.default'),
+      onToggle: () => setShowWeekPicks((v) => !v),
+    },
   }
   const nudgeTitle = dateNudge
     ? `Last date: ${dateNudge.last ? relDayLabel(dateNudge.last) : 'none yet'} · Next: ${
