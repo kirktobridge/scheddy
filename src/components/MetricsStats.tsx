@@ -28,7 +28,6 @@ interface Props extends Metrics {
 
 /** "Metrics" header + the toggleable stat cards (free-time + keyword rules). Top of the Free page. */
 export default function MetricsStats({
-  isCurrent,
   loading,
   error,
   eveningDates,
@@ -46,6 +45,7 @@ export default function MetricsStats({
 }: Props) {
   const cardClass = bar ? 'min-w-0 flex-1' : ''
   const compact = dense || bar || panel
+  const square = !!panel
   const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-2'
   // Grow proportionally to card count so every card across both bar groups ends
   // up the same width — keeping the whole band on one row.
@@ -65,10 +65,11 @@ export default function MetricsStats({
           <div className={bar ? 'flex gap-2' : `grid grid-cols-2 ${compact ? 'gap-2' : 'gap-3 lg:grid-cols-4'}`}>
             <StatCard
               value={eveningDates.length}
-              label={isCurrent ? 'unbooked evenings left' : 'unbooked evenings'}
+              label="unbooked evenings"
               active={activeKeys.has('evenings')}
               color={colorFor('evenings')}
               dense={compact}
+              square={square}
               tinted={tinted}
               wrapperClass={cardClass}
               onClick={() => toggle('evenings')}
@@ -76,10 +77,11 @@ export default function MetricsStats({
             />
             <StatCard
               value={weekendDates.length}
-              label={isCurrent ? 'free weekend days left' : 'free weekend days'}
+              label="free weekend days"
               active={activeKeys.has('weekend')}
               color={colorFor('weekend')}
               dense={compact}
+              square={square}
               tinted={tinted}
               wrapperClass={cardClass}
               onClick={() => toggle('weekend')}
@@ -93,6 +95,7 @@ export default function MetricsStats({
                 active={activeKeys.has(`rule:${rule.id}`)}
                 color={colorFor(`rule:${rule.id}`)}
                 dense={compact}
+                square={square}
                 tinted={tinted}
                 wrapperClass={cardClass}
                 onClick={() => toggle(`rule:${rule.id}`)}
@@ -106,6 +109,7 @@ export default function MetricsStats({
                 active={topPicks.active}
                 color={topPicks.color}
                 dense={compact}
+                square={square}
                 tinted={tinted}
                 wrapperClass={cardClass}
                 onClick={topPicks.onToggle}
@@ -120,6 +124,7 @@ export default function MetricsStats({
                 active={topPicks.weekPicks.active}
                 color={topPicks.weekPicks.color}
                 dense={compact}
+                square={square}
                 tinted={tinted}
                 wrapperClass={cardClass}
                 onClick={topPicks.weekPicks.onToggle}

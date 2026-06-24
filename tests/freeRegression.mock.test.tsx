@@ -133,23 +133,21 @@ describe('Free page regression — desktop', () => {
     expect(below.getAttribute('style')).not.toContain('translateY(-100%)')
   })
 
-  it('does not deselect when paging away, and metrics follow the viewed month', async () => {
+  it('does not deselect when paging away; the metrics panel reverts when no day is in view', async () => {
     mockMatch(true)
     const user = userEvent.setup()
     renderMock(<FreePage />)
     await waitFor(() => screen.getByTitle('Next month'))
 
-    // Default: panel shows current-month metrics ("…left" phrasing).
-    expect(screen.getByText(/unbooked evenings left/)).toBeTruthy()
+    // Default: the left rail shows the metrics panel.
+    expect(screen.getByText(/unbooked evenings/)).toBeTruthy()
 
-    // Select a day → panel swaps to its card.
+    // Select a day → right panel swaps to its card.
     await user.click(firstDayCell(xlCard()))
     await screen.findByText('today')
 
-    // Page away → panel reverts to metrics (selection NOT cleared) for the new
-    // month ("…left" gone since it's no longer the current month).
+    // Page away → metrics still shown, selection NOT cleared.
     await user.click(screen.getByTitle('Next month'))
-    await waitFor(() => expect(screen.queryByText(/unbooked evenings left/)).toBeNull())
     expect(screen.getByText(/unbooked evenings/)).toBeTruthy()
 
     // Page back → the same day's card returns (selection persisted).

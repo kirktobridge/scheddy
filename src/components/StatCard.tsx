@@ -8,6 +8,7 @@ export default function StatCard({
   active,
   color,
   dense,
+  square,
   tinted,
   wrapperClass,
   title,
@@ -20,6 +21,8 @@ export default function StatCard({
   active: boolean
   color: string
   dense?: boolean
+  /** Square aspect ratio with centered content (the desktop side rail). */
+  square?: boolean
   /** Slate background so the card stands out inside a white container. */
   tinted?: boolean
   wrapperClass?: string
@@ -47,7 +50,9 @@ export default function StatCard({
         aria-pressed={active}
         title={title}
         style={active ? { backgroundColor: color } : undefined}
-        className={`w-full rounded-xl text-center shadow-sm transition dark:shadow-none ${dense ? 'p-3' : 'p-4'} ${bg}`}
+        className={`w-full rounded-xl text-center shadow-sm transition dark:shadow-none ${
+          square ? 'flex aspect-square flex-col items-center justify-center p-2' : dense ? 'p-3' : 'p-4'
+        } ${bg}`}
       >
         <p
           className={`font-bold ${dense ? 'text-2xl' : 'text-3xl'} ${active ? '' : 'text-emerald-600 dark:text-emerald-400'}`}

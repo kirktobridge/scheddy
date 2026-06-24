@@ -74,6 +74,7 @@ export default function RelationshipStats({
 }: Props) {
   const cardClass = bar ? 'min-w-0 flex-1' : ''
   const compact = bar || panel
+  const square = !!panel
   const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-2'
   return (
     <section className={bar ? 'min-w-0 space-y-2' : 'space-y-2'} style={bar ? { flexBasis: 0, flexGrow: 3 } : undefined}>
@@ -91,6 +92,7 @@ export default function RelationshipStats({
           active={showNotWorking}
           color={partnerOffColor}
           dense={compact}
+          square={square}
           tinted={tinted}
           wrapperClass={cardClass}
           onClick={onToggleNotWorking}
@@ -101,6 +103,7 @@ export default function RelationshipStats({
           active={showOverlap}
           color={overlapColor}
           dense={compact}
+          square={square}
           tinted={tinted}
           wrapperClass={cardClass}
           title="Days with enough mutual free time — tap for sub-filters"
@@ -112,6 +115,7 @@ export default function RelationshipStats({
           active={showDates}
           color={dateColor}
           dense={compact}
+          square={square}
           tinted={tinted}
           wrapperClass={cardClass}
           title={nudgeTitle}
@@ -127,6 +131,7 @@ export default function RelationshipStats({
             active={showOverlapWeekends}
             color={overlapColor}
             dense={compact}
+            square={square}
             wrapperClass={cardClass}
             onClick={onToggleWeekends}
           />
@@ -136,6 +141,7 @@ export default function RelationshipStats({
             active={showOverlapWeeknights}
             color={overlapColor}
             dense={compact}
+            square={square}
             wrapperClass={cardClass}
             onClick={onToggleWeeknights}
           />
@@ -145,6 +151,7 @@ export default function RelationshipStats({
             active={showOverlapOffDays}
             color={overlapColor}
             dense={compact}
+            square={square}
             wrapperClass={cardClass}
             onClick={onToggleOffDays}
           />
