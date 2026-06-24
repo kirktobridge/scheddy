@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
+  addDays,
   addMonths,
   eachDayOfInterval,
   endOfMonth,
@@ -233,8 +234,11 @@ export default function FreeCalendar({
    *  their own card (multi-month view); single view greys them instead. */
   const renderMonth = (month: Date, blankSpillover: boolean, fill = false) => {
     // Always show the whole month; past days render inactive (greyed, unselectable).
+    // The xl card (`fill`) always spans 6 week-rows so every month's cells are the
+    // same height — otherwise 5- vs 6-week months get unequal `1fr` rows.
     const gridStart = startOfWeek(startOfMonth(month))
-    const gridDays = eachDayOfInterval({ start: gridStart, end: endOfWeek(endOfMonth(month)) })
+    const gridEnd = fill ? addDays(gridStart, 41) : endOfWeek(endOfMonth(month))
+    const gridDays = eachDayOfInterval({ start: gridStart, end: gridEnd })
     // fill: stretch the grid to its container's height with the weekday header row
     // auto-sized and the week rows sharing the remaining height equally.
     return (
