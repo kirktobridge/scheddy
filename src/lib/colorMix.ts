@@ -8,7 +8,7 @@
 
 type RGB = [number, number, number]
 
-function hexToRgb(hex: string): RGB {
+export function hexToRgb(hex: string): RGB {
   const h = hex.replace('#', '')
   const n = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
   return [parseInt(n.slice(0, 2), 16), parseInt(n.slice(2, 4), 16), parseInt(n.slice(4, 6), 16)]
@@ -47,6 +47,16 @@ function rybToRgb([r, y, b]: RGB): RGB {
   const mg = Math.max(r, g, b)
   if (mg > 0) { const n = my / mg; r *= n; g *= n; b *= n }
   return [r + w, g + w, b + w]
+}
+
+/**
+ * Pick black or white text for best contrast against a hex background, using the
+ * perceived-brightness (YIQ) weighting. Bright backgrounds get black text.
+ */
+export function readableTextColor(hex: string): '#000000' | '#ffffff' {
+  const [r, g, b] = hexToRgb(hex)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000
+  return brightness >= 128 ? '#000000' : '#ffffff'
 }
 
 /**
