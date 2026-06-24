@@ -81,6 +81,9 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   // Selected day (yyyy-MM-dd) drives the day-detail card stacked below metrics.
   const [selected, setSelected] = useState<string | undefined>(undefined)
   // xl: a right-side panel replaces the stacked day card / top metrics.
+  // Desktop-first: the !isDesktop branches below are the deprecated/frozen mobile
+  // layout. Remove them only when one blocks a desktop change. See CLAUDE.md
+  // "Platform scope (desktop-first)".
   const isDesktop = useMediaQuery('(min-width: 1280px)')
   // Free view horizon: clamp(minHorizonDays, last horizon-calendar event, maxHorizonDays).
   const { lookahead } = useHorizon(nowMs)
