@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   addMonths,
@@ -206,6 +206,29 @@ export default function FreeCalendar({
   const prevDisabled = viewMonth.getTime() <= nowMonth.getTime()
   const nextDisabled = nextMonth.getTime() > maxMonth.getTime()
 
+  // Wheel over the single-month (xl) card pages months instead of scrolling.
+  // A short cooldown keeps one flick/notch from skipping several months.
+  const wheelCardRef = useRef<HTMLDivElement>(null)
+  const wheelLock = useRef(0)
+  useEffect(() => {
+    const el = wheelCardRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return // ignore horizontal scroll
+      e.preventDefault()
+      if (Date.now() - wheelLock.current < 350) return
+      if (e.deltaY > 0 && !nextDisabled) {
+        wheelLock.current = Date.now()
+        onSelectMonth(nextMonth)
+      } else if (e.deltaY < 0 && !prevDisabled) {
+        wheelLock.current = Date.now()
+        onSelectMonth(prevMonth)
+      }
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [nextDisabled, prevDisabled, nextMonth, prevMonth, onSelectMonth])
+
   /** One month's grid card. `blankSpillover` blanks adjacent-month days that have
    *  their own card (multi-month view); single view greys them instead. */
   const renderMonth = (month: Date, blankSpillover: boolean, fill = false) => {
@@ -369,7 +392,7 @@ export default function FreeCalendar({
       </div>
 
       {/* xl and up: one month at a time with prev/next navigation. */}
-      <div className="hidden break-inside-avoid rounded-2xl bg-white p-3 shadow-sm xl:flex xl:min-h-0 xl:flex-1 xl:flex-col dark:bg-slate-800 dark:shadow-none">
+      <div ref={wheelCardRef} className="hidden break-inside-avoid rounded-2xl bg-white p-3 shadow-sm xl:flex xl:min-h-0 xl:flex-1 xl:flex-col dark:bg-slate-800 dark:shadow-none">
         {headerSlot && (
           <div className="mb-3 border-b border-slate-200 pb-3 dark:border-slate-700">{headerSlot}</div>
         )}
