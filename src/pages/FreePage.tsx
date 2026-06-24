@@ -632,13 +632,6 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
         return (
           <>
             <div className="flex items-start gap-4 xl:min-h-0 xl:flex-1 xl:items-stretch">
-              <aside className="w-64 shrink-0">
-                <div className="sticky top-0 max-h-full space-y-7 overflow-y-auto px-1">
-                  <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} panel tinted topPicks={topPicks} />
-                  {rel && relCards('panel')}
-                </div>
-              </aside>
-              <div className="min-w-0 flex-1 xl:h-full">{calendar}</div>
               <aside className="w-96 shrink-0">
                 <div className="sticky top-0 max-h-full overflow-y-auto px-1">
                   {dayInView ? (
@@ -648,6 +641,13 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
                       Pick a day to see its free time.
                     </p>
                   )}
+                </div>
+              </aside>
+              <div className="min-w-0 flex-1 xl:h-full">{calendar}</div>
+              <aside className="w-64 shrink-0">
+                <div className="sticky top-0 max-h-full space-y-7 overflow-y-auto px-1">
+                  <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} panel tinted topPicks={topPicks} />
+                  {rel && relCards('panel')}
                 </div>
               </aside>
             </div>
