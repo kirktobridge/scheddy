@@ -52,7 +52,9 @@ export default function MetricsStats({
   const cardCount = 2 + ruleResults.length + (topPicks ? 1 : 0)
   return (
     <section className={bar ? 'min-w-0 space-y-2' : 'space-y-2'} style={bar ? { flexBasis: 0, flexGrow: cardCount } : undefined}>
-      {bar || panel ? (
+      {panel ? (
+        <h2 className="text-center text-base font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">Metrics</h2>
+      ) : bar ? (
         <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Metrics</h2>
       ) : (
         <h2 className="text-xl font-bold">Metrics</h2>

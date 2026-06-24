@@ -78,7 +78,11 @@ export default function RelationshipStats({
   const rowClass = bar ? 'flex gap-2' : 'grid grid-cols-2 gap-2'
   return (
     <section className={bar ? 'min-w-0 space-y-2' : 'space-y-2'} style={bar ? { flexBasis: 0, flexGrow: 3 } : undefined}>
-      {bar || panel ? (
+      {panel ? (
+        <h2 className="text-center text-base font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+          Me &amp; {partnerName}
+        </h2>
+      ) : bar ? (
         <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
           Me &amp; {partnerName}
         </h2>
