@@ -39,7 +39,7 @@ export default function StatCard({
   const bg = active
     ? ''
     : tinted
-      ? 'bg-slate-100 hover:brightness-95 dark:bg-slate-700/60 dark:hover:brightness-110'
+      ? 'border border-slate-300 bg-white hover:brightness-95 dark:border-transparent dark:bg-slate-700/60 dark:hover:brightness-110'
       : 'bg-white hover:brightness-95 dark:bg-slate-800 dark:hover:brightness-110'
   const text = active ? readableTextColor(color) : undefined
   return (
