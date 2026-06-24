@@ -513,8 +513,14 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   ) : null
 
   // Panel stacks the day card below metrics, but only while the selected day is
-  // in the viewed month; paging away hides the card without clearing selection.
-  const dayInView = !!selected && isSameMonth(new Date(selected + 'T12:00:00'), selectedMonth)
+  // visible on the viewed month's grid (including spillover days from adjacent
+  // months); paging away hides the card without clearing selection.
+  const dayInView =
+    !!selected &&
+    (() => {
+      const d = new Date(selected + 'T12:00:00')
+      return d >= startOfWeek(startOfMonth(selectedMonth)) && d <= endOfWeek(endOfMonth(selectedMonth))
+    })()
 
   // Desktop: Escape clears the day selection (panel → metrics). Mobile uses the
   // sheet's own Escape handler, so guard on isDesktop to avoid double-handling.

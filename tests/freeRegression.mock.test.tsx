@@ -20,13 +20,13 @@ function mockMatch(matches: boolean) {
     }) as unknown as MediaQueryList
 }
 
-/** First enabled day cell, optionally scoped to a container. Throws (so waitFor
- *  retries) until the mock calendar has loaded. */
+/** Today's day cell (the natural day to click), optionally scoped to a container.
+ *  Throws (so waitFor retries) until the mock calendar has loaded. */
 function firstDayCell(root: HTMLElement | typeof screen = screen): HTMLButtonElement {
   const scope = root === screen ? screen : within(root as HTMLElement)
   const cells = scope
     .getAllByRole('button')
-    .filter((b) => /^\d{1,2}$/.test(b.textContent?.trim() ?? '') && !(b as HTMLButtonElement).disabled)
+    .filter((b) => b.getAttribute('aria-current') === 'date')
   if (!cells[0]) throw new Error('no selectable day cell yet')
   return cells[0] as HTMLButtonElement
 }

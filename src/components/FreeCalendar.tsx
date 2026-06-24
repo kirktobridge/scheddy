@@ -232,10 +232,13 @@ export default function FreeCalendar({
           if (blankSpillover && !inMonth && monthKeys.has(format(day, 'yyyy-MM'))) {
             return <div key={dateStr} className={fill ? '' : 'h-12 xl:h-24'} />
           }
+          // `active` = within the data range [today, maxDate]; drives the
+          // availability fill, hover preview, and interactive background. Cells
+          // outside it are still selectable, just without those affordances.
           const active = day.getTime() >= todayMs && day.getTime() <= maxMs
           const pick = freeSet.has(dateStr)
           const today = isToday(day)
-          const isSel = active && dateStr === selected
+          const isSel = dateStr === selected
           const overlayColor = inMonth ? overlay?.get(dateStr) : undefined
           const cellLayers = inMonth ? (layers ?? []).filter((l) => l.dates.has(dateStr)) : []
 
@@ -257,7 +260,7 @@ export default function FreeCalendar({
             <button
               key={dateStr}
               type="button"
-              disabled={!active || (!blankSpillover && !inMonth)}
+              aria-current={today ? 'date' : undefined}
               onClick={() => onSelectDay(dateStr)}
               onPointerEnter={
                 canHover && active && slotsForDate
@@ -381,7 +384,7 @@ export default function FreeCalendar({
             <span className="text-2xl leading-none">‹</span>
             {!prevDisabled && <NavBadge month={prevMonth} />}
           </button>
-          <span className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">{format(viewMonth, 'MMMM yyyy')}</span>
+          <span className="text-2xl font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100">{format(viewMonth, 'MMMM yyyy')}</span>
           <button
             type="button"
             onClick={() => onSelectMonth(nextMonth)}

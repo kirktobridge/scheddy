@@ -5,11 +5,11 @@ import userEvent from '@testing-library/user-event'
 import FreePage from '../src/pages/FreePage'
 import { renderMock } from './helpers/mockApp'
 
-/** First selectable (enabled) day cell — the grid disables past days, so this is today. */
+/** Today's day cell (tagged aria-current). */
 function firstDayCell(): HTMLButtonElement {
   const cells = screen
     .getAllByRole('button')
-    .filter((b) => /^\d{1,2}$/.test(b.textContent?.trim() ?? '') && !(b as HTMLButtonElement).disabled)
+    .filter((b) => b.getAttribute('aria-current') === 'date')
   return cells[0] as HTMLButtonElement
 }
 
