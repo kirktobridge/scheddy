@@ -56,7 +56,7 @@ export default function App() {
         <nav
           onMouseEnter={() => setNavOpen(true)}
           onMouseLeave={() => setNavOpen(false)}
-          className={`absolute inset-x-0 top-0 flex items-center gap-3 border-b border-slate-300 bg-white/95 px-6 py-2 shadow-sm backdrop-blur transition-transform duration-200 dark:border-slate-700 dark:bg-slate-800/95 ${
+          className={`absolute inset-x-0 top-0 flex items-center justify-center gap-3 border-b border-slate-300 bg-white/95 px-6 py-2 shadow-sm backdrop-blur transition-transform duration-200 dark:border-slate-700 dark:bg-slate-800/95 ${
             navOpen ? 'translate-y-0' : '-translate-y-full'
           }`}
         >
@@ -79,7 +79,7 @@ export default function App() {
             <button
               onClick={() => setRefreshTick((t) => t + 1)}
               title="Reload calendars"
-              className="ml-auto flex items-center gap-2 rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+              className="flex items-center gap-2 rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200"
             >
               <span className="text-base leading-none">↻</span>
               Refresh
