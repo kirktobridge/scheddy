@@ -633,7 +633,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
           <>
             <div className="flex items-start gap-4 xl:min-h-0 xl:flex-1 xl:items-stretch">
               <aside className="w-64 shrink-0">
-                <div className="sticky top-0 max-h-full space-y-3 overflow-y-auto px-1">
+                <div className="sticky top-0 max-h-full space-y-7 overflow-y-auto px-1">
                   <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} panel tinted topPicks={topPicks} />
                   {rel && relCards('panel')}
                 </div>
