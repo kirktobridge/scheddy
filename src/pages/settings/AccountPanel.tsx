@@ -18,7 +18,7 @@ export default function AccountPanel({
   onSignOut: () => void
 }) {
   return (
-    <Section title="Google account">
+    <Section title="Google account" className="max-w-xl">
       <label className="block text-sm text-slate-600 dark:text-slate-400">
         OAuth Client ID
         <input

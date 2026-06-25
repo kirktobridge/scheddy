@@ -27,7 +27,7 @@ export default function AvailabilityPanel({ settings, update }: { settings: Sett
   const canAddWindow = newWindow.trim() !== '' && !settings.windows[newWindow.trim()]
 
   return (
-    <>
+    <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
       <Section title="Time windows">
         {windowKeys(settings.windows).map((key) => (
           <div key={key} className="flex items-center gap-2 text-sm">
@@ -139,6 +139,6 @@ export default function AvailabilityPanel({ settings, update }: { settings: Sett
           pill on the Calendars page, or override individual events with keyword rules on the Metrics page.
         </p>
       </Section>
-    </>
+    </div>
   )
 }

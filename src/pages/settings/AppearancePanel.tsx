@@ -20,8 +20,8 @@ export default function AppearancePanel({ settings, update }: { settings: Settin
   const hasOverrides = Object.keys(settings.tokens).length > 0
 
   return (
-    <>
-      <Section title="Appearance">
+    <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+      <Section title="Appearance" className="xl:col-span-2">
         <div className="flex gap-2">
           {(['light', 'dark'] as const).map((mode) => (
             <button
@@ -30,7 +30,7 @@ export default function AppearancePanel({ settings, update }: { settings: Settin
               className={`flex-1 rounded-lg py-2 text-sm capitalize ${
                 settings.theme === mode
                   ? 'bg-emerald-500 font-medium text-emerald-950'
-                  : 'bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300 dark:shadow-none'
+                  : 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-300'
               }`}
             >
               {mode === 'light' ? '☀️ Light' : '🌙 Dark'}
@@ -39,7 +39,7 @@ export default function AppearancePanel({ settings, update }: { settings: Settin
         </div>
       </Section>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 xl:col-span-2">
         <div>
           <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
             Design tokens
@@ -78,7 +78,7 @@ export default function AppearancePanel({ settings, update }: { settings: Settin
             {group.description && (
               <p className="text-xs text-slate-500 dark:text-slate-400">{group.description}</p>
             )}
-            <div className="rounded-lg bg-white px-3 py-1 shadow-sm dark:bg-slate-800 dark:shadow-none">
+            <div className="rounded-lg bg-slate-50 px-3 py-1 dark:bg-slate-900">
               {group.entries.map((entry) => (
                 <TokenField
                   key={entry.key}
@@ -92,6 +92,6 @@ export default function AppearancePanel({ settings, update }: { settings: Settin
           </Section>
         )
       })}
-    </>
+    </div>
   )
 }

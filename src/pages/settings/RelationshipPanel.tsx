@@ -16,7 +16,7 @@ export default function RelationshipPanel({
   const writable = (calendars ?? []).filter((c) => c.accessRole === 'owner' || c.accessRole === 'writer')
   const targetFallback = settings.jointCalendarIds[0] ?? settings.blockingCalendarIds[0] ?? ''
   return (
-    <>
+    <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
       <Section title="Relationship mode">
         <label className="flex items-center justify-between gap-2 text-sm text-slate-700 dark:text-slate-300">
           Enable relationship mode
@@ -79,6 +79,6 @@ export default function RelationshipPanel({
           </p>
         </Section>
       )}
-    </>
+    </div>
   )
 }

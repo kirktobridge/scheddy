@@ -21,10 +21,10 @@ export default function MetricsPanel({
   const partner = settings.partnerName || 'partner'
 
   return (
-    <>
-      <Section title="Metric keywords">
+    <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+      <Section title="Metric keywords" className="xl:col-span-2">
         {settings.metricRules.map((rule) => (
-          <div key={rule.id} className="space-y-2 rounded-lg bg-white p-3 shadow-sm dark:bg-slate-800 dark:shadow-none">
+          <div key={rule.id} className="space-y-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -114,7 +114,7 @@ export default function MetricsPanel({
         </button>
       </Section>
 
-      <div className="border-t border-slate-200 pt-3 dark:border-slate-700">
+      <div className="xl:col-span-2">
         <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Advanced metrics</h2>
         <p className="text-xs text-slate-500">
           Non-keyword metrics: the ★ Top free-day picks{rel ? ', ⇄ overlap and ❤️ date candidates' : ''}.
@@ -274,7 +274,7 @@ export default function MetricsPanel({
           </label>
         </Section>
       )}
-    </>
+    </div>
   )
 }
 
@@ -374,7 +374,7 @@ function RankPriority({ settings, update }: { settings: Settings; update: Update
       {order.map((f, i) => (
         <div
           key={f}
-          className="flex items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 text-sm shadow-sm dark:bg-slate-800 dark:shadow-none"
+          className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-sm dark:bg-slate-900"
         >
           <span className="w-4 text-center text-xs text-slate-400">{i + 1}</span>
           <span className="flex-1 text-slate-700 dark:text-slate-300">

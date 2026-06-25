@@ -139,7 +139,7 @@ export default function SettingsPage() {
 
       {/* Desktop: sub-nav + detail pane */}
       <div className="hidden lg:flex lg:gap-8">
-        <nav className="w-48 shrink-0 space-y-1">
+        <nav className="w-56 shrink-0 space-y-1">
           <h1 className="mb-4 text-xl font-bold">Settings</h1>
           {CATEGORIES.map((c) => (
             <button
@@ -148,7 +148,7 @@ export default function SettingsPage() {
               className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm ${
                 desktopActive === c.key
                   ? 'bg-emerald-500/10 font-medium text-emerald-600 dark:text-emerald-400'
-                  : 'text-slate-500 dark:text-slate-400'
+                  : 'text-slate-500 hover:bg-slate-500/5 dark:text-slate-400'
               }`}
             >
               <span className="text-lg leading-none">{c.icon}</span>
@@ -156,7 +156,7 @@ export default function SettingsPage() {
             </button>
           ))}
         </nav>
-        <div className="min-w-0 flex-1 space-y-6">
+        <div className="min-w-0 flex-1 space-y-5">
           {error && <ErrorBanner message={error} />}
           {renderPanel(desktopActive)}
         </div>
