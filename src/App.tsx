@@ -48,7 +48,10 @@ export default function App() {
             type="button"
             aria-label={navOpen ? 'Hide menu' : 'Show menu'}
             onClick={() => setNavOpen((o) => !o)}
-            className="rounded-b-md border border-t-0 border-slate-300 bg-white/90 px-5 pb-0.5 text-sm leading-none text-slate-400 shadow-sm backdrop-blur hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-500"
+            // translate-x-16 (64px) nudges the cue from viewport-center onto the
+            // calendar's month title, which is offset right by half the diff of
+            // the left (w-96) and right (w-64) rails.
+            className="flex h-3 w-48 translate-x-16 items-center justify-center rounded-b-md border border-t-0 border-slate-300 bg-white/90 text-xs leading-none text-slate-400 shadow-sm backdrop-blur hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-500"
           >
             ⌄
           </button>
