@@ -94,7 +94,7 @@ function DayFill({
         .map((s, i) => (
           <div
             key={i}
-            className="absolute inset-x-0 bg-emerald-500"
+            className="absolute inset-x-0 bg-emerald-500 shadow-[inset_1px_0_0_rgba(255,255,255,0.35),inset_-3px_0_4px_rgba(0,0,0,0.22)]"
             style={{ top: `${s.startFrac * 100}%`, height: `${(s.endFrac - s.startFrac) * 100}%` }}
           />
         ))}
