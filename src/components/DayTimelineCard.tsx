@@ -69,6 +69,12 @@ function Chip({
   )
 }
 
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">{children}</p>
+  )
+}
+
 export default function DayTimelineCard({ date, slots, windows, busy, now, dayStart, windowOrder, dayInfo, slotInfo, overlapBusy, overlapShadeColor, partnerBusy, partnerName, reasons, events, calendarColors, onPlanDate, dateMinHours }: Props) {
   const info = dayInfo(date)
   const { segments, nowFrac, ticks } = dayTimeline(busy, windows, date, now, dayStart)
@@ -98,6 +104,17 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
   const warnLabel = warning?.startsWith('next day:') ? 'next day busy' : warning ? 'early start tomorrow' : undefined
   // Together chip already conveys mutual time, so drop any "together" reason.
   const factReasons = (reasons ?? []).filter((r) => !/together/i.test(r))
+  // Route the remaining reasons by concern. Wording is generated in
+  // FreePage.tsx (~L354) — keep these predicates in sync with it.
+  const weekendReason = factReasons.find((r) => /weekend/i.test(r))
+  const partnerOffReason = factReasons.find((r) => /\boff\b/i.test(r))
+  const opennessReasons = factReasons.filter((r) => r !== weekendReason && r !== partnerOffReason)
+
+  // Holiday: a full banner when the day *is* the holiday; a small inline tag for
+  // near-holiday phrasing ("day before X", "3 days after X").
+  const isNearHoliday = info.note ? /\b(before|after)\b/.test(info.note) : false
+  const holidayBanner = info.note && !isNearHoliday ? info.note : undefined
+  const holidayTag = info.note && isNearHoliday ? info.note : undefined
 
   // Booking: a draggable/resizable window over the bars (relationship mode).
   const canPlan = !!onPlanDate && !!span
@@ -158,9 +175,19 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
   return (
     <div className="break-inside-avoid rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800 dark:shadow-none">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-base font-semibold text-slate-800 dark:text-slate-100">{fmtDay(date)}</p>
-          {info.label && <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{info.label}</p>}
+          {(info.label || weekendReason || holidayTag) && (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {info.label && <span className="capitalize">{info.label}</span>}
+              {weekendReason && <span>{info.label ? ' · ' : ''}Weekend</span>}
+              {holidayTag && (
+                <span className="text-violet-500 dark:text-violet-300">
+                  {info.label || weekendReason ? ' · ' : ''}🎉 {holidayTag}
+                </span>
+              )}
+            </p>
+          )}
         </div>
         {canPlan && (
           <div className="flex shrink-0 gap-1.5">
@@ -172,6 +199,13 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
           </div>
         )}
       </div>
+
+      {holidayBanner && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-violet-100 px-3 py-2 text-sm font-semibold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+          <span aria-hidden>🎉</span>
+          <span className="min-w-0 truncate">{holidayBanner}</span>
+        </div>
+      )}
 
       <div className="mt-4">
         {partnerBusy && (
@@ -283,29 +317,39 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <Chip icon="●">{slots.length === 0 ? 'Fully booked' : allDay ? 'Free all day' : `${fmtDur(freeTotal)} free`}</Chip>
-        {partnerBusy &&
-          (mutualGaps.length > 0 ? (
-            <Chip icon="🤝" title={mutualRanges}>{`${fmtDur(mutualTotal)} together`}</Chip>
-          ) : (
-            <Chip icon="🤝">no shared time</Chip>
+      <div className="mt-4">
+        <SectionLabel>Your time</SectionLabel>
+        <div className="flex flex-wrap gap-1.5">
+          <Chip icon="●">{slots.length === 0 ? 'Fully booked' : allDay ? 'Free all day' : `${fmtDur(freeTotal)} free`}</Chip>
+          {afterWork && <Chip icon="🌙">free after work</Chip>}
+          {warning && (
+            <Chip icon="⚠" tone="warn" title={warning}>
+              {warnLabel}
+            </Chip>
+          )}
+          {opennessReasons.map((r, i) => (
+            <Chip key={i} icon="🗓">
+              {r}
+            </Chip>
           ))}
-        {afterWork && <Chip icon="🌙">free after work</Chip>}
-        {warning && (
-          <Chip icon="⚠" tone="warn" title={warning}>
-            {warnLabel}
-          </Chip>
+        </div>
+        {!allDay && slots.length > 0 && (
+          <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">{ranges.join('  ·  ')}</p>
         )}
-        {info.note && <Chip icon="🎉">{info.note}</Chip>}
-        {factReasons.map((r, i) => (
-          <Chip key={i} icon="❤️">
-            {r}
-          </Chip>
-        ))}
       </div>
-      {!allDay && slots.length > 0 && (
-        <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">{ranges.join('  ·  ')}</p>
+
+      {partnerBusy && (
+        <div className="mt-4">
+          <SectionLabel>Together</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {mutualGaps.length > 0 ? (
+              <Chip icon="🤝" title={mutualRanges}>{`${fmtDur(mutualTotal)} together`}</Chip>
+            ) : (
+              <Chip icon="🤝">no shared time</Chip>
+            )}
+            {partnerOffReason && <Chip icon="💤">{partnerOffReason}</Chip>}
+          </div>
+        </div>
       )}
 
       {win && (
@@ -327,7 +371,7 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
 
       {events && (
         <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-700/60">
-          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Schedule</p>
+          <SectionLabel>Schedule</SectionLabel>
           {events.length === 0 ? (
             <p className="text-xs text-slate-400 dark:text-slate-500">Nothing scheduled</p>
           ) : (
