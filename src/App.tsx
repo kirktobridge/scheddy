@@ -40,55 +40,56 @@ export default function App() {
         </div>
       </main>
 
-      {/* Desktop: auto-hiding top nav. Hidden by default behind a thin chevron
-          cue; slides down while the top edge is hovered. */}
+      {/* Desktop: auto-hiding top nav. Hidden by default with a chevron cue
+          attached to its bottom edge; slides down while hovered. */}
       <div className="fixed inset-x-0 top-0 z-50 hidden lg:block">
-        <div onMouseEnter={() => setNavOpen(true)} className="flex justify-center">
-          <button
-            type="button"
-            aria-label={navOpen ? 'Hide menu' : 'Show menu'}
-            onClick={() => setNavOpen((o) => !o)}
-            // translate-x-16 (64px) nudges the cue from viewport-center onto the
-            // calendar's month title, which is offset right by half the diff of
-            // the left (w-96) and right (w-64) rails.
-            className="flex h-3 w-48 translate-x-16 items-center justify-center rounded-b-md border border-t-0 border-slate-300 bg-white/90 text-xs leading-none text-slate-400 shadow-sm backdrop-blur hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-500"
-          >
-            ⌄
-          </button>
-        </div>
-        <nav
+        <div
           onMouseEnter={() => setNavOpen(true)}
           onMouseLeave={() => setNavOpen(false)}
-          className={`absolute inset-x-0 top-0 flex items-center justify-center gap-3 border-b border-slate-300 bg-white/95 px-6 py-2 shadow-sm backdrop-blur transition-transform duration-200 dark:border-slate-700 dark:bg-slate-800/95 ${
-            navOpen ? 'translate-y-0' : '-translate-y-full'
-          }`}
+          className={`relative transition-transform duration-200 ${navOpen ? 'translate-y-0' : '-translate-y-full'}`}
         >
-          <div className="mr-2 text-lg font-bold">🗓️ scheddy</div>
-          {TABS.map((t) => (
+          <nav className="flex items-center justify-center gap-3 border-b border-slate-300 bg-white/95 px-6 py-6 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/95">
+            <div className="mr-2 text-lg font-bold">🗓️ scheddy</div>
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+                  tab === t.id
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <span className="text-base leading-none">{t.icon}</span>
+                {t.label}
+              </button>
+            ))}
+            {tab === 'free' && (
+              <button
+                onClick={() => setRefreshTick((t) => t + 1)}
+                title="Reload calendars"
+                className="flex items-center gap-2 rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+              >
+                <span className="text-base leading-none">↻</span>
+                Refresh
+              </button>
+            )}
+          </nav>
+          {/* Cue hangs off the nav's bottom edge; when the nav is hidden it's
+              the only part peeking at the top of the viewport. translate-x-16
+              (64px) nudges it onto the calendar's month title (offset right by
+              half the left w-96 / right w-64 rail difference). */}
+          <div className="absolute inset-x-0 top-full flex justify-center">
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                tab === t.id
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                  : 'text-slate-500 dark:text-slate-400'
-              }`}
+              type="button"
+              aria-label={navOpen ? 'Hide menu' : 'Show menu'}
+              onClick={() => setNavOpen((o) => !o)}
+              className="flex h-3 w-48 translate-x-16 items-center justify-center rounded-b-md border border-t-0 border-slate-300 bg-white/90 text-xs leading-none text-slate-400 shadow-sm backdrop-blur hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-500"
             >
-              <span className="text-base leading-none">{t.icon}</span>
-              {t.label}
+              ⌄
             </button>
-          ))}
-          {tab === 'free' && (
-            <button
-              onClick={() => setRefreshTick((t) => t + 1)}
-              title="Reload calendars"
-              className="flex items-center gap-2 rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200"
-            >
-              <span className="text-base leading-none">↻</span>
-              Refresh
-            </button>
-          )}
-        </nav>
+          </div>
+        </div>
       </div>
 
       {/* Mobile: frozen bottom tab bar (deprecated narrow layout). */}
