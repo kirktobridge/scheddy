@@ -396,13 +396,13 @@ export default function FreeCalendar({
         {headerSlot && (
           <div className="mb-3 border-b border-slate-200 pb-3 dark:border-slate-700">{headerSlot}</div>
         )}
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center">
           <button
             type="button"
             onClick={() => onSelectMonth(prevMonth)}
             disabled={prevDisabled}
             title="Previous month"
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-slate-600 transition hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-slate-600 dark:text-slate-300 dark:hover:text-emerald-400"
+            className="flex items-center gap-1.5 justify-self-start rounded-md px-2 py-1 text-slate-600 transition hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-slate-600 dark:text-slate-300 dark:hover:text-emerald-400"
           >
             <span className="text-2xl leading-none">‹</span>
             {!prevDisabled && <NavBadge month={prevMonth} />}
@@ -413,10 +413,10 @@ export default function FreeCalendar({
             onClick={() => onSelectMonth(nextMonth)}
             disabled={nextDisabled}
             title="Next month"
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-slate-600 transition hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-slate-600 dark:text-slate-300 dark:hover:text-emerald-400"
+            className="flex items-center gap-1.5 justify-self-end rounded-md px-2 py-1 text-slate-600 transition hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-slate-600 dark:text-slate-300 dark:hover:text-emerald-400"
           >
             {!nextDisabled && <NavBadge month={nextMonth} />}
-            <span className="text-base leading-none">›</span>
+            <span className="text-2xl leading-none">›</span>
           </button>
         </div>
         {renderMonth(viewMonth, false, true)}
