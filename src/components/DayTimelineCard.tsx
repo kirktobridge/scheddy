@@ -218,7 +218,7 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
             .map((s, i) => (
               <div
                 key={i}
-                className="absolute inset-y-0 bg-emerald-500"
+                className="absolute inset-y-0 bg-emerald-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-2px_3px_rgba(0,0,0,0.25)]"
                 style={{ left: `${s.startFrac * 100}%`, width: `${(s.endFrac - s.startFrac) * 100}%` }}
               />
             ))}
@@ -257,7 +257,7 @@ export default function DayTimelineCard({ date, slots, windows, busy, now, daySt
                 .map((s, i) => (
                   <div
                     key={i}
-                    className="absolute inset-y-0 bg-indigo-400"
+                    className="absolute inset-y-0 bg-indigo-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),inset_0_-2px_3px_rgba(0,0,0,0.25)]"
                     style={{ left: `${s.startFrac * 100}%`, width: `${(s.endFrac - s.startFrac) * 100}%` }}
                   />
                 ))}
