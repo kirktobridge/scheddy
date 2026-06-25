@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { Metrics } from '../hooks/useMetrics'
 import { ErrorBanner, Spinner } from './Banner'
 import StatCard from './StatCard'
@@ -43,6 +44,14 @@ export default function MetricsStats({
   tinted,
   topPicks,
 }: Props) {
+  // Once metrics have loaded once, keep the (stale) cards visible during
+  // month-change reloads instead of flashing back to a spinner each page.
+  const hasLoaded = useRef(false)
+  useEffect(() => {
+    if (!loading) hasLoaded.current = true
+  }, [loading])
+  const showSpinner = loading && !hasLoaded.current
+
   const cardClass = bar ? 'min-w-0 flex-1' : ''
   const compact = dense || bar || panel
   const square = !!panel
@@ -61,8 +70,8 @@ export default function MetricsStats({
       )}
 
       {error && <ErrorBanner message={error} />}
-      {loading && <Spinner />}
-      {!loading && !error && (
+      {showSpinner && <Spinner />}
+      {!showSpinner && !error && (
         <>
           <div className={bar ? 'flex gap-2' : `grid grid-cols-2 ${compact ? 'gap-2' : 'gap-3 lg:grid-cols-4'}`}>
             <StatCard
