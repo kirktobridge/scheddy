@@ -38,7 +38,7 @@ fixes. Same ID space, plans 7–13. Effort here is coarser; most are L.
 | B-20 | Rituals: per-rule cadence targets with suggested next slot | P2 | L | [Plan 10](plans/plan-10-rituals.md) |
 | B-21 | Metric history: persist monthly metrics, trends + scarcity countdowns | P2 | M | [Plan 11](plans/plan-11-history-trends.md) |
 | B-22 | What-if: preview a tentative event's impact on the week/month | P2 | M | [Plan 12](plans/plan-12-what-if.md) |
-| B-23 | Concierge: natural-language queries + drafted coordination messages (Claude API) | P3 | L | [Plan 13](plans/plan-13-concierge.md) |
+| B-23 | Concierge: natural-language queries + drafted coordination messages | P3 | L | [Plan 13](plans/plan-13-concierge.md) |
 
 Vision-track dependencies:
 
