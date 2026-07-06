@@ -23,6 +23,29 @@ Effort: **S** < half a day, **M** = a day-ish, **L** = multi-day.
 | B-13 | Keyboard navigation on the calendar grid (arrow keys, Enter) | P3 | M | [Plan 3](plans/plan-3-navigation.md) |
 | B-14 | Visible "demo data" badge in mock mode | P3 | S | [Plan 6](plans/plan-6-ux-polish.md) |
 
+## Vision track
+
+Product-vision directions (2026-07-06 brainstorm) — new capabilities rather than
+fixes. Same ID space, plans 7–13. Effort here is coarser; most are L.
+
+| ID | Title | Priority | Effort | Plan |
+|----|-------|----------|--------|------|
+| B-15 | Time budgets: declare free-time floors, app defends them | P2 | L | [Plan 7](plans/plan-7-time-defense.md) |
+| B-16 | Booking velocity: daily snapshots + "filling up fast" warnings | P2 | M | [Plan 7](plans/plan-7-time-defense.md) |
+| B-17 | Trip finder: multi-day mutual-free gap search | P2 | L | [Plan 8](plans/plan-8-trip-finder.md) |
+| B-18 | "Times that work" composer: one-tap shareable availability message | P1 | M | [Plan 9](plans/plan-9-share-times.md) |
+| B-19 | Availability exchange: import a friend's exported free windows, compute overlap locally | P3 | L | [Plan 9](plans/plan-9-share-times.md) |
+| B-20 | Rituals: per-rule cadence targets with suggested next slot | P2 | L | [Plan 10](plans/plan-10-rituals.md) |
+| B-21 | Metric history: persist monthly metrics, trends + scarcity countdowns | P2 | M | [Plan 11](plans/plan-11-history-trends.md) |
+| B-22 | What-if: preview a tentative event's impact on the week/month | P2 | M | [Plan 12](plans/plan-12-what-if.md) |
+| B-23 | Concierge: natural-language queries + drafted coordination messages (Claude API) | P3 | L | [Plan 13](plans/plan-13-concierge.md) |
+
+Vision-track dependencies:
+
+- B-16 and B-21 share one **snapshot store** (build once, in whichever lands first).
+- B-23 builds on B-17/B-18/B-22 as its callable "tools"; do it last.
+- B-18 is the standout quick win — the only P1 in the track.
+
 ## Grouping rationale
 
 - **Plan 1 — Data layer** (B-01, B-02, B-10): all touch how events are fetched
