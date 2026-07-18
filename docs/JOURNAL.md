@@ -6,7 +6,8 @@ backlog item, a redesign, a process change), written at product altitude:
 *what changed and why*, in 1–3 sentences. Git history holds the details.
 
 Maintained by the **ship** skill's close-out step; work that lands outside
-`ship` gets an entry too (see CLAUDE.md → Workflow).
+`ship` gets an entry too (see CLAUDE.md → Workflow). The entry format is
+enforced by [tests/docsSchema.test.ts](../tests/docsSchema.test.ts).
 
 Entry format:
 
@@ -18,6 +19,14 @@ What changed and why, 1–3 sentences.
 ```
 
 ---
+
+## 2026-07-18 — Executable schema for structured docs
+
+BACKLOG.md and JOURNAL.md formats are now enforced by a vitest suite
+(tests/docsSchema.test.ts) that validates IDs, priority/effort values, plan
+links against real files, status markers, and journal entry headings/order.
+Since `npm test` runs on every change, doc drift now fails the same gate as
+code regressions.
 
 ## 2026-07-17 — Lifecycle skill suite + this journal
 

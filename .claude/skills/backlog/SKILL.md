@@ -9,6 +9,12 @@ Owns the conventions for [docs/BACKLOG.md](../../../docs/BACKLOG.md) and the
 plan docs in [docs/plans/](../../../docs/plans/) so every session files and
 updates items the same way. Read BACKLOG.md before doing anything.
 
+The schema below is **enforced** by
+[tests/docsSchema.test.ts](../../../tests/docsSchema.test.ts) — run
+`npm test` after editing BACKLOG.md or JOURNAL.md. To deliberately evolve a
+format, change the test in the same commit; never loosen it to paper over a
+malformed row.
+
 ## Capturing an idea
 
 1. **Restate** the raw idea as a one-line item title in the backlog's voice
