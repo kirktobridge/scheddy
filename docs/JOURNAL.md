@@ -20,6 +20,16 @@ What changed and why, 1–3 sentences.
 
 ---
 
+## 2026-07-18 — UI design review → shell restructure plan
+Refs: B-24…B-27, plan-14
+
+A first-principles review of the vision track against the current UI
+(distilled into docs/VISION.md) concluded the app should converge on one
+persistent canvas + query layer + defense rail, with modes as lenses rather
+than tabs. Captured as Plan 14 (B-24 dissolve Check, B-25 defense rail, B-26
+canvas persistence, B-27 retire tab nav), surface re-pointing notes in plans
+3/5/6/7/8/9/10/11/13, and a re-derived suggested order.
+
 ## 2026-07-18 — Event cache + self-refreshing clock
 Refs: B-01, B-02, plan-1
 

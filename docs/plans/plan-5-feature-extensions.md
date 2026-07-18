@@ -3,6 +3,12 @@
 **Backlog items:** B-09 (FreePage extraction — prerequisite), B-06 (relationship
 mode on Check), B-07 (quick-block a slot)
 
+> **Shell update (2026-07-18):** Stage 2's *surface* moved — the "Both of us"
+> toggle lands in [Plan 14](plan-14-shell.md)'s query-layer mode bar on the
+> canvas, not on a separate Check page. The engine work below (partner
+> streams through `useBusy`, mutual slot computation) is unchanged. Stage 1
+> (B-09) is now also Plan 14's hard prerequisite — land it first.
+
 ## Problem
 
 - [src/pages/FreePage.tsx](../../src/pages/FreePage.tsx) is 659 lines with the

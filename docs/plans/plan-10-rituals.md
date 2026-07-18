@@ -3,6 +3,10 @@
 **Backlog items:** B-20
 **Track:** vision
 
+> **Shell update (2026-07-18):** the rhythm-line surface lands in
+> [Plan 14](plan-14-shell.md)'s defense rail (B-25) as first-class status
+> rows — not tooltips/badges on StatCards. `rituals.ts` is unaffected.
+
 ## Vision
 
 `dateCadenceDays` is a special case of a general pattern: recurring

@@ -2,6 +2,12 @@
 
 **Backlog items:** B-03 (hash routing / deep links), B-13 (calendar keyboard nav)
 
+> **Shell update (2026-07-18):** [Plan 14](plan-14-shell.md) / B-24 dissolves
+> the Check tab, collapsing the URL scheme to one canvas route: query modes
+> encode as params on `#/` (e.g. `#/?preset=weekend`) instead of `#/check?…`;
+> `#/settings` stays. If this plan lands first, ship the scheme below and
+> migrate the hash in B-24.
+
 ## Problem
 
 - The active tab is plain `useState` ([src/App.tsx:17](../../src/App.tsx#L17)):

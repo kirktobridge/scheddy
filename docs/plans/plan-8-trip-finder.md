@@ -3,6 +3,12 @@
 **Backlog items:** B-17
 **Track:** vision
 
+> **Shell update (2026-07-18):** the "Getaway" surface is a query-layer mode
+> on the unified canvas ([Plan 14](plan-14-shell.md) / B-24), not a
+> Check-page third mode. Run cards render in the left rail; runs highlight as
+> date *spans* on the calendar (needs a range-capable `OverlayLayer` style).
+> The `trips.ts` engine is unaffected.
+
 ## Vision
 
 The availability engine thinks in morning/afternoon/evening windows within a

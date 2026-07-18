@@ -3,6 +3,10 @@
 **Backlog items:** B-21
 **Track:** vision
 
+> **Shell update (2026-07-18):** countdown lines and sparklines land in
+> [Plan 14](plan-14-shell.md)'s defense rail (B-25). Snapshots, trends math,
+> and the Year view are unaffected.
+
 ## Vision
 
 Metrics are computed per-month and forgotten. Persisting them unlocks the

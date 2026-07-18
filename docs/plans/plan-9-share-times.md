@@ -3,6 +3,11 @@
 **Backlog items:** B-18 (message composer), B-19 (availability exchange)
 **Track:** vision
 
+> **Shell update (2026-07-18):** Check-page references below map to
+> [Plan 14](plan-14-shell.md)'s query layer — participant chips join the
+> canvas mode bar, and the share basket/results use the left rail. B-18 does
+> not depend on Plan 14; only B-19's chip surface does.
+
 ## Vision
 
 The app's real job ends outside the app: coordinating with people who don't

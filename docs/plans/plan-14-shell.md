@@ -1,0 +1,99 @@
+# Plan 14 — Shell: unified canvas, query layer, defense rail
+
+**Backlog items:** B-24 (dissolve Check into a query layer), B-25 (defense
+rail), B-26 (canvas persistence), B-27 (retire tab nav)
+**Track:** vision — structural prerequisite for the surfaces of plans 7–11 and 13
+
+## Vision
+
+From the 2026-07-18 design review ([docs/VISION.md](../VISION.md)): every
+vision feature is a lens over one object — the calendar of free time — so the
+app's shape should be a single persistent canvas with a left action rail, a
+right defense rail, and a query layer on top. Three things fight that shape
+today: the Free/Check tab split (queries navigate away from the canvas), the
+right rail's StatCards (one card doing status + layer-toggle + color-picker),
+and the auto-hiding hover nav (a workaround for tabs the app doesn't want).
+
+## Approach — items land in order, each shippable
+
+### B-24: dissolve Check into a query layer (L)
+
+- CheckPage's controls (preset chips, month select, custom range, window
+  filter) move into a mode bar in the canvas header — `FreeCalendar`'s
+  existing `headerSlot` is the mount point. Idle state = today's behavior.
+- An active query filters and highlights the canvas (range outside the query
+  dims; matching free windows highlight) and renders its slot list in the
+  left rail, where the day card lives. Escape/"clear" returns to idle.
+- A "Both of us" chip joins the mode bar when relationship mode is on —
+  absorbing B-06's *surface*; its engine work (partner streams → mutual
+  slots) stays as Plan 5 Stage 2.
+- The "Already booked" `EventList` pane is dropped, not ported (see
+  VISION.md anti-features): range busyness reads off the canvas density,
+  plus a one-line summary ("4 of 6 evenings already taken").
+- `CheckPage.tsx` and the Check tab are deleted at the end of this item.
+
+### B-25: defense rail (L)
+
+- Split StatCard's three jobs:
+  - **Layer toggles** (metric highlights, overlap subsets, week picks) move
+    to a compact "Layers" legend attached to the canvas — they configure the
+    view, not report status.
+  - **Color pickers** move to Settings → Appearance next to the other tokens.
+  - The **right rail** becomes the defense column: status rows in words with
+    per-row actions. Counts reframe defensively ("3 free weekend days left
+    in July"); the date cadence nudge becomes a first-class rhythm line
+    ("last: 9 days ago · due in 5") instead of a tooltip + footer badge.
+- This is the surface plans 7 (budget status), 10 (ritual rhythm lines) and
+  11 (countdowns, sparklines) land on — build the row pattern here, once.
+
+### B-26: canvas persistence (M)
+
+- `days.length === 0` no longer blanks the page: the calendar always
+  renders; zero free days becomes a red-alert row in the defense rail — the
+  moment the map matters most.
+- The left rail's idle state ("Pick a day to see its free time") becomes a
+  next-actions summary: top picks as actionable rows, the overdue ritual,
+  the budget in deficit. Also the landing place for B-24's query results.
+- Complements B-11 (skeleton covers cold load; this covers everything else).
+
+### B-27: retire tab nav (S)
+
+- With Check gone, tabs are just the canvas + Settings. Delete the
+  auto-hiding hover nav and bottom tab bar; replace with quiet corner
+  controls (settings gear, refresh/staleness indicator).
+- Naming/register pass rides along: drop the "Scheduler" label, headline in
+  the plural voice, tame the text-5xl ★ pick overlay.
+
+## Files
+
+- Touch heavily: `src/App.tsx`, `src/pages/FreePage.tsx`,
+  `src/components/FreeCalendar.tsx` (mode bar in `headerSlot`, legend),
+  `src/components/MetricsStats.tsx`, `src/components/RelationshipStats.tsx`,
+  `src/components/StatCard.tsx` (b-25 rework), `src/pages/settings/AppearancePanel.tsx`
+- Delete: `src/pages/CheckPage.tsx` (B-24), nav machinery in `App.tsx` (B-27)
+- New: query-layer state hook (e.g. `src/hooks/useQueryMode.ts`), defense-rail
+  row components
+- Tests: query-layer mock tests replace `tests/*check*` coverage;
+  `tests/freeRegression.mock.test.tsx` is the safety net throughout
+
+## Testing
+
+- Mock harness: mode chip activates → canvas highlights + left-rail slot list
+  matches the old CheckPage results for the same fixtures; clearing restores.
+- Rail rework: toggles in the legend still drive layers; status rows render
+  the defensive phrasing; cadence rhythm line shows overdue state.
+- B-26: zero-free fixture still renders the calendar and shows the alert row.
+- Visual-check pass per CLAUDE.md after each item.
+
+## Risks / notes
+
+- **Hard prerequisite: Plan 5 Stage 1 (B-09)** — don't build the query layer
+  against FreePage's inline memo chain.
+- Reshapes Plan 3's URL scheme: one canvas route with query params
+  (`#/?preset=weekend`) instead of `#/check?…`; `#/settings` stays.
+- B-24 is the risk concentrator (deletes a page); keep the old CheckPage
+  until its mock tests are reproduced against the query layer.
+- B-27 only makes sense after B-24; B-25 and B-26 are independent of each
+  other but both want B-24's left-rail conventions — order as listed.
+- Vision plans 7, 8, 10, 11, 13 should land *after* their target surface
+  exists here; their engines don't wait on anything.

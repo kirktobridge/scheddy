@@ -3,6 +3,11 @@
 **Backlog items:** B-23
 **Track:** vision — do last
 
+> **Shell update (2026-07-18):** the palette is the mature form of
+> [Plan 14](plan-14-shell.md)'s query layer — mount it in the canvas header
+> as an escalation of the B-24 mode chips, rendering answers into the same
+> left rail and canvas overlays those chips use.
+
 ## Vision
 
 A natural-language front door: "when can we do dinner with my parents? they

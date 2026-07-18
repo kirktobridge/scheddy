@@ -3,6 +3,11 @@
 **Backlog items:** B-11 (loading skeleton), B-12 (first-run onboarding),
 B-14 (mock-mode badge)
 
+> **Shell update (2026-07-18):** B-26 ([Plan 14](plan-14-shell.md)) extends
+> B-11 — the skeleton covers cold load; B-26 removes every other state that
+> blanks the canvas. The CheckPage-spinner note below is moot once B-24
+> deletes CheckPage.
+
 ## Problem
 
 Three small friction points:

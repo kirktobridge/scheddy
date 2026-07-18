@@ -3,6 +3,11 @@
 **Backlog items:** B-15 (time budgets), B-16 (booking velocity)
 **Track:** vision
 
+> **Shell update (2026-07-18):** the Budgets surface targets
+> [Plan 14](plan-14-shell.md)'s defense rail (B-25) — status rows in words
+> with per-row actions — not a `MetricsStats`-pattern card. Engines unchanged;
+> land after B-25 so the row pattern exists.
+
 ## Vision
 
 Scheddy currently *reports* free time after the calendar has already eaten it.
