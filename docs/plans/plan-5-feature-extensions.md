@@ -25,19 +25,28 @@ mode on Check), B-07 (quick-block a slot)
 
 ## Approach — three stages, each shippable
 
-### Stage 1 (B-09): extract hooks from FreePage
+### Stage 1 (B-09): extract hooks from FreePage — ✅ shipped 2026-07-18
 
 New hooks, moving existing code without behavior change:
 
-- `src/hooks/useBusy.ts` — takes the event streams + settings, returns
-  `{ nonWorkBusy, workBusy, combinedBusy, jointBusy, partnerBusy }`
-  (FreePage lines ~165–205).
-- `src/hooks/useRelationshipOverlays.ts` — the big `relationship` memo
-  (lines ~294–395): overlap sets, date candidates, reasons.
-- Keep `FreeCalendar`-specific bits (layers, highlight unions) in the page.
+- `src/hooks/useBusy.ts` — takes the event streams (personal/partner/joint),
+  reads settings itself, returns
+  `{ busyOpts, workBusy, nonWorkBusy, combinedBusy, jointBusy, partnerBusy, nonWorkEvents }`.
+  (`busyOpts`/`nonWorkEvents` are also returned because the overlays and the
+  slot-booking labels still need them.)
+- `src/hooks/useRelationshipOverlays.ts` — the big `relationship` memo:
+  overlap sets, date candidates, reasons. Takes the busy streams + partnerWork
+  events + dateMatches + {startMs, lookahead, selectedMonth}.
+- Kept `FreeCalendar`-specific bits (layers, highlight unions), the free-day
+  ranking, and slot/day-card assembly in the page.
 
-Success criterion: FreePage shrinks to roughly composition + layout; the full
-mock test suite passes unchanged. This stage is pure refactor — land it alone.
+Shipped: FreePage 663 → 520 lines; verbatim move, no behavior change. Full mock
+suite passes unchanged (freeRegression is the net); added `tests/useBusy.test.ts`
+to pin the extraction. `/simplify` intentionally skipped — Stage 1 is a verbatim
+move, so improving the moved logic here would violate the "land it alone"
+constraint.
+
+**Stages 2 (B-06) and 3 (B-07) remain open.**
 
 ### Stage 2 (B-06): "Both of us" on Check
 

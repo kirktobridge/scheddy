@@ -18,7 +18,7 @@ Effort: **S** < half a day, **M** = a day-ish, **L** = multi-day.
 | B-06 | "Both of us" mutual availability in range queries ("are *we* free?") | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) | |
 | B-07 | Quick-block: hold any free slot as an event from the Free view | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) | |
 | B-08 | Auth expiry UX: "sign in again" banner instead of surprise Google popup | P1 | M | [Plan 2](plans/plan-2-resilience-auth.md) | ✅ 2026-07-18 |
-| B-09 | Extract relationship/busy computation out of FreePage into hooks | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) | |
+| B-09 | Extract relationship/busy computation out of FreePage into hooks | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) | ✅ 2026-07-18 |
 | B-10 | Batch Google Calendar fetches (one HTTP round trip) | P3 | M | [Plan 1](plans/plan-1-data-layer.md) | ✂️ deferred 2026-07-18 |
 | B-11 | Loading skeleton for the calendar instead of full-page spinner | P3 | S | [Plan 6](plans/plan-6-ux-polish.md) | |
 | B-12 | First-run onboarding state (welcome card, not an error banner) | P2 | S | [Plan 6](plans/plan-6-ux-polish.md) | |

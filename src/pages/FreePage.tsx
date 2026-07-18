@@ -1,20 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { addDays, differenceInCalendarDays, endOfDay, endOfMonth, endOfWeek, format, isSameMonth, isWeekend, startOfDay, startOfMonth, startOfWeek } from 'date-fns'
-import { blockedDates, dayIsolation, eventsToBusy, findFreeSlots, mergeIntervals, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
-import { applyRuleOverrides, buildBusy, matchRule } from '../lib/metrics'
-import {
-  datesInRange,
-  lastDateEvent,
-  nextDateEvent,
-  notWorkingDates,
-  overlapByDate,
-  overlapDates,
-  overlapInWindowMs,
-  rankDateCandidates,
-  resolveDateRule,
-  weekKey,
-  weeksWithDateEvent,
-} from '../lib/relationship'
+import { addDays, differenceInCalendarDays, endOfDay, endOfWeek, format, isSameMonth, startOfDay, startOfMonth, startOfWeek } from 'date-fns'
+import { blockedDates, findFreeSlots, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
+import { applyRuleOverrides, matchRule } from '../lib/metrics'
+import { lastDateEvent, nextDateEvent, resolveDateRule } from '../lib/relationship'
 import type { OverlayLayer } from '../components/FreeCalendar'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
 import { useSettings } from '../store/settings'
@@ -23,6 +11,8 @@ import { mixColors } from '../lib/colorMix'
 import { createEvent } from '../api/calendar'
 import { useEvents } from '../hooks/useEvents'
 import { useReauth } from '../hooks/useReauth'
+import { useBusy } from '../hooks/useBusy'
+import { useRelationshipOverlays } from '../hooks/useRelationshipOverlays'
 import { useHorizon } from '../hooks/useHorizon'
 import { useNow } from '../hooks/useNow'
 import { useCalendars } from '../hooks/useCalendars'
@@ -165,45 +155,13 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     [dateRule, dateScan.events],
   )
 
-  // Work events don't count toward "partly booked" — they get a "free after
-  // work" label instead. Split them out before computing availability.
-  const workIds = settings.workCalendarIds
-  const { workEvents, nonWorkEvents } = useMemo(() => {
-    const work = new Set(workIds)
-    const workEvents: typeof events = []
-    const nonWorkEvents: typeof events = []
-    for (const ev of events ?? []) (ev.calendarId && work.has(ev.calendarId) ? workEvents : nonWorkEvents).push(ev)
-    return { workEvents, nonWorkEvents }
-  }, [events, workIds])
-
-  const allDay = settings.blockAllDayEvents
-  const allDayCalendarIds = useMemo(
-    () => new Set(settings.allDayBlockingCalendarIds),
-    [settings.allDayBlockingCalendarIds],
-  )
-
-  // Partner/joint streams run through the same builder as personal events, so
-  // rule overrides and the per-calendar all-day policy apply consistently. Lifted
-  // to page level so both the relationship overlays and the "top free days" ranking
-  // (which can lean toward partner-busy times) share one computation.
-  const busyOpts = useMemo(
-    () => ({ rules: settings.metricRules, allDay, allDayCalendarIds }),
-    [settings.metricRules, allDay, allDayCalendarIds],
-  )
-  const jointBusy = useMemo(() => buildBusy(joint.events ?? [], busyOpts), [joint.events, busyOpts])
-  const partnerBusy = useMemo(
-    () => mergeIntervals([...buildBusy(partner.events ?? [], busyOpts), ...jointBusy]),
-    [partner.events, busyOpts, jointBusy],
-  )
-  // nonWorkEvents/workEvents are already rule-overridden (events, above), so
-  // convert directly — pass the same all-day policy used everywhere else.
-  const nonWorkBusy = useMemo(
-    () => eventsToBusy(nonWorkEvents ?? [], { allDay, allDayCalendarIds }),
-    [nonWorkEvents, allDay, allDayCalendarIds],
-  )
-  const workBusy = useMemo(
-    () => eventsToBusy(workEvents ?? [], { allDay, allDayCalendarIds }),
-    [workEvents, allDay, allDayCalendarIds],
+  // Busy-interval sets for the availability math: personal work/non-work/combined
+  // plus the partner and joint streams (lifted here so the "top free days" ranking
+  // and the relationship overlays share one computation). See useBusy.
+  const { busyOpts, workBusy, nonWorkBusy, combinedBusy, jointBusy, partnerBusy, nonWorkEvents } = useBusy(
+    events,
+    partner.events,
+    joint.events,
   )
 
   // All days in the lookahead with a slot meeting the threshold, keyed by date —
@@ -285,118 +243,17 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     [nonWorkBusy, workBusy, settings.windows, nowMs],
   )
 
-  // Combined busy (work counts as busy) drives the availability bars.
-  const combinedBusy = useMemo(
-    () => eventsToBusy(events ?? [], { allDay, allDayCalendarIds }),
-    [events, allDay, allDayCalendarIds],
-  )
   const winKeys = useMemo(() => windowKeys(settings.windows), [settings.windows])
 
   // Relationship overlays: the partner's non-working days, days with enough
   // mutual free time, and the top date-night candidates. Joint events block both
-  // partners, so they fold into each side's busy.
-  const relationship = useMemo(() => {
-    const empty = {
-      notWorkingSet: new Set<string>(),
-      overlapSet: new Set<string>(),
-      overlapWeekendSet: new Set<string>(),
-      overlapWeeknightSet: new Set<string>(),
-      bothOffSet: new Set<string>(),
-      dateSet: new Set<string>(),
-      dateReasons: new Map<string, string[]>(),
-      overlapBusy: [] as ReturnType<typeof mergeIntervals>,
-      partnerBusy: [] as ReturnType<typeof mergeIntervals>,
-    }
-    if (!rel) return empty
-    const HOUR = 60 * 60 * 1000
-    // busyOpts/jointBusy/partnerBusy are lifted to page level (above) so the free-
-    // day ranking can share them; partnerWork stays local to this overlay.
-    const partnerWorkBusy = buildBusy(partnerWork.events ?? [], busyOpts)
-    const myBusy = mergeIntervals([...combinedBusy, ...jointBusy])
-    // Count only the displayed month, clamped to the valid horizon (today → lookahead).
-    const from = Math.max(startOfMonth(selectedMonth).getTime(), startMs)
-    const to = Math.min(endOfMonth(selectedMonth).getTime(), addDays(new Date(startMs), lookahead).getTime())
-    const dates = to >= from ? datesInRange(new Date(from), new Date(to)) : []
-
-    const overlap = overlapByDate(myBusy, partnerBusy, settings.windows, dates, settings.dayStart)
-    const notWorkingSet = notWorkingDates(partnerWorkBusy, dates)
-    const overlapSet = overlapDates(overlap, settings.overlapMinHours * HOUR)
-
-    // Overlap subsets the mini-section can scope the highlight to:
-    const minMs = settings.overlapMinHours * HOUR
-    const isWknd = (d: string) => isWeekend(new Date(d + 'T12:00:00'))
-    const myOff = notWorkingDates(workBusy, dates)
-    const overlapWeekendSet = new Set(dates.filter((d) => isWknd(d) && overlapSet.has(d)))
-    const overlapWeeknightSet = new Set(
-      dates.filter((d) => !isWknd(d) && overlapInWindowMs(myBusy, partnerBusy, settings.windows, 'evening', d) + 1e-9 >= minMs),
-    )
-    const bothOffSet = new Set(dates.filter((d) => myOff.has(d) && notWorkingSet.has(d)))
-
-    // Date candidates: days with enough mutual free time, in weeks that don't
-    // already have a date booked, ranked by isolation from either partner's
-    // commitments, then weekends, then most mutual free time.
-    const eligible = [...overlapDates(overlap, settings.dateMinHours * HOUR)]
-    const bookedWeeks = weeksWithDateEvent(dateMatches)
-    const candidates = eligible.filter((d) => !bookedWeeks.has(weekKey(d)))
-    const overlapBusy = mergeIntervals([...myBusy, ...partnerBusy])
-    const blocked = blockedDates(overlapBusy)
-    const dateSet = new Set(
-      rankDateCandidates(candidates, overlap, blocked, {
-        count: settings.dateCandidateCount,
-        isolationWindow: settings.isolationWindowDays,
-        preference: settings.datePreference,
-        favorPartnerOff: settings.dateFavorPartnerOff,
-        partnerOff: notWorkingSet,
-        order: settings.dateRankOrder,
-      }),
-    )
-
-    // Human-readable reasons a day was picked, shown as chips on the detail card.
-    const dateReasons = new Map<string, string[]>()
-    for (const dstr of dateSet) {
-      const reasons: string[] = []
-      if (settings.dateFavorPartnerOff && notWorkingSet.has(dstr)) reasons.push(`${partnerName} off`)
-      if (isWknd(dstr)) reasons.push('Weekend')
-      const hrs = (overlap.get(dstr) ?? 0) / HOUR
-      if (hrs > 0) reasons.push(`${Math.round(hrs * 10) / 10}h free together`)
-      const iso = dayIsolation(dstr, blocked, settings.isolationWindowDays)
-      if (iso > 0) reasons.push(`${iso}+ day${iso === 1 ? '' : 's'} clear`)
-      dateReasons.set(dstr, reasons)
-    }
-    return {
-      notWorkingSet,
-      overlapSet,
-      overlapWeekendSet,
-      overlapWeeknightSet,
-      bothOffSet,
-      dateSet,
-      dateReasons,
-      overlapBusy,
-      partnerBusy,
-    }
-  }, [
-    rel,
-    busyOpts,
-    jointBusy,
-    partnerBusy,
+  // partners, so they fold into each side's busy. See useRelationshipOverlays.
+  const relationship = useRelationshipOverlays(
+    { busyOpts, jointBusy, partnerBusy, combinedBusy, workBusy },
     partnerWork.events,
-    combinedBusy,
-    workBusy,
     dateMatches,
-    settings.windows,
-    settings.dayStart,
-    settings.overlapMinHours,
-    settings.dateMinHours,
-    settings.dateCandidateCount,
-    settings.isolationWindowDays,
-    settings.datePreference,
-    settings.dateFavorPartnerOff,
-    settings.dateRankOrder,
-    partnerName,
-    startMs,
-    lookahead,
-    selectedMonth,
-  ])
+    { startMs, lookahead, selectedMonth },
+  )
 
   // Days the overlap highlight covers = union of whichever subset cards are on.
   // Empty when none are on.

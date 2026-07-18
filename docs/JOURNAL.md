@@ -20,6 +20,17 @@ What changed and why, 1–3 sentences.
 
 ---
 
+## 2026-07-18 — Extract busy/overlay engines from FreePage
+Refs: B-09, plan-5
+
+FreePage's inlined busy-interval and relationship-overlay computation moved
+verbatim into `useBusy` and `useRelationshipOverlays` (page shrank 663 → 520
+lines), so the logic is now unit-testable and reusable by the Check view and the
+upcoming canvas shell. Pure refactor — no behavior change; the mock regression
+suite passes unchanged.
+
+---
+
 ## 2026-07-18 — Auth expiry: "sign in again" banner
 Refs: B-08, plan-2
 
