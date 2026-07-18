@@ -6,4 +6,3 @@ dev-dist
 .env.local
 *.local
 .SECRETS
-CLAUDE.md
