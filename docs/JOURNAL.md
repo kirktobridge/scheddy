@@ -20,6 +20,16 @@ What changed and why, 1–3 sentences.
 
 ---
 
+## 2026-07-18 — App-level error boundary with recovery
+Refs: B-05, plan-2
+
+A render crash used to leave a white screen with no way out; now an
+`ErrorBoundary` around the page content catches it and offers "Reload app" and
+a "Reset settings" escape hatch (clears corrupted `scheddy.settings`), while the
+nav stays mounted so other tabs remain reachable.
+
+---
+
 ## 2026-07-18 — UI design review → shell restructure plan
 Refs: B-24…B-27, plan-14
 

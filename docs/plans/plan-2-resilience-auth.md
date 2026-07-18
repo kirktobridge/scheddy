@@ -2,6 +2,17 @@
 
 **Backlog items:** B-05 (error boundary), B-08 (auth expiry banner)
 
+## Status
+
+- **B-05 — shipped 2026-07-18.** `ErrorBoundary` class component wraps the page
+  content inside `<main>` (nav survives). Fallback: message + "Reload app"
+  (`location.reload()`) + "Reset settings" (confirm → clears `scheddy.settings`
+  → reload). Deviation from plan: added `key={tab}` on the boundary so a crash
+  on one tab remounts clean when the user switches tabs — the surviving nav is
+  the intended escape hatch, and without the remount the fallback would persist
+  across tab changes. Tests in `tests/errorBoundary.mock.test.tsx`.
+- **B-08 — not started.** Auth expiry banner still open.
+
 ## Problem
 
 - A render crash anywhere produces a white screen with no recovery path — there

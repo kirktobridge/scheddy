@@ -4,6 +4,7 @@ import CheckPage from './pages/CheckPage'
 import SettingsPage from './pages/SettingsPage'
 import { useSettings } from './store/settings'
 import { applyTokenVars } from './lib/designTokens'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 type Tab = 'free' | 'check' | 'settings'
 
@@ -34,9 +35,13 @@ export default function App() {
     <div className="flex min-h-dvh flex-col">
       <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24 lg:px-8 lg:pb-8 lg:pt-6">
         <div className="w-full">
-          {tab === 'free' && <FreePage refreshTick={refreshTick} />}
-          {tab === 'check' && <CheckPage />}
-          {tab === 'settings' && <SettingsPage />}
+          {/* key={tab} remounts the boundary on tab change, so a crash on one
+              tab doesn't strand the others — the surviving nav is the escape. */}
+          <ErrorBoundary key={tab}>
+            {tab === 'free' && <FreePage refreshTick={refreshTick} />}
+            {tab === 'check' && <CheckPage />}
+            {tab === 'settings' && <SettingsPage />}
+          </ErrorBoundary>
         </div>
       </main>
 

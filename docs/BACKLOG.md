@@ -14,7 +14,7 @@ Effort: **S** < half a day, **M** = a day-ish, **L** = multi-day.
 | B-02 | Refresh "now" + data on visibility regain (stale `nowMs` fix) | P1 | S | [Plan 1](plans/plan-1-data-layer.md) | ✅ 2026-07-18 |
 | B-03 | URL state: hash routing for tabs + deep-linkable Check ranges | P2 | M | [Plan 3](plans/plan-3-navigation.md) | |
 | B-04 | Settings export/import (portability across devices) | P2 | M | [Plan 4](plans/plan-4-settings-portability.md) | |
-| B-05 | App-level error boundary with recovery | P1 | S | [Plan 2](plans/plan-2-resilience-auth.md) | |
+| B-05 | App-level error boundary with recovery | P1 | S | [Plan 2](plans/plan-2-resilience-auth.md) | ✅ 2026-07-18 |
 | B-06 | "Both of us" mutual availability in range queries ("are *we* free?") | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) | |
 | B-07 | Quick-block: hold any free slot as an event from the Free view | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) | |
 | B-08 | Auth expiry UX: "sign in again" banner instead of surprise Google popup | P1 | M | [Plan 2](plans/plan-2-resilience-auth.md) | |
