@@ -38,6 +38,9 @@ on the working tree before committing.
   defined by the **backlog** skill; add the column if it doesn't exist yet).
 - **Plan doc** — record what shipped and any deviations from the plan; if the
   plan has remaining items, leave it clear what's still open.
+- **JOURNAL.md** — append an entry to
+  [docs/JOURNAL.md](../../../docs/JOURNAL.md) (format defined there): 1–3
+  sentences at product altitude on what changed and why.
 - **ARCHITECTURE.md** — update *only if* an invariant, data flow, or module
   boundary changed. Cosmetic/UI work doesn't touch it.
 - **CLAUDE.md** — only if a workflow-level fact changed (new command, new
