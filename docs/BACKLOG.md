@@ -6,22 +6,22 @@ has an ID referenced by the plan documents in [docs/plans/](plans/).
 Priority: **P1** = highest user impact, **P2** = valuable, **P3** = polish.
 Effort: **S** < half a day, **M** = a day-ish, **L** = multi-day.
 
-| ID | Title | Priority | Effort | Plan |
-|----|-------|----------|--------|------|
-| B-01 | Event data cache with stale-while-revalidate + IndexedDB persistence | P1 | L | [Plan 1](plans/plan-1-data-layer.md) |
-| B-02 | Refresh "now" + data on visibility regain (stale `nowMs` fix) | P1 | S | [Plan 1](plans/plan-1-data-layer.md) |
-| B-03 | URL state: hash routing for tabs + deep-linkable Check ranges | P2 | M | [Plan 3](plans/plan-3-navigation.md) |
-| B-04 | Settings export/import (portability across devices) | P2 | M | [Plan 4](plans/plan-4-settings-portability.md) |
-| B-05 | App-level error boundary with recovery | P1 | S | [Plan 2](plans/plan-2-resilience-auth.md) |
-| B-06 | Relationship mode on Check page ("are *we* free?") | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) |
-| B-07 | Quick-block: hold any free slot as an event from the Free view | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) |
-| B-08 | Auth expiry UX: "sign in again" banner instead of surprise Google popup | P1 | M | [Plan 2](plans/plan-2-resilience-auth.md) |
-| B-09 | Extract relationship/busy computation out of FreePage into hooks | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) |
-| B-10 | Batch Google Calendar fetches (one HTTP round trip) | P3 | M | [Plan 1](plans/plan-1-data-layer.md) |
-| B-11 | Loading skeleton for the calendar instead of full-page spinner | P3 | S | [Plan 6](plans/plan-6-ux-polish.md) |
-| B-12 | First-run onboarding state (welcome card, not an error banner) | P2 | S | [Plan 6](plans/plan-6-ux-polish.md) |
-| B-13 | Keyboard navigation on the calendar grid (arrow keys, Enter) | P3 | M | [Plan 3](plans/plan-3-navigation.md) |
-| B-14 | Visible "demo data" badge in mock mode | P3 | S | [Plan 6](plans/plan-6-ux-polish.md) |
+| ID | Title | Priority | Effort | Plan | Status |
+|----|-------|----------|--------|------|--------|
+| B-01 | Event data cache with stale-while-revalidate + IndexedDB persistence | P1 | L | [Plan 1](plans/plan-1-data-layer.md) | ✅ 2026-07-18 |
+| B-02 | Refresh "now" + data on visibility regain (stale `nowMs` fix) | P1 | S | [Plan 1](plans/plan-1-data-layer.md) | ✅ 2026-07-18 |
+| B-03 | URL state: hash routing for tabs + deep-linkable Check ranges | P2 | M | [Plan 3](plans/plan-3-navigation.md) | |
+| B-04 | Settings export/import (portability across devices) | P2 | M | [Plan 4](plans/plan-4-settings-portability.md) | |
+| B-05 | App-level error boundary with recovery | P1 | S | [Plan 2](plans/plan-2-resilience-auth.md) | |
+| B-06 | Relationship mode on Check page ("are *we* free?") | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) | |
+| B-07 | Quick-block: hold any free slot as an event from the Free view | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) | |
+| B-08 | Auth expiry UX: "sign in again" banner instead of surprise Google popup | P1 | M | [Plan 2](plans/plan-2-resilience-auth.md) | |
+| B-09 | Extract relationship/busy computation out of FreePage into hooks | P2 | M | [Plan 5](plans/plan-5-feature-extensions.md) | |
+| B-10 | Batch Google Calendar fetches (one HTTP round trip) | P3 | M | [Plan 1](plans/plan-1-data-layer.md) | ✂️ deferred 2026-07-18 |
+| B-11 | Loading skeleton for the calendar instead of full-page spinner | P3 | S | [Plan 6](plans/plan-6-ux-polish.md) | |
+| B-12 | First-run onboarding state (welcome card, not an error banner) | P2 | S | [Plan 6](plans/plan-6-ux-polish.md) | |
+| B-13 | Keyboard navigation on the calendar grid (arrow keys, Enter) | P3 | M | [Plan 3](plans/plan-3-navigation.md) | |
+| B-14 | Visible "demo data" badge in mock mode | P3 | S | [Plan 6](plans/plan-6-ux-polish.md) | |
 
 ## Vision track
 

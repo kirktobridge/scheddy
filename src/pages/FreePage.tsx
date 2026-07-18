@@ -23,6 +23,7 @@ import { mixColors } from '../lib/colorMix'
 import { createEvent } from '../api/calendar'
 import { useEvents } from '../hooks/useEvents'
 import { useHorizon } from '../hooks/useHorizon'
+import { useNow } from '../hooks/useNow'
 import { useCalendars } from '../hooks/useCalendars'
 import { eventsForDay } from '../lib/format'
 import { type DayInfo, type SlotInfo } from '../components/SlotList'
@@ -45,8 +46,9 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   const colorFor = (key: string) => settings.metricColors[key] ?? getColor(settings, 'metric.default')
   const setColor = (key: string, color: string) =>
     setSettings({ metricColors: { ...settings.metricColors, [key]: color } })
-  // Refresh recomputes "now" too, so stale slots disappear on pull.
-  const [nowMs, setNowMs] = useState(() => Date.now())
+  // "now" re-reads itself (visibility/interval) so a long-open PWA doesn't show
+  // stale slots; bumpNow forces it (Refresh, post-booking).
+  const [nowMs, bumpNow] = useNow()
   const [highlightPicks, setHighlightPicks] = useState(true)
   const [showWeekPicks, setShowWeekPicks] = useState(false)
   const rel = settings.relationshipMode
@@ -101,7 +103,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
       didMountRef.current = true
       return
     }
-    setNowMs(Date.now())
+    bumpNow()
     void refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTick])
@@ -464,10 +466,10 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
         end: { dateTime: end.toISOString() },
       })
       setBookedMsg(`Booked "${title}" — ${format(start, 'EEE M/d, h:mm a')}`)
-      setNowMs(Date.now())
+      bumpNow()
       await Promise.all([refresh(), joint.refresh(), dateScan.refresh()])
     },
-    [planTargetId, settings.dateEventTitle, refresh, joint, dateScan],
+    [planTargetId, settings.dateEventTitle, refresh, joint, dateScan, bumpNow],
   )
 
   const dayInfo = useCallback(

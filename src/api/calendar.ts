@@ -1,5 +1,6 @@
 import { getAccessToken, clearToken } from '../auth/google'
 import { isMockMode, mockCreateEvent, mockEventsMulti, MOCK_CALENDARS } from './mock'
+import { cacheKey, dedupe, evictCalendar, getCached, isStale, store } from './eventCache'
 
 const BASE = 'https://www.googleapis.com/calendar/v3'
 
@@ -77,10 +78,44 @@ export async function listEvents(calendarId: string, timeMin: Date, timeMax: Dat
   return out
 }
 
+/** One calendar's range, served through the cache + in-flight de-dupe (B-01). */
+function listEventsCached(calendarId: string, timeMin: Date, timeMax: Date): Promise<GEvent[]> {
+  const key = cacheKey(calendarId, timeMin, timeMax)
+  return dedupe(key, async () => {
+    const events = await listEvents(calendarId, timeMin, timeMax)
+    store(key, events)
+    return events
+  })
+}
+
 export async function listEventsMulti(calendarIds: string[], timeMin: Date, timeMax: Date): Promise<GEvent[]> {
   if (isMockMode()) return mockEventsMulti(calendarIds, timeMin, timeMax)
-  const results = await Promise.all(calendarIds.map((id) => listEvents(id, timeMin, timeMax)))
+  const results = await Promise.all(calendarIds.map((id) => listEventsCached(id, timeMin, timeMax)))
   return results.flat()
+}
+
+/**
+ * Synchronous cache read for the whole calendar set — returns combined events
+ * only when every calendar has a still-showable entry, so hooks can paint
+ * instantly on mount then revalidate. `stale` is set if any entry is past the
+ * soft TTL. Mock mode has no cache, so callers always fall through to a fetch.
+ */
+export function getCachedEventsMulti(
+  calendarIds: string[],
+  timeMin: Date,
+  timeMax: Date,
+): { events: GEvent[]; stale: boolean } | null {
+  if (isMockMode() || calendarIds.length === 0) return null
+  const now = Date.now()
+  const out: GEvent[] = []
+  let stale = false
+  for (const id of calendarIds) {
+    const entry = getCached(cacheKey(id, timeMin, timeMax))
+    if (!entry) return null
+    out.push(...entry.events)
+    if (isStale(entry, now)) stale = true
+  }
+  return { events: out, stale }
 }
 
 export interface NewEvent {
@@ -111,6 +146,8 @@ export async function createEvent(calendarId: string, event: NewEvent): Promise<
       continue
     }
     if (!res.ok) throw new Error(`Google Calendar API error ${res.status}: ${await res.text()}`)
+    // Invalidate the mutated calendar so the follow-up refresh refetches it.
+    evictCalendar(calendarId)
     return { ...((await res.json()) as GEvent), calendarId }
   }
   throw new Error('unreachable')

@@ -20,6 +20,17 @@ What changed and why, 1–3 sentences.
 
 ---
 
+## 2026-07-18 — Event cache + self-refreshing clock
+Refs: B-01, B-02, plan-1
+
+Fetched events now flow through a shared cache (`api/eventCache.ts`): per-
+calendar keys let FreePage's many `useEvents` streams dedupe overlapping
+fetches, warm data paints instantly on mount via IndexedDB then revalidates in
+the background, and bookings evict the mutated calendar. `useNow` replaces
+FreePage's frozen mount timestamp so a long-open PWA refreshes "now" on tab
+focus and every 30 min. B-10 (batch endpoint) deferred — the dedupe already
+removes most duplicate traffic and multipart parsing wasn't worth the risk.
+
 ## 2026-07-18 — Executable schema for structured docs
 
 BACKLOG.md and JOURNAL.md formats are now enforced by a vitest suite
