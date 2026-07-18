@@ -16,6 +16,7 @@ import { findFreeSlots, windowKeys, type WindowKey } from '../lib/availability'
 import { buildBusy } from '../lib/metrics'
 import { useSettings } from '../store/settings'
 import { useEvents } from '../hooks/useEvents'
+import { useReauth } from '../hooks/useReauth'
 import SlotList from '../components/SlotList'
 import EventList from '../components/EventList'
 import { ErrorBanner, Spinner } from '../components/Banner'
@@ -86,7 +87,8 @@ export default function CheckPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, customStart, customEnd, format(now, 'yyyy-MM-dd')])
 
-  const { events, loading, error } = useEvents(rangeStart.getTime(), rangeEnd.getTime())
+  const { events, loading, error, authRequired, refresh } = useEvents(rangeStart.getTime(), rangeEnd.getTime())
+  const handleSignIn = useReauth(refresh)
 
   const slots = useMemo(() => {
     if (!events) return []
@@ -197,7 +199,7 @@ export default function CheckPage() {
         Showing {format(rangeStart, 'EEE, MMM d')} – {format(rangeEnd, 'EEE, MMM d')}
       </p>
 
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner message={error} onSignIn={authRequired ? handleSignIn : undefined} />}
       {loading && <Spinner />}
       {!loading && !error && (
         <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">

@@ -20,6 +20,17 @@ What changed and why, 1–3 sentences.
 
 ---
 
+## 2026-07-18 — Auth expiry: "sign in again" banner
+Refs: B-08, plan-2
+
+An expired session used to fail silent-refresh from a non-gesture code path,
+producing a surprise/blocked Google popup or a raw error string. Now a typed
+`AuthRequiredError` flows up to a "Session expired — sign in again" banner whose
+button re-auths inside the click (a gesture Google honors) and re-fetches, on
+both the Scheduler and Check views.
+
+---
+
 ## 2026-07-18 — App-level error boundary with recovery
 Refs: B-05, plan-2
 

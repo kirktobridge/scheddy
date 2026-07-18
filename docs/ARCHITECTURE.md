@@ -25,7 +25,7 @@ Google Calendar API ── src/api/calendar.ts ── src/hooks/useEvents.ts ─
 | Layer | Where | Rules |
 |-------|-------|-------|
 | API | [src/api/calendar.ts](../src/api/calendar.ts), [src/api/mock.ts](../src/api/mock.ts) | Only place that fetches. Every entry point short-circuits to mock fixtures when `isMockMode()`. **POST-only write path**: `createEvent` is the sole mutation; no update/delete exists on purpose. |
-| Auth | [src/auth/google.ts](../src/auth/google.ts) | GIS token client; scopes `calendar.readonly` + `calendar.events` only. Token in localStorage, ~1 h expiry, silent refresh with one 401 retry in the API layer. |
+| Auth | [src/auth/google.ts](../src/auth/google.ts) | GIS token client; scopes `calendar.readonly` + `calendar.events` only. Token in localStorage, ~1 h expiry, silent refresh with one 401 retry in the API layer. When silent refresh fails, `getAccessToken` throws `AuthRequiredError` → `useEvents` sets `authRequired` → the error banner offers gesture-driven re-auth (`useReauth`). |
 | Settings | [src/store/settings.ts](../src/store/settings.ts) | Single `Settings` object via `useSyncExternalStore`; `updateSettings(patch)` persists and notifies. Legacy-shape fixups happen in `loadSettings`. |
 | Engines | [src/lib/](../src/lib/) | Pure functions, no React, no IO — the part that must stay unit-testable. New scheduling logic goes here first. |
 | Hooks | [src/hooks/](../src/hooks/) | Bridge: fetching (`useEvents`), derived state (`useMetrics`, `useHorizon`), environment (`useMediaQuery` — defaults desktop under jsdom). |

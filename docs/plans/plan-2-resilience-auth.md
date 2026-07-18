@@ -11,7 +11,20 @@
   on one tab remounts clean when the user switches tabs — the surviving nav is
   the intended escape hatch, and without the remount the fallback would persist
   across tab changes. Tests in `tests/errorBoundary.mock.test.tsx`.
-- **B-08 — not started.** Auth expiry banner still open.
+- **B-08 — shipped 2026-07-18.** `AuthRequiredError` (src/auth/google.ts) is
+  thrown when the stored token is gone/expired and the silent refresh fails
+  (config errors like a missing client id pass through unwrapped). `useEvents`
+  surfaces it as an additive `authRequired` boolean (kept the `error` string for
+  backward compat rather than a discriminated union — far less consumer churn).
+  `ErrorBanner` gained an `onSignIn` variant; FreePage and CheckPage wire it via
+  a shared `useReauth(refresh)` hook so the click is a real gesture. The 401
+  retry-once path in calendar.ts is unchanged. Tests: `tests/authErrors.test.ts`
+  + `tests/banner.mock.test.tsx`.
+
+  Deviations from plan: (1) error shape stayed a string + flag, not the
+  `{ kind }` discriminated union — the union would have rippled through every
+  useEvents consumer for no user-facing gain. (2) Extracted `useReauth` to
+  dedupe the sign-in handler across the two pages (simplify pass).
 
 ## Problem
 

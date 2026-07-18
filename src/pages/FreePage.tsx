@@ -22,6 +22,7 @@ import { getColor } from '../lib/designTokens'
 import { mixColors } from '../lib/colorMix'
 import { createEvent } from '../api/calendar'
 import { useEvents } from '../hooks/useEvents'
+import { useReauth } from '../hooks/useReauth'
 import { useHorizon } from '../hooks/useHorizon'
 import { useNow } from '../hooks/useNow'
 import { useCalendars } from '../hooks/useCalendars'
@@ -94,7 +95,8 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   // plus the isolation window so forward spacing is accurate at the end of the span.
   const endMs = addDays(new Date(startMs), lookahead + settings.isolationWindowDays + 1).getTime()
 
-  const { events: rawEvents, loading, error, refresh } = useEvents(startMs, endMs)
+  const { events: rawEvents, loading, error, authRequired, refresh } = useEvents(startMs, endMs)
+  const handleSignIn = useReauth(refresh)
   // The Refresh control lives in the nav (App); it bumps refreshTick. Re-fetch and
   // reset "now" when it changes, skipping the initial mount (data already loads then).
   const didMountRef = useRef(false)
@@ -592,7 +594,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
           </button>
         </div>
       )}
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner message={error} onSignIn={authRequired ? handleSignIn : undefined} />}
       {loading && <Spinner />}
       {!loading && !error && days.length === 0 && (
         <p className="py-8 text-center text-slate-500 dark:text-slate-400">

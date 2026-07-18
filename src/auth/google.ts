@@ -13,6 +13,20 @@ interface StoredToken {
   expiresAt: number
 }
 
+/**
+ * Thrown by getAccessToken when the stored token is gone/expired and a silent
+ * refresh against the existing grant fails — i.e. the user must sign in again
+ * interactively. Lets callers show a "sign in again" banner (a real user gesture
+ * that Google allows the popup for) instead of a raw error string, and avoids a
+ * surprise popup fired from a non-gesture code path.
+ */
+export class AuthRequiredError extends Error {
+  constructor(message = 'Session expired — sign in again.') {
+    super(message)
+    this.name = 'AuthRequiredError'
+  }
+}
+
 interface TokenResponse {
   access_token?: string
   expires_in?: number
@@ -107,7 +121,15 @@ export async function getAccessToken(): Promise<string> {
   const stored = readStored()
   if (stored && Date.now() < stored.expiresAt - 60_000) return stored.token
   // Token expired (or never obtained): try silent refresh against the existing grant.
-  return requestToken('')
+  try {
+    return await requestToken('')
+  } catch (err) {
+    // A missing client id is a config problem, not an expired session — let it
+    // surface as-is. Any other silent-refresh failure means interactive sign-in
+    // is required, so callers can offer a gesture-driven "sign in again".
+    if (!getSettings().clientId) throw err
+    throw new AuthRequiredError()
+  }
 }
 
 /** Interactive sign-in from the Settings page button. */

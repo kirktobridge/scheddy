@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getCachedEventsMulti, listEventsMulti, type GEvent } from '../api/calendar'
+import { AuthRequiredError } from '../auth/google'
 import { useSettings } from '../store/settings'
 
 interface EventsState {
@@ -8,18 +9,20 @@ interface EventsState {
   error: string | null
   /** Served from cache and past the soft TTL — a fresh fetch is in flight. */
   stale: boolean
+  /** The error is an expired session — offer interactive sign-in, not a raw message. */
+  authRequired: boolean
 }
 
 /** Initial/served state from the synchronous cache (or the empty/idle states). */
 function fromCache(calendarKey: string, required: boolean, startMs: number, endMs: number): EventsState {
   if (!calendarKey) {
     return required
-      ? { events: null, loading: false, error: 'Pick your calendars in Settings first.', stale: false }
-      : { events: [], loading: false, error: null, stale: false }
+      ? { events: null, loading: false, error: 'Pick your calendars in Settings first.', stale: false, authRequired: false }
+      : { events: [], loading: false, error: null, stale: false, authRequired: false }
   }
   const cached = getCachedEventsMulti(calendarKey.split(','), new Date(startMs), new Date(endMs))
-  if (cached) return { events: cached.events, loading: false, error: null, stale: cached.stale }
-  return { events: null, loading: true, error: null, stale: false }
+  if (cached) return { events: cached.events, loading: false, error: null, stale: cached.stale, authRequired: false }
+  return { events: null, loading: true, error: null, stale: false, authRequired: false }
 }
 
 /**
@@ -50,7 +53,7 @@ export function useEvents(startMs: number, endMs: number, calendarIds?: string[]
       if (!bypassCache) {
         const cached = getCachedEventsMulti(ids, timeMin, timeMax)
         if (cached) {
-          setState({ events: cached.events, loading: false, error: null, stale: cached.stale })
+          setState({ events: cached.events, loading: false, error: null, stale: cached.stale, authRequired: false })
           if (!cached.stale) return // fresh enough — no revalidate needed
         } else {
           // Only spin when there's nothing to show; keep any existing data visible.
@@ -61,9 +64,15 @@ export function useEvents(startMs: number, endMs: number, calendarIds?: string[]
       }
       try {
         const events = await listEventsMulti(ids, timeMin, timeMax)
-        setState({ events, loading: false, error: null, stale: false })
+        setState({ events, loading: false, error: null, stale: false, authRequired: false })
       } catch (err) {
-        setState({ events: null, loading: false, error: err instanceof Error ? err.message : String(err), stale: false })
+        setState({
+          events: null,
+          loading: false,
+          error: err instanceof Error ? err.message : String(err),
+          stale: false,
+          authRequired: err instanceof AuthRequiredError,
+        })
       }
     },
     [calendarKey, required, startMs, endMs],
