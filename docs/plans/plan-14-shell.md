@@ -72,17 +72,25 @@ Deviations from plan:
 - This is the surface plans 7 (budget status), 10 (ritual rhythm lines) and
   11 (countdowns, sparklines) land on — build the row pattern here, once.
 
-**Shipped 2026-07-20.** The right rail split into two new components stacked in
-the same `w-64` aside: `LayersLegend` (compact toggle list — picks, week picks,
-evenings, weekend, keyword rules, and the relationship overlays with their
-subsets) drives the same overlay state the stat cards used to; `DefenseRail`
-renders status *rows in words* with a contextual verb each (`DefenseRow` +
-`DefenseAction`, the pattern plans 7/10/11 reuse). Counts read defensively
-("2 free weekend days left in July"); the date cadence is a first-class rhythm
-line ("Last date 2 weeks ago · overdue by 3") with a **Plan** verb that jumps to
-the next date-option day. Per-metric highlight colors moved to Settings →
-Appearance ("Metric highlight colors" section, reusing `TokenField`); the
-`StatCard` 🎨 picker and `MetricsStats.onColor` are deleted.
+**Shipped 2026-07-20.** The right rail split into two new components in a `w-72`
+aside — `DefenseRail` on top (more eye-catching), `LayersLegend` below.
+`LayersLegend` is the quiet control panel: a compact toggle list (picks, week
+picks, evenings, weekend, keyword rules, and the relationship overlays with their
+subsets) driving the same overlay state the stat cards used to. `DefenseRail`
+is the glanceable hero: **number-led stat cards** (`DefenseRow` + `DefenseAction`
++ `DefenseMeter`, the pattern plans 7/10/11 reuse) — a big bold numeral, a
+defensive label + scope line ("free weekend days" / "left in July"), a
+layer-color left accent bar tying the card to its map overlay, an ambient meter
+(free ÷ total-in-month, or progress-to-due), and a contextual verb. The date
+cadence is a first-class card leading with urgency ("3 · days overdue for a
+date · last 2 weeks ago") and a **Plan** verb that jumps to the next date-option
+day. Per-metric highlight colors moved to Settings → Appearance ("Metric
+highlight colors" section, reusing `TokenField`); the `StatCard` 🎨 picker and
+`MetricsStats.onColor` are deleted.
+
+The number-led card treatment + meters + defense-above-legend order came from a
+post-build design pass with the user (the first cut used flat text rows, which
+lost the old tiles' at-a-glance magnitude).
 
 Design decisions confirmed with the user before building (both AskUserQuestion):
 the layers legend lives **in the right rail above the defense rows** (not a

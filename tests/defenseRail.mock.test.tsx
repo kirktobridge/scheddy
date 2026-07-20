@@ -39,12 +39,13 @@ describe('B-25 right rail — layers legend + defense column (desktop)', () => {
     expect(screen.getByRole('heading', { name: 'Defense' })).toBeTruthy()
   })
 
-  it('phrases a count defensively as a status row', async () => {
+  it('phrases a count defensively as a number-led status row', async () => {
     mockMatch(true)
     renderMock(<FreePage />)
     await screen.findByText(/Top picks/)
-    // "N free weekend days left in <Month>" — the scoreboard count, reframed.
-    expect(within(defenseSection()).getByText(/free weekend days? .*in \w+/)).toBeTruthy()
+    // Number-led: a "free weekend days" label with a "left in <Month>" scope line.
+    const weekendRow = within(defenseSection()).getByText('free weekend days').closest('.rounded-xl') as HTMLElement
+    expect(within(weekendRow).getByText(/(left )?in \w+/)).toBeTruthy()
   })
 
   it('a defense-row Show verb toggles its canvas layer (Show ⇄ Hide)', async () => {
@@ -53,9 +54,7 @@ describe('B-25 right rail — layers legend + defense column (desktop)', () => {
     renderMock(<FreePage />)
     await screen.findByText(/Top picks/)
 
-    const weekendRow = within(defenseSection())
-      .getByText(/free weekend days? .*in \w+/)
-      .closest('div')!.parentElement as HTMLElement
+    const weekendRow = within(defenseSection()).getByText('free weekend days').closest('.rounded-xl') as HTMLElement
     const verb = within(weekendRow).getByRole('button')
     expect(verb.textContent).toBe('Show')
     expect(verb.getAttribute('aria-pressed')).toBe('false')
@@ -65,13 +64,13 @@ describe('B-25 right rail — layers legend + defense column (desktop)', () => {
     expect(within(weekendRow).getByRole('button').getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('promotes the date cadence to a first-class rhythm line (relationship mode)', async () => {
+  it('promotes the date cadence to a first-class rhythm row (relationship mode)', async () => {
     mockMatch(true)
     renderMock(<FreePage />)
     await screen.findByText(/Top picks/)
-    // The cadence, no longer a tooltip: "Last date …" with a due/overdue detail.
-    expect(within(defenseSection()).getByText(/^Last date/)).toBeTruthy()
-    expect(within(defenseSection()).getByText(/due in \d+|overdue by \d+|no date yet|no cadence set/)).toBeTruthy()
+    // The cadence, no longer a tooltip: a due/overdue hero row with a "last …" line.
+    expect(within(defenseSection()).getByText(/overdue for a date|to next date|date cadence/)).toBeTruthy()
+    expect(within(defenseSection()).getByText(/^last /)).toBeTruthy()
   })
 
   it('a legend toggle drives a canvas overlay ring', async () => {

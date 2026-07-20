@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { addDays, differenceInCalendarDays, endOfDay, endOfWeek, format, isSameMonth, startOfDay, startOfMonth, startOfWeek } from 'date-fns'
+import { addDays, differenceInCalendarDays, eachDayOfInterval, endOfDay, endOfMonth, endOfWeek, format, getDay, isSameMonth, startOfDay, startOfMonth, startOfWeek } from 'date-fns'
 import { blockedDates, findFreeSlots, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, matchRule } from '../lib/metrics'
 import { datesInRange, lastDateEvent, nextDateEvent, resolveDateRule } from '../lib/relationship'
@@ -558,16 +558,30 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     showNotWorking, showOverlap, showOverlapWeekends, showOverlapWeeknights, showOverlapOffDays, showDates,
   ])
 
-  // Right-rail "Defense" column — status in words, phrased defensively, each with
-  // a contextual verb. The date cadence is promoted to a first-class rhythm line.
+  // Denominators for the ambient scarcity meters: how many weekend days / total
+  // days remain in the viewed month (from today when it's the current month).
+  const monthTotals = useMemo(() => {
+    const from = metrics.isCurrent ? startOfDay(new Date(nowMs)) : startOfMonth(selectedMonth)
+    const to = endOfMonth(selectedMonth)
+    if (to < from) return { days: 0, weekendDays: 0 }
+    const all = eachDayOfInterval({ start: from, end: to })
+    return { days: all.length, weekendDays: all.filter((d) => getDay(d) === 0 || getDay(d) === 6).length }
+  }, [metrics.isCurrent, selectedMonth, nowMs])
+
+  // Right-rail "Defense" column — number-led status, phrased defensively, each with
+  // an ambient meter and a contextual verb. The date cadence is a first-class row.
   const defenseRows = useMemo<DefenseRow[]>(() => {
     const month = format(selectedMonth, 'MMMM')
-    const left = metrics.isCurrent ? ' left' : ''
+    const scope = metrics.isCurrent ? `left in ${month}` : `in ${month}`
     const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
     const rows: DefenseRow[] = [
       {
         key: 'weekend',
-        text: `${metrics.weekendDates.length} free weekend ${plural(metrics.weekendDates.length, 'day', 'days')}${left} in ${month}`,
+        value: metrics.weekendDates.length,
+        label: `free weekend ${plural(metrics.weekendDates.length, 'day', 'days')}`,
+        detail: scope,
+        accent: colorFor('weekend'),
+        meter: { value: metrics.weekendDates.length, max: monthTotals.weekendDays },
         action: {
           label: metrics.activeKeys.has('weekend') ? 'Hide' : 'Show',
           active: metrics.activeKeys.has('weekend'),
@@ -576,7 +590,11 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
       },
       {
         key: 'evenings',
-        text: `${metrics.eveningDates.length} unbooked ${plural(metrics.eveningDates.length, 'evening', 'evenings')}${left} in ${month}`,
+        value: metrics.eveningDates.length,
+        label: `unbooked ${plural(metrics.eveningDates.length, 'evening', 'evenings')}`,
+        detail: scope,
+        accent: colorFor('evenings'),
+        meter: { value: metrics.eveningDates.length, max: monthTotals.days },
         action: {
           label: metrics.activeKeys.has('evenings') ? 'Hide' : 'Show',
           active: metrics.activeKeys.has('evenings'),
@@ -587,8 +605,10 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     if (rel) {
       rows.push({
         key: 'overlap',
-        icon: '⇄',
-        text: `${relationship.overlapSet.size} ${plural(relationship.overlapSet.size, 'day', 'days')} you're both free ahead`,
+        value: relationship.overlapSet.size,
+        label: `${plural(relationship.overlapSet.size, 'day', 'days')} free together`,
+        detail: 'ahead',
+        accent: overlapColor,
         action: {
           label: showOverlap ? 'Hide' : 'Show',
           active: showOverlap,
@@ -596,35 +616,49 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
         },
       })
       if (dateNudge) {
-        const cadence = dateNudge.overdue
-          ? dateNudge.daysSince === null
-            ? 'no date yet'
-            : `overdue by ${dateNudge.daysSince - settings.dateCadenceDays}`
-          : dateNudge.dueIn !== null
-            ? `due in ${dateNudge.dueIn}`
-            : 'no cadence set'
-        const lastLabel = dateNudge.last ? relDayLabel(dateNudge.last) : 'none yet'
-        rows.push({
-          key: 'date-rhythm',
-          icon: '❤️',
-          text: `Last date ${lastLabel}`,
-          detail: cadence,
-          action: {
-            label: 'Plan',
-            disabled: !nextDateOption,
-            onClick: () => {
-              if (!nextDateOption) return
-              if (query.active) query.clear()
-              setSelected(nextDateOption)
-            },
+        const lastLabel = dateNudge.last ? relDayLabel(dateNudge.last) : 'no date logged yet'
+        // Hero number = days until due, or days overdue; the row leads with urgency.
+        const overdueBy =
+          dateNudge.overdue && dateNudge.daysSince !== null ? dateNudge.daysSince - settings.dateCadenceDays : null
+        const dateAction = {
+          label: 'Plan',
+          disabled: !nextDateOption,
+          onClick: () => {
+            if (!nextDateOption) return
+            if (query.active) query.clear()
+            setSelected(nextDateOption)
           },
-        })
+        }
+        rows.push(
+          overdueBy !== null
+            ? {
+                key: 'date-rhythm',
+                value: overdueBy,
+                label: `${plural(overdueBy, 'day', 'days')} overdue for a date`,
+                detail: `last ${lastLabel}`,
+                accent: dateColor,
+                meter: { value: 1, max: 1, warn: true },
+                action: dateAction,
+              }
+            : {
+                key: 'date-rhythm',
+                value: dateNudge.dueIn ?? '—',
+                label: dateNudge.dueIn !== null ? `${plural(dateNudge.dueIn, 'day', 'days')} to next date` : 'date cadence',
+                detail: `last ${lastLabel}`,
+                accent: dateColor,
+                meter:
+                  dateNudge.dueIn !== null && settings.dateCadenceDays > 0
+                    ? { value: settings.dateCadenceDays - dateNudge.dueIn, max: settings.dateCadenceDays }
+                    : undefined,
+                action: dateAction,
+              },
+        )
       }
     }
     return rows
   }, [
-    selectedMonth, metrics, rel, relationship.overlapSet.size, showOverlap, dateNudge, settings.dateCadenceDays,
-    relDayLabel, nextDateOption, query,
+    selectedMonth, metrics, monthTotals, rel, relationship.overlapSet.size, showOverlap, dateNudge,
+    settings.dateCadenceDays, relDayLabel, nextDateOption, query, colorFor, overlapColor, dateColor,
   ])
   // "Me & {Partner}" relationship cards — the deprecated/frozen mobile stack only;
   // desktop reads the same state through the LayersLegend + DefenseRail instead.
@@ -736,10 +770,10 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
                 </div>
               </aside>
               <div className="min-w-0 flex-1 xl:h-full">{calendar}</div>
-              <aside className="w-64 shrink-0">
+              <aside className="w-72 shrink-0">
                 <div className="sticky top-0 max-h-full space-y-6 overflow-y-auto px-1">
-                  <LayersLegend items={legendItems} />
                   <DefenseRail rows={defenseRows} />
+                  <LayersLegend items={legendItems} />
                 </div>
               </aside>
             </div>

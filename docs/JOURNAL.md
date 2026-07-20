@@ -24,13 +24,13 @@ What changed and why, 1–3 sentences.
 Refs: B-25, plan-14
 
 The desktop right rail's do-everything stat cards (count + toggle + color picker)
-split into a compact `LayersLegend` of overlay toggles above a `DefenseRail` of
-status *rows in words*, each with a contextual verb — Show/Hide to surface a
-layer, Plan to jump to the next date-option day. Counts now read defensively
-("2 free weekend days left in July") and the date cadence is a first-class rhythm
-line instead of a tooltip; per-metric highlight colors moved to Settings →
-Appearance. The row pattern is the surface the vision plans (budgets, rituals,
-countdowns) build on.
+split in two: a quiet `LayersLegend` of overlay toggles, and above it a
+`DefenseRail` of number-led stat cards — a big glanceable count, a defensive
+label ("free weekend days · left in July"), a layer-color accent, an ambient
+scarcity/cadence meter, and a contextual verb (Show/Hide a layer, Plan the next
+date). The date cadence is a first-class card leading with urgency instead of a
+tooltip; per-metric highlight colors moved to Settings → Appearance. The card
+pattern is the surface the vision plans (budgets, rituals, countdowns) build on.
 
 ---
 
