@@ -40,16 +40,16 @@ describe('Free view desktop panel (mock mode)', () => {
     renderMock(<FreePage />)
     expect(await screen.findByText(/Top picks/)).toBeTruthy()
 
-    // The metric selector column is present (left rail) and the right panel is
-    // empty until a day is picked.
+    // The metric selector column is present (left rail) and the left panel shows
+    // the idle "next moves" rail (B-26) until a day is picked.
     await waitFor(() => expect(screen.getByText(/Top picks/)).toBeTruthy())
-    expect(screen.getByText(/Pick a day/)).toBeTruthy()
+    expect(screen.getByText(/Your next moves/)).toBeTruthy()
 
-    // Selecting a day fills the right panel with that day's detail card; the
-    // metric column stays put.
+    // Selecting a day fills the panel with that day's detail card; the idle rail
+    // gives way and the metric column stays put.
     await user.click(await waitFor(firstDayCell, { timeout: 3000 }))
     expect(await screen.findByText('today')).toBeTruthy()
-    expect(screen.queryByText(/Pick a day/)).toBeNull()
+    expect(screen.queryByText(/Your next moves/)).toBeNull()
     expect(screen.getByText(/Top picks/)).toBeTruthy()
   })
 })

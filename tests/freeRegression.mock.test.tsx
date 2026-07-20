@@ -118,19 +118,21 @@ describe('Free page regression — desktop', () => {
     await screen.findByText(/Top picks/)
     const cell = await waitFor(() => firstDayCell())
 
+    // The idle rail also lists "Xh free" picks, so scope to the portaled popover.
+    const popover = () => document.querySelector('.fixed.z-50') as HTMLElement | null
     cell.getBoundingClientRect = () =>
       ({ top: 688, bottom: 700, left: 100, right: 140, width: 40, height: 12, x: 100, y: 688, toJSON: () => ({}) }) as DOMRect
     fireEvent.pointerEnter(cell, { pointerType: 'mouse' })
-    const above = (await screen.findByText(/h free$|Fully booked/)).parentElement as HTMLElement
-    expect(above.getAttribute('style')).toContain('translateY(-100%)')
+    await waitFor(() => expect(popover()).toBeTruthy())
+    expect(popover()!.getAttribute('style')).toContain('translateY(-100%)')
     fireEvent.pointerLeave(cell)
-    await waitFor(() => expect(screen.queryByText(/h free$|Fully booked/)).toBeNull())
+    await waitFor(() => expect(popover()).toBeNull())
 
     cell.getBoundingClientRect = () =>
       ({ top: 80, bottom: 100, left: 100, right: 140, width: 40, height: 12, x: 100, y: 80, toJSON: () => ({}) }) as DOMRect
     fireEvent.pointerEnter(cell, { pointerType: 'mouse' })
-    const below = (await screen.findByText(/h free$|Fully booked/)).parentElement as HTMLElement
-    expect(below.getAttribute('style')).not.toContain('translateY(-100%)')
+    await waitFor(() => expect(popover()).toBeTruthy())
+    expect(popover()!.getAttribute('style')).not.toContain('translateY(-100%)')
   })
 
   it('does not deselect when paging away; the metrics panel reverts when no day is in view', async () => {
@@ -155,7 +157,7 @@ describe('Free page regression — desktop', () => {
     expect(await screen.findByText('today')).toBeTruthy()
   })
 
-  it('Escape clears the selection (panel back to its empty prompt)', async () => {
+  it('Escape clears the selection (panel back to its idle next-moves rail)', async () => {
     mockMatch(true)
     const user = userEvent.setup()
     renderMock(<FreePage />)
@@ -164,7 +166,7 @@ describe('Free page regression — desktop', () => {
     await user.click(firstDayCell(xlCard()))
     await screen.findByText('today')
     await user.keyboard('{Escape}')
-    await waitFor(() => expect(screen.getByText(/Pick a day/)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/Your next moves/)).toBeTruthy())
     expect(screen.queryByText('today')).toBeNull()
   })
 

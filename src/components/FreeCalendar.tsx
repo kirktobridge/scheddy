@@ -12,7 +12,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from 'date-fns'
-import { dayTimeline, type BusyInterval, type Slot, type Windows } from '../lib/availability'
+import { dayTimeline, freeHours, type BusyInterval, type Slot, type Windows } from '../lib/availability'
 import { fmtDay, fmtTime } from '../lib/format'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 
@@ -123,8 +123,7 @@ function DayFill({
 /** Lightweight free-time summary shown on cell hover (desktop). Fixed-positioned
  *  and portaled to body so the cell's overflow-hidden can't clip it. */
 function HoverPreview({ date, slots, rect }: { date: string; slots: Slot[]; rect: DOMRect }) {
-  const freeMs = slots.reduce((sum, s) => sum + (s.freeTo.getTime() - s.freeFrom.getTime()), 0)
-  const hours = Math.round((freeMs / 3_600_000) * 10) / 10
+  const hours = freeHours(slots)
   const ranges = slots.slice(0, 2).map((s) => `${fmtTime(s.freeFrom)}–${fmtTime(s.freeTo)}`)
   const placeAbove = rect.bottom + 140 > window.innerHeight
   const left = Math.min(Math.max(rect.left + rect.width / 2, 8), window.innerWidth - 8)

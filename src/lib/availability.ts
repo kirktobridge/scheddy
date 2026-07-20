@@ -45,6 +45,12 @@ export interface Slot {
   freeAfterWork?: boolean
 }
 
+/** Total free hours across a day's slots, rounded to one decimal (for display). */
+export function freeHours(slots: Slot[]): number {
+  const ms = slots.reduce((sum, s) => sum + (s.freeTo.getTime() - s.freeFrom.getTime()), 0)
+  return Math.round((ms / 3_600_000) * 10) / 10
+}
+
 export function mergeIntervals(intervals: BusyInterval[]): BusyInterval[] {
   const sorted = [...intervals].sort((a, b) => a.start.getTime() - b.start.getTime())
   const merged: BusyInterval[] = []

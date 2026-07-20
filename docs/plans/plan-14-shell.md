@@ -119,6 +119,26 @@ Deviations from plan:
   the budget in deficit. Also the landing place for B-24's query results.
 - Complements B-11 (skeleton covers cold load; this covers everything else).
 
+**Shipped 2026-07-20.** `days.length === 0` no longer bails the desktop page: the
+render gate became `isDesktop || days.length > 0`, so the canvas (`FreeCalendar`)
+always mounts. Zero-free is reframed as a red-alert `DefenseRow` (`no-free`, value
+0, warn meter, "nothing open in the next N days") prepended to the defense rail —
+the moment the map matters most. The idle left rail's placeholder became a new
+`NextActions` component: the soonest ≤4 top picks (from `days`) as one-tap rows
+(★ + relative label + free hours) that select the day, plus the overdue-date
+nudge promoted to a "Plan →" ritual row that jumps to the next date-option day.
+It still yields to the day card on selection and to `QueryResults` on an active
+query. A `freeHours(slots)` helper was extracted to `lib/availability` (shared
+with `FreeCalendar`'s hover preview).
+
+Deviations from plan:
+- **Budget-in-deficit row omitted** — the time-budget engine (B-15, Plan 7) isn't
+  built yet, so the idle rail surfaces only what exists (picks + overdue ritual).
+  It's the landing surface budgets extend later, as planned.
+- **Mobile (frozen) keeps the terse "Busy life!" zero-free fallback** — the
+  always-render behavior is desktop-only (`!isDesktop && days.length === 0` still
+  shows the old message); only the desktop canvas + defense alert are new.
+
 ### B-27: retire tab nav (S)
 
 - With Check gone, tabs are just the canvas + Settings. Delete the

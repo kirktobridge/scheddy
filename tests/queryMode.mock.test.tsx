@@ -17,7 +17,7 @@ describe('Query layer (mock mode, replaces CheckPage)', () => {
     await waitForCalendar()
 
     // Idle: the left rail shows the day-card placeholder, no results panel.
-    expect(screen.getByText('Pick a day to see its free time.')).toBeTruthy()
+    expect(screen.getByText(/Your next moves/)).toBeTruthy()
 
     // Activate a whole-month query (broad range → results in the mock horizon).
     await user.click(screen.getByRole('button', { name: 'This month' }))
@@ -33,7 +33,7 @@ describe('Query layer (mock mode, replaces CheckPage)', () => {
 
     // Clearing returns the rail to idle.
     await user.click(clear)
-    await waitFor(() => expect(screen.getByText('Pick a day to see its free time.')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/Your next moves/)).toBeTruthy())
     expect(screen.queryByRole('button', { name: 'Clear query' })).toBeNull()
   })
 

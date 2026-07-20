@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, differenceInCalendarDays, eachDayOfInterval, endOfDay, endOfMonth, endOfWeek, format, getDay, isSameMonth, startOfDay, startOfMonth, startOfWeek } from 'date-fns'
-import { blockedDates, findFreeSlots, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
+import { blockedDates, findFreeSlots, freeHours, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, matchRule } from '../lib/metrics'
 import { datesInRange, lastDateEvent, nextDateEvent, resolveDateRule } from '../lib/relationship'
 import type { OverlayLayer } from '../components/FreeCalendar'
@@ -22,6 +22,7 @@ import { type DayInfo, type SlotInfo } from '../components/SlotList'
 import FreeCalendar from '../components/FreeCalendar'
 import QueryModeBar from '../components/QueryModeBar'
 import QueryResults from '../components/QueryResults'
+import NextActions, { type PickAction } from '../components/NextActions'
 import DayTimelineCard from '../components/DayTimelineCard'
 import BottomSheet from '../components/BottomSheet'
 import { ErrorBanner, Spinner } from '../components/Banner'
@@ -472,6 +473,19 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     return [...relationship.dateSet].filter((d) => d >= today).sort()[0]
   }, [relationship.dateSet, nowMs])
 
+  // Idle left rail (B-26): the soonest top picks as one-tap rows. `days` is
+  // already the ranked pick list ordered by date; keep the nearest few and tag
+  // each with its free hours. Every entry is a top month pick, so all star.
+  const nextPicks = useMemo<PickAction[]>(
+    () =>
+      days.slice(0, 4).map(([date, slots]) => ({
+        date,
+        label: relativeDayLabel(new Date(date + 'T12:00:00'), new Date(nowMs)),
+        hours: freeHours(slots),
+      })),
+    [days, nowMs],
+  )
+
   // Right-rail "Layers" legend — the overlay toggles lifted off the stat cards.
   // Configures which highlights the canvas carries; status/actions live below it.
   const legendItems = useMemo<LegendItem[]>(() => {
@@ -574,7 +588,20 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     const month = format(selectedMonth, 'MMMM')
     const scope = metrics.isCurrent ? `left in ${month}` : `in ${month}`
     const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
-    const rows: DefenseRow[] = [
+    const rows: DefenseRow[] = []
+    // Zero free days across the whole horizon: the map matters most here, so the
+    // canvas stays put and the rail leads with a red alert instead (B-26).
+    if (days.length === 0) {
+      rows.push({
+        key: 'no-free',
+        value: 0,
+        label: 'free days ahead',
+        detail: `nothing open in the next ${lookahead} days`,
+        accent: '#f43f5e',
+        meter: { value: 1, max: 1, warn: true },
+      })
+    }
+    rows.push(
       {
         key: 'weekend',
         value: metrics.weekendDates.length,
@@ -601,7 +628,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
           onClick: () => metrics.toggle('evenings'),
         },
       },
-    ]
+    )
     if (rel) {
       rows.push({
         key: 'overlap',
@@ -657,7 +684,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     }
     return rows
   }, [
-    selectedMonth, metrics, monthTotals, rel, relationship.overlapSet.size, showOverlap, dateNudge,
+    days.length, lookahead, selectedMonth, metrics, monthTotals, rel, relationship.overlapSet.size, showOverlap, dateNudge,
     settings.dateCadenceDays, relDayLabel, nextDateOption, query, colorFor, overlapColor, dateColor,
   ])
   // "Me & {Partner}" relationship cards — the deprecated/frozen mobile stack only;
@@ -705,12 +732,14 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
       )}
       {error && <ErrorBanner message={error} onSignIn={authRequired ? handleSignIn : undefined} />}
       {loading && <Spinner />}
-      {!loading && !error && days.length === 0 && (
+      {/* Mobile (frozen) keeps the terse zero-free fallback; desktop always
+          renders the canvas and reframes zero-free as a defense alert (B-26). */}
+      {!isDesktop && !loading && !error && days.length === 0 && (
         <p className="py-8 text-center text-slate-500 dark:text-slate-400">
           No free slots in the next {lookahead} days. Busy life!
         </p>
       )}
-      {!loading && !error && days.length > 0 && (() => {
+      {!loading && !error && (isDesktop || days.length > 0) && (() => {
         const calendar = (
           <FreeCalendar
             days={days}
@@ -763,9 +792,25 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
                   ) : dayInView ? (
                     dayCardEl
                   ) : (
-                    <p className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">
-                      Pick a day to see its free time.
-                    </p>
+                    <NextActions
+                      picks={nextPicks}
+                      ritual={
+                        dateNudge?.overdue
+                          ? {
+                              text:
+                                dateNudge.daysSince !== null && dateNudge.daysSince - settings.dateCadenceDays > 0
+                                  ? `${dateNudge.daysSince - settings.dateCadenceDays} days overdue for a date`
+                                  : 'Time to plan a date',
+                              detail: dateNudge.last ? `last date ${relDayLabel(dateNudge.last)}` : 'no date logged yet',
+                              disabled: !nextDateOption,
+                            }
+                          : undefined
+                      }
+                      onPick={setSelected}
+                      onRitual={() => {
+                        if (nextDateOption) setSelected(nextDateOption)
+                      }}
+                    />
                   )}
                 </div>
               </aside>

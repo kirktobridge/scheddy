@@ -41,13 +41,16 @@ describe('Free page hover preview + selected ring (desktop)', () => {
     const cell = await waitFor(firstDayCell, { timeout: 3000 })
 
     fireEvent.pointerEnter(cell, { pointerType: 'mouse' })
-    // Preview shows a duration ("Xh free") or the fully-booked fallback.
-    expect(await screen.findByText(/h free$|Fully booked/)).toBeTruthy()
-    // Hovering must not select a day — the panel still shows its empty prompt.
-    expect(screen.getByText(/Pick a day/)).toBeTruthy()
+    // Preview (portaled popover) shows a duration ("Xh free") or fully-booked.
+    // The idle rail also lists "Xh free" picks, so scope to the popover class.
+    const popover = () => document.querySelector('.fixed.z-50') as HTMLElement | null
+    await waitFor(() => expect(popover()).toBeTruthy())
+    expect(within(popover()!).getByText(/h free$|Fully booked/)).toBeTruthy()
+    // Hovering must not select a day — the idle "next moves" rail still shows.
+    expect(screen.getByText(/Your next moves/)).toBeTruthy()
 
     fireEvent.pointerLeave(cell)
-    await waitFor(() => expect(screen.queryByText(/h free$|Fully booked/)).toBeNull())
+    await waitFor(() => expect(popover()).toBeNull())
   })
 
   it('rings the selected cell', async () => {

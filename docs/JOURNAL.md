@@ -20,6 +20,18 @@ What changed and why, 1–3 sentences.
 
 ---
 
+## 2026-07-20 — Canvas persistence: always render the map; idle rail offers next moves
+Refs: B-26, plan-14
+
+The desktop calendar now always renders — zero free days no longer blanks the
+page but instead prepends a red-alert row to the defense rail (the moment the
+map matters most). The idle left rail's passive "pick a day" placeholder became
+a `NextActions` panel: the soonest top picks as one-tap rows plus the overdue-date
+nudge as a "Plan →" ritual, giving the canvas its own next moves. (Budget deficits
+join later once Plan 7's engine exists.)
+
+---
+
 ## 2026-07-20 — Defense rail: split the stat cards into a legend + status column
 Refs: B-25, plan-14
 
