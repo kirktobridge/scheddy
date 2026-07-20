@@ -32,6 +32,32 @@ and the auto-hiding hover nav (a workaround for tabs the app doesn't want).
   plus a one-line summary ("4 of 6 evenings already taken").
 - `CheckPage.tsx` and the Check tab are deleted at the end of this item.
 
+**Shipped 2026-07-20.** New `useQueryMode` hook holds the lens state (preset /
+month / custom range + window filter + "Both of us"); `QueryModeBar` mounts in
+`FreeCalendar`'s `headerSlot` (desktop only), `QueryResults` renders the slot
+list in the left rail. Active query dims the canvas outside its range
+(`queryRange` prop on `FreeCalendar`) and rings matching days (a `query`
+`OverlayLayer`); a one-line summary reads range busyness defensively ("3 of 6
+days already booked"). Escape/Clear → idle. `CheckPage.tsx`, `EventList.tsx`,
+and the Check tab are deleted.
+
+Deviations from plan:
+- **Query bounded by the canvas horizon.** Rather than fetching its own
+  arbitrary range like CheckPage, the query filters the already-loaded canvas
+  span (clamped to `[today, maxDate]`); the month select only offers months
+  within that span. One fetch, no separate range pipeline. Ranges past the
+  horizon aren't reachable — acceptable while the horizon is 45–90 days, and it
+  keeps the "lens over the canvas" model honest. (Revisit if far-out month
+  queries are wanted.)
+- **"Both of us" wired to existing `relationship.overlapBusy`** (mutual busy
+  already computed by `useRelationshipOverlays`) instead of shipping a dead
+  chip. The fuller partner-stream → mutual-slot engine work still belongs to
+  Plan 5 Stage 2.
+- **Nav pointer-events fix (small B-27 down-payment).** The hidden auto-hiding
+  desktop nav's in-flow height intercepted clicks on the mode bar; made its
+  container `pointer-events-none` with the nav + cue re-enabling events. B-27
+  removes the nav wholesale.
+
 ### B-25: defense rail (L)
 
 - Split StatCard's three jobs:

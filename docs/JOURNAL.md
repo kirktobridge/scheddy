@@ -20,6 +20,18 @@ What changed and why, 1–3 sentences.
 
 ---
 
+## 2026-07-20 — Dissolve Check into a query lens on the canvas
+Refs: B-24, plan-14
+
+The standalone "Am I free?" Check page is gone; its controls (preset/month/custom
+range, window filter, and a new relationship-mode "Both of us" chip) now live in a
+mode bar atop the Free calendar. An active query dims the canvas outside its range,
+rings the matching days, and lists the free slots — with a defensive one-line
+summary — in the left rail, so answering "when are we free?" never leaves the map.
+First step of the Plan 14 shell that the vision track lands on.
+
+---
+
 ## 2026-07-18 — Extract busy/overlay engines from FreePage
 Refs: B-09, plan-5
 

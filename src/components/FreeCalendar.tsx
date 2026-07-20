@@ -56,6 +56,11 @@ interface Props {
   onSelectMonth: (month: Date) => void
   /** Content rendered at the top of the xl single-month card, above the days. */
   headerSlot?: ReactNode
+  /**
+   * Active query range (epoch ms). When set, active days outside it dim so the
+   * queried span reads as the focus of the canvas. Omit for idle (no dimming).
+   */
+  queryRange?: { start: number; end: number } | null
 }
 
 export interface OverlayLayer {
@@ -160,6 +165,7 @@ export default function FreeCalendar({
   selectedMonth,
   onSelectMonth,
   headerSlot,
+  queryRange,
 }: Props) {
   const freeSet = useMemo(() => new Set(days.map(([d]) => d)), [days])
   // Top-pick counts per month ("yyyy-MM") for the nav badges.
@@ -259,6 +265,9 @@ export default function FreeCalendar({
           // availability fill, hover preview, and interactive background. Cells
           // outside it are still selectable, just without those affordances.
           const active = day.getTime() >= todayMs && day.getTime() <= maxMs
+          // Query mode: days outside the active range recede so the queried span
+          // reads as the canvas focus.
+          const dimmed = !!queryRange && (day.getTime() < queryRange.start || day.getTime() > queryRange.end)
           const pick = freeSet.has(dateStr)
           const today = isToday(day)
           const isSel = dateStr === selected
@@ -296,6 +305,8 @@ export default function FreeCalendar({
               onPointerDown={canHover ? () => setHover(null) : undefined}
               style={boxShadow ? { boxShadow } : undefined}
               className={`relative ${fill ? 'h-full min-h-12' : 'h-12 xl:h-24'} overflow-hidden rounded-lg text-left transition ${
+                dimmed ? 'opacity-30 saturate-50' : ''
+              } ${
                 active ? 'bg-slate-200 dark:bg-slate-600' : ''
               } ${
                 isSel

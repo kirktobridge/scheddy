@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, differenceInCalendarDays, endOfDay, endOfWeek, format, isSameMonth, startOfDay, startOfMonth, startOfWeek } from 'date-fns'
 import { blockedDates, findFreeSlots, rankFreeDays, windowKeys, type Slot } from '../lib/availability'
 import { applyRuleOverrides, matchRule } from '../lib/metrics'
-import { lastDateEvent, nextDateEvent, resolveDateRule } from '../lib/relationship'
+import { datesInRange, lastDateEvent, nextDateEvent, resolveDateRule } from '../lib/relationship'
 import type { OverlayLayer } from '../components/FreeCalendar'
 import { adjustForWork, holidayNote, nextDayWarning, relativeDayLabel, slotBookings } from '../lib/annotate'
 import { useSettings } from '../store/settings'
@@ -13,12 +13,15 @@ import { useEvents } from '../hooks/useEvents'
 import { useReauth } from '../hooks/useReauth'
 import { useBusy } from '../hooks/useBusy'
 import { useRelationshipOverlays } from '../hooks/useRelationshipOverlays'
+import { useQueryMode } from '../hooks/useQueryMode'
 import { useHorizon } from '../hooks/useHorizon'
 import { useNow } from '../hooks/useNow'
 import { useCalendars } from '../hooks/useCalendars'
 import { eventsForDay } from '../lib/format'
 import { type DayInfo, type SlotInfo } from '../components/SlotList'
 import FreeCalendar from '../components/FreeCalendar'
+import QueryModeBar from '../components/QueryModeBar'
+import QueryResults from '../components/QueryResults'
 import DayTimelineCard from '../components/DayTimelineCard'
 import BottomSheet from '../components/BottomSheet'
 import { ErrorBanner, Spinner } from '../components/Banner'
@@ -84,6 +87,10 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   // Fetch one day past the lookahead so next-day warnings work on the last slot,
   // plus the isolation window so forward spacing is accurate at the end of the span.
   const endMs = addDays(new Date(startMs), lookahead + settings.isolationWindowDays + 1).getTime()
+  // Last selectable/queryable day on the canvas (the visible horizon).
+  const maxDateMs = addDays(new Date(startMs), lookahead).getTime()
+  // Query layer (B-24): a lens over this canvas — replaced the standalone Check page.
+  const query = useQueryMode(nowMs, maxDateMs, settings.windows)
 
   const { events: rawEvents, loading, error, authRequired, refresh } = useEvents(startMs, endMs)
   const handleSignIn = useReauth(refresh)
@@ -278,6 +285,51 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     return out
   }, [rel, showNotWorking, showOverlap, showDates, showWeekPicks, weekPicks, overlapHighlight, relationship, settings, overlapColor])
 
+  // Query layer (B-24): free slots matching the active query range, filtered to
+  // its windows. "Both of us" runs the search against the mutual busy (partner +
+  // joint folded in) already computed by the relationship overlays; the solo path
+  // mirrors the canvas's own work-adjusted slots.
+  const querySlots = useMemo<Slot[]>(() => {
+    if (!query.range || !events) return []
+    const [qs, qe] = query.range
+    const mutual = query.bothOfUs && rel
+    const found = findFreeSlots(mutual ? relationship.overlapBusy : nonWorkBusy, settings.windows, qs, qe, {
+      threshold: settings.freeThreshold,
+      now: new Date(nowMs),
+      windowFilter: query.windowFilter,
+    })
+    if (mutual) return found
+    const out: Slot[] = []
+    for (const s of found) {
+      const a = adjustForWork(s, workBusy)
+      if (a) out.push(a)
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.range, query.bothOfUs, query.windowFilter, rel, events, nonWorkBusy, relationship.overlapBusy, workBusy, settings.windows, settings.freeThreshold, nowMs])
+
+  // One-line range busyness read off the query results (VISION: defensive framing).
+  const querySummary = useMemo(() => {
+    if (!query.range) return ''
+    const [qs, qe] = query.range
+    const total = datesInRange(startOfDay(qs), qe).length
+    const freeDays = new Set(querySlots.map((s) => s.date)).size
+    const taken = total - freeDays
+    const together = query.bothOfUs && rel ? 'together ' : ''
+    const days = `${total} day${total === 1 ? '' : 's'}`
+    if (freeDays === 0) return `All ${days} booked in this range.`
+    if (taken === 0) return `Free time ${together}on all ${days}.`
+    return `${taken} of ${days} already booked.`
+  }, [query.range, query.bothOfUs, rel, querySlots])
+
+  // The metric/relationship layers plus, in query mode, a ring on days that have a
+  // matching free slot — so the answer is visible on the canvas, not just the rail.
+  const canvasLayers = useMemo<OverlayLayer[]>(() => {
+    if (!query.active || querySlots.length === 0) return layers
+    const dates = new Set(querySlots.map((s) => s.date))
+    return [...layers, { key: 'query', dates, color: getColor(settings, 'metric.default'), style: 'ring' }]
+  }, [layers, query.active, querySlots, settings])
+
   // Cadence nudge: how long since the last date and when the next one is, from
   // the dedicated date scan (spans a year back through the lookahead).
   const dateNudge = useMemo(() => {
@@ -377,16 +429,18 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   // it only changes when another day is picked (or Escape clears the selection).
   const dayInView = !!selected
 
-  // Desktop: Escape clears the day selection (panel → metrics). Mobile uses the
-  // sheet's own Escape handler, so guard on isDesktop to avoid double-handling.
+  // Desktop: Escape clears an active query first, else the day selection (panel →
+  // metrics). Mobile uses the sheet's own Escape handler, so guard on isDesktop.
   useEffect(() => {
-    if (!isDesktop || !selected) return
+    if (!isDesktop || (!selected && !query.active)) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelected(undefined)
+      if (e.key !== 'Escape') return
+      if (query.active) query.clear()
+      else setSelected(undefined)
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [isDesktop, selected])
+  }, [isDesktop, selected, query.active, query.clear])
 
   const topPicks = {
     count: topPicksCount,
@@ -465,19 +519,21 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
             windows={settings.windows}
             busy={combinedBusy}
             now={new Date(nowMs)}
-            maxDate={addDays(new Date(startMs), lookahead)}
+            maxDate={new Date(maxDateMs)}
             dayStart={settings.dayStart}
             highlightPicks={highlightPicks}
             selected={selected}
             onSelectDay={(d) => setSelected((prev) => (!isDesktop && prev === d ? undefined : d))}
             slotsForDate={slotsForDate}
             overlay={metricOverlay}
-            layers={layers}
+            layers={canvasLayers}
             overlapBusy={showOverlap ? relationship.overlapBusy : undefined}
             overlapShadeColor={overlapColor}
             overlapShadeDates={overlapHighlight}
             selectedMonth={selectedMonth}
             onSelectMonth={(m) => setSelectedMonth(startOfMonth(m))}
+            headerSlot={isDesktop ? <QueryModeBar query={query} winKeys={winKeys} rel={rel} /> : undefined}
+            queryRange={query.range ? { start: query.range[0].getTime(), end: query.range[1].getTime() } : null}
           />
         )
         if (!isDesktop) {
@@ -495,7 +551,18 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
             <div className="flex items-start gap-4 xl:min-h-0 xl:flex-1 xl:items-stretch">
               <aside className="w-96 shrink-0">
                 <div className="sticky top-0 max-h-full overflow-y-auto px-1">
-                  {dayInView ? (
+                  {query.active && query.range ? (
+                    <QueryResults
+                      range={query.range}
+                      slots={querySlots}
+                      summary={querySummary}
+                      windowOrder={winKeys}
+                      bothOfUs={query.bothOfUs && rel}
+                      dayInfo={dayInfo}
+                      slotInfo={query.bothOfUs && rel ? undefined : slotInfo}
+                      onClear={query.clear}
+                    />
+                  ) : dayInView ? (
                     dayCardEl
                   ) : (
                     <p className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">

@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react'
 import FreePage from './pages/FreePage'
-import CheckPage from './pages/CheckPage'
 import SettingsPage from './pages/SettingsPage'
 import { useSettings } from './store/settings'
 import { applyTokenVars } from './lib/designTokens'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
-type Tab = 'free' | 'check' | 'settings'
+type Tab = 'free' | 'settings'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'free', label: 'Scheduler', icon: '🕐' },
-  { id: 'check', label: 'Check', icon: '🔍' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
 ]
 
@@ -39,7 +37,6 @@ export default function App() {
               tab doesn't strand the others — the surviving nav is the escape. */}
           <ErrorBoundary key={tab}>
             {tab === 'free' && <FreePage refreshTick={refreshTick} />}
-            {tab === 'check' && <CheckPage />}
             {tab === 'settings' && <SettingsPage />}
           </ErrorBoundary>
         </div>
@@ -47,13 +44,16 @@ export default function App() {
 
       {/* Desktop: auto-hiding top nav. Hidden by default with a chevron cue
           attached to its bottom edge; slides down while hovered. */}
-      <div className="fixed inset-x-0 top-0 z-50 hidden lg:block">
+      {/* pointer-events-none so the hidden nav's in-flow height doesn't intercept
+          clicks on the canvas below (e.g. the query mode bar); the nav and its cue
+          re-enable events. Removed wholesale by B-27. */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-50 hidden lg:block">
         <div
           onMouseEnter={() => setNavOpen(true)}
           onMouseLeave={() => setNavOpen(false)}
           className={`relative transition-transform duration-200 ${navOpen ? 'translate-y-0' : '-translate-y-full'}`}
         >
-          <nav className="flex items-center justify-center gap-3 border-b border-slate-300 bg-white/95 px-6 py-6 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/95">
+          <nav className="pointer-events-auto flex items-center justify-center gap-3 border-b border-slate-300 bg-white/95 px-6 py-6 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/95">
             <div className="mr-2 text-lg font-bold">🗓️ scheddy</div>
             {TABS.map((t) => (
               <button
@@ -89,7 +89,7 @@ export default function App() {
               type="button"
               aria-label={navOpen ? 'Hide menu' : 'Show menu'}
               onClick={() => setNavOpen((o) => !o)}
-              className="flex h-3 w-48 translate-x-16 items-center justify-center rounded-b-md border border-t-0 border-slate-300 bg-white/90 text-xs leading-none text-slate-400 shadow-sm backdrop-blur hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-500"
+              className="pointer-events-auto flex h-3 w-48 translate-x-16 items-center justify-center rounded-b-md border border-t-0 border-slate-300 bg-white/90 text-xs leading-none text-slate-400 shadow-sm backdrop-blur hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-500"
             >
               ⌄
             </button>
