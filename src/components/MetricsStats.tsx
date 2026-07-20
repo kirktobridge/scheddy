@@ -6,8 +6,6 @@ import StatCard from './StatCard'
 interface Props extends Metrics {
   /** Highlight color for a metric key (with default fallback). */
   colorFor: (key: string) => string
-  /** Persist a new highlight color for a metric key. */
-  onColor: (key: string, color: string) => void
   /** Compact card sizing (smaller padding/numbers). */
   dense?: boolean
   /** Full-width single-row layout (the desktop selector bar) instead of a grid. */
@@ -37,7 +35,6 @@ export default function MetricsStats({
   activeKeys,
   toggle,
   colorFor,
-  onColor,
   dense,
   bar,
   panel,
@@ -84,7 +81,6 @@ export default function MetricsStats({
               tinted={tinted}
               wrapperClass={cardClass}
               onClick={() => toggle('evenings')}
-              onColor={(c) => onColor('evenings', c)}
             />
             <StatCard
               value={weekendDates.length}
@@ -96,7 +92,6 @@ export default function MetricsStats({
               tinted={tinted}
               wrapperClass={cardClass}
               onClick={() => toggle('weekend')}
-              onColor={(c) => onColor('weekend', c)}
             />
             {ruleResults.map(({ rule, matched }) => (
               <StatCard
@@ -110,7 +105,6 @@ export default function MetricsStats({
                 tinted={tinted}
                 wrapperClass={cardClass}
                 onClick={() => toggle(`rule:${rule.id}`)}
-                onColor={(c) => onColor(`rule:${rule.id}`, c)}
               />
             ))}
             {/* In the rail, the expandable "★ Top picks" parent drops below the
@@ -158,7 +152,7 @@ export default function MetricsStats({
           )}
           {!bar && !panel && (
             <p className="text-xs text-slate-500">
-              Tap a metric to highlight the days it counts on the calendar; use the color dot to set its highlight color.
+              Tap a metric to highlight the days it counts on the calendar; set highlight colors in Settings → Appearance.
               Keyword metrics match events on your selected calendars by title; edit rules in Settings.
             </p>
           )}

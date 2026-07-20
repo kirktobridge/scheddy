@@ -46,7 +46,7 @@ describe('Free page regression — desktop', () => {
     mockMatch(true)
     const user = userEvent.setup()
     renderMock(<FreePage />)
-    await screen.findByText(/unbooked evenings/)
+    await screen.findByText(/Top picks/)
     await waitFor(() => screen.getByTitle('Next month'))
 
     const prev = screen.getByTitle('Previous month') as HTMLButtonElement
@@ -115,7 +115,7 @@ describe('Free page regression — desktop', () => {
   it('flips the hover popover above the cell near the viewport bottom', async () => {
     mockMatch(true)
     renderMock(<FreePage />)
-    await screen.findByText(/unbooked evenings/)
+    await screen.findByText(/Top picks/)
     const cell = await waitFor(() => firstDayCell())
 
     cell.getBoundingClientRect = () =>
@@ -140,7 +140,7 @@ describe('Free page regression — desktop', () => {
     await waitFor(() => screen.getByTitle('Next month'))
 
     // Default: the left rail shows the metrics panel.
-    expect(screen.getByText(/unbooked evenings/)).toBeTruthy()
+    expect(screen.getByText(/Top picks/)).toBeTruthy()
 
     // Select a day → right panel swaps to its card.
     await user.click(firstDayCell(xlCard()))
@@ -148,7 +148,7 @@ describe('Free page regression — desktop', () => {
 
     // Page away → metrics still shown, selection NOT cleared.
     await user.click(screen.getByTitle('Next month'))
-    expect(screen.getByText(/unbooked evenings/)).toBeTruthy()
+    expect(screen.getByText(/Top picks/)).toBeTruthy()
 
     // Page back → the same day's card returns (selection persisted).
     await user.click(screen.getByTitle('Previous month'))
@@ -193,7 +193,7 @@ describe('Free page regression — mobile', () => {
   it('keeps the multi-month compact layout below xl', async () => {
     mockMatch(false)
     renderMock(<FreePage />)
-    await screen.findByText(/unbooked evenings/)
+    await screen.findByText(/Top picks/)
     await waitFor(() => firstDayCell())
     // More than one month card is visible.
     expect(screen.getAllByText(/[A-Z][a-z]+ 20\d\d/).length).toBeGreaterThan(1)
@@ -203,7 +203,7 @@ describe('Free page regression — mobile', () => {
     mockMatch(false)
     const user = userEvent.setup()
     renderMock(<FreePage />)
-    await screen.findByText(/unbooked evenings/)
+    await screen.findByText(/Top picks/)
 
     // Open, then swipe the handle down past the 80px threshold → closes.
     await user.click(await waitFor(() => firstDayCell()))

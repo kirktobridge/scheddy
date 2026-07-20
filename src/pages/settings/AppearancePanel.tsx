@@ -7,6 +7,26 @@ import type { Update } from './shared'
 export default function AppearancePanel({ settings, update }: { settings: Settings; update: Update }) {
   const setToken = (key: string, value: string) =>
     update({ tokens: { ...settings.tokens, [key]: value } })
+  const metricDefault = getToken(settings, 'metric.default')
+  // Per-metric highlight colors (the toggles' calendar tint). Moved here from the
+  // Metrics panel (B-25); keys mirror the metric overlay keys in useMetrics.
+  const metricEntries = [
+    { key: 'evenings', label: 'Unbooked evenings' },
+    { key: 'weekend', label: 'Free weekend days' },
+    ...settings.metricRules.map((r) => ({ key: `rule:${r.id}`, label: `${r.icon} ${r.name}` })),
+  ]
+  const setMetricColor = (key: string, value: string) =>
+    update({ metricColors: { ...settings.metricColors, [key]: value } })
+  const resetMetricColor = (key: string) => {
+    const { [key]: _, ...rest } = settings.metricColors
+    update({ metricColors: rest })
+  }
+  const metricHasOverrides = metricEntries.some((m) => m.key in settings.metricColors)
+  const resetMetricGroup = () => {
+    const rest = { ...settings.metricColors }
+    for (const m of metricEntries) delete rest[m.key]
+    update({ metricColors: rest })
+  }
   const resetToken = (key: string) => {
     const { [key]: _, ...rest } = settings.tokens
     update({ tokens: rest })
@@ -92,6 +112,35 @@ export default function AppearancePanel({ settings, update }: { settings: Settin
           </Section>
         )
       })}
+
+      <Section
+        title="Metric highlight colors"
+        action={
+          metricHasOverrides && (
+            <button
+              onClick={resetMetricGroup}
+              className="text-xs text-slate-500 underline dark:text-slate-400"
+            >
+              Reset group
+            </button>
+          )
+        }
+      >
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Per-metric calendar highlight colors. Unset metrics use the default highlight above.
+        </p>
+        <div className="rounded-lg bg-slate-50 px-3 py-1 dark:bg-slate-900">
+          {metricEntries.map((m) => (
+            <TokenField
+              key={m.key}
+              entry={{ key: m.key, label: m.label, default: metricDefault, type: 'color' }}
+              value={settings.metricColors[m.key] ?? metricDefault}
+              onChange={(value) => setMetricColor(m.key, value)}
+              onReset={() => resetMetricColor(m.key)}
+            />
+          ))}
+        </div>
+      </Section>
     </div>
   )
 }

@@ -19,7 +19,7 @@ describe('Free view (mock mode, end-to-end)', () => {
     renderMock(<FreePage />)
 
     // App boots against the mock API (no auth/network) and the calendar fills in.
-    expect(await screen.findByText(/unbooked evenings/)).toBeTruthy()
+    expect(await screen.findByText(/Top picks/)).toBeTruthy()
     const cell = await waitFor(firstDayCell, { timeout: 3000 })
 
     // Selecting a day reveals the detail card with the Schedule block, because
@@ -37,7 +37,7 @@ describe('Free view (mock mode, end-to-end)', () => {
   it('hides the schedule when no calendars are tagged "Show events"', async () => {
     const user = userEvent.setup()
     renderMock(<FreePage />, { dayEventCalendarIds: [] })
-    expect(await screen.findByText(/unbooked evenings/)).toBeTruthy()
+    expect(await screen.findByText(/Top picks/)).toBeTruthy()
     const cell = await waitFor(firstDayCell, { timeout: 3000 })
     await user.click(cell)
     // The detail card opens (firstDayCell is today → its relative label is "today"),

@@ -15,7 +15,6 @@ export default function StatCard({
   title,
   footer,
   onClick,
-  onColor,
 }: {
   value: number
   label: string
@@ -34,8 +33,6 @@ export default function StatCard({
   /** Small content rendered under the label (e.g. an "Overdue" badge). */
   footer?: ReactNode
   onClick: () => void
-  /** When provided, a color-dot picker is shown to recolor the highlight. */
-  onColor?: (color: string) => void
 }) {
   // Inactive cards keep the neutral white/slate surface; active cards fill with
   // the picked color (text auto-contrasted below).
@@ -77,21 +74,6 @@ export default function StatCard({
         </p>
         {footer && <div className="mt-1 flex justify-center">{footer}</div>}
       </button>
-      {onColor && (
-        <label
-          title="Set highlight color"
-          className="absolute right-1.5 top-1.5 flex h-5 w-5 cursor-pointer items-center justify-center text-xs leading-none"
-        >
-          <span aria-hidden>🎨</span>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => onColor(e.target.value)}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-            aria-label={`Highlight color for ${label}`}
-          />
-        </label>
-      )}
     </div>
   )
 }

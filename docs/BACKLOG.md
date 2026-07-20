@@ -25,7 +25,7 @@ Effort: **S** < half a day, **M** = a day-ish, **L** = multi-day.
 | B-13 | Keyboard navigation on the calendar grid (arrow keys, Enter) | P3 | M | [Plan 3](plans/plan-3-navigation.md) | |
 | B-14 | Visible "demo data" badge in mock mode | P3 | S | [Plan 6](plans/plan-6-ux-polish.md) | |
 | B-24 | Unified canvas: dissolve Check into a query layer over the calendar | P1 | L | [Plan 14](plans/plan-14-shell.md) | ✅ 2026-07-20 |
-| B-25 | Defense rail: status+action rows; layer toggles move to a canvas legend | P2 | L | [Plan 14](plans/plan-14-shell.md) | |
+| B-25 | Defense rail: status+action rows; layer toggles move to a canvas legend | P2 | L | [Plan 14](plans/plan-14-shell.md) | ✅ 2026-07-20 |
 | B-26 | Canvas persistence: calendar always renders; idle rail shows next actions | P2 | M | [Plan 14](plans/plan-14-shell.md) | |
 | B-27 | Retire tab nav: corner controls + naming/register pass | P3 | S | [Plan 14](plans/plan-14-shell.md) | |
 

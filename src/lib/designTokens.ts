@@ -91,7 +91,7 @@ export const TOKEN_GROUPS: TokenGroup[] = [
     id: 'metric',
     category: 'color',
     title: 'Metric highlights',
-    description: 'Fallback color for a metric’s calendar highlight. Per-metric overrides are set on the Metrics panel.',
+    description: 'Fallback color for a metric’s calendar highlight. Per-metric overrides are set below.',
     entries: [{ key: 'metric.default', label: 'Default highlight', type: 'color', default: '#fbbf24' }],
   },
   {

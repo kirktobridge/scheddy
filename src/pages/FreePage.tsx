@@ -27,6 +27,8 @@ import BottomSheet from '../components/BottomSheet'
 import { ErrorBanner, Spinner } from '../components/Banner'
 import MetricsStats from '../components/MetricsStats'
 import RelationshipStats from '../components/RelationshipStats'
+import LayersLegend, { type LegendItem } from '../components/LayersLegend'
+import DefenseRail, { type DefenseRow } from '../components/DefenseRail'
 import { useMetrics } from '../hooks/useMetrics'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 
@@ -34,12 +36,12 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 const DATE_LOOKBACK_DAYS = 365
 
 export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) {
-  const [settings, setSettings] = useSettings()
+  const [settings] = useSettings()
   /** Shared accent for the "Our Overlap" + "Date Options" controls and overlap bar shading. */
   const overlapColor = getColor(settings, 'relationship.overlap')
+  const partnerOffColor = getColor(settings, 'relationship.partnerOff')
+  const dateColor = getColor(settings, 'relationship.dateMarker')
   const colorFor = (key: string) => settings.metricColors[key] ?? getColor(settings, 'metric.default')
-  const setColor = (key: string, color: string) =>
-    setSettings({ metricColors: { ...settings.metricColors, [key]: color } })
   // "now" re-reads itself (visibility/interval) so a long-open PWA doesn't show
   // stale slots; bumpNow forces it (Refresh, post-booking).
   const [nowMs, bumpNow] = useNow()
@@ -339,7 +341,10 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
     const next = nextDateEvent(dateMatches, now)
     const daysSince = last ? differenceInCalendarDays(now, new Date(last + 'T12:00:00')) : null
     const overdue = settings.dateCadenceDays > 0 && (daysSince === null || daysSince > settings.dateCadenceDays)
-    return { last, next, overdue }
+    // Days until the cadence target is due (null when no cadence set or already overdue).
+    const dueIn =
+      settings.dateCadenceDays > 0 && daysSince !== null && !overdue ? settings.dateCadenceDays - daysSince : null
+    return { last, next, overdue, daysSince, dueIn }
   }, [rel, nowMs, dateMatches, settings.dateCadenceDays])
 
   // relativeDayLabel only phrases future dates; add past phrasing for "last date".
@@ -460,12 +465,171 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
         dateNudge.next ? relDayLabel(dateNudge.next) : 'none scheduled'
       }`
     : undefined
-  // "Me & {Partner}" relationship cards, shared by the mobile stack and desktop bar.
-  const relCards = (variant: 'mobile' | 'bar' | 'panel') => (
+
+  // Soonest upcoming date-option day — the target the "Plan" verb jumps to.
+  const nextDateOption = useMemo(() => {
+    const today = format(new Date(nowMs), 'yyyy-MM-dd')
+    return [...relationship.dateSet].filter((d) => d >= today).sort()[0]
+  }, [relationship.dateSet, nowMs])
+
+  // Right-rail "Layers" legend — the overlay toggles lifted off the stat cards.
+  // Configures which highlights the canvas carries; status/actions live below it.
+  const legendItems = useMemo<LegendItem[]>(() => {
+    const items: LegendItem[] = [
+      {
+        key: 'picks',
+        label: '★ Top picks',
+        count: topPicksCount,
+        active: highlightPicks,
+        onToggle: () => setHighlightPicks((v) => !v),
+        children: [
+          {
+            key: 'week-picks',
+            label: `★ Top ${settings.freeSlotCountWeek} this week`,
+            count: weekPicks.size,
+            active: showWeekPicks,
+            onToggle: () => setShowWeekPicks((v) => !v),
+          },
+        ],
+      },
+      {
+        key: 'evenings',
+        label: 'unbooked evenings',
+        count: metrics.eveningDates.length,
+        color: colorFor('evenings'),
+        active: metrics.activeKeys.has('evenings'),
+        onToggle: () => metrics.toggle('evenings'),
+      },
+      {
+        key: 'weekend',
+        label: 'free weekend days',
+        count: metrics.weekendDates.length,
+        color: colorFor('weekend'),
+        active: metrics.activeKeys.has('weekend'),
+        onToggle: () => metrics.toggle('weekend'),
+      },
+      ...metrics.ruleResults.map(({ rule, matched }) => ({
+        key: `rule:${rule.id}`,
+        label: `${rule.icon} ${rule.name}`,
+        count: matched.length,
+        color: colorFor(`rule:${rule.id}`),
+        active: metrics.activeKeys.has(`rule:${rule.id}`),
+        onToggle: () => metrics.toggle(`rule:${rule.id}`),
+      })),
+    ]
+    if (rel) {
+      items.push(
+        {
+          key: 'partner-off',
+          label: `${partnerName} off work`,
+          count: relationship.notWorkingSet.size,
+          color: partnerOffColor,
+          active: showNotWorking,
+          onToggle: () => setShowNotWorking((v) => !v),
+        },
+        {
+          key: 'overlap',
+          label: '⇄ Our Overlap',
+          count: relationship.overlapSet.size,
+          color: overlapColor,
+          active: showOverlap,
+          onToggle: () => setShowOverlap((v) => !v),
+          children: [
+            { key: 'ov-weekends', label: 'Weekends', count: relationship.overlapWeekendSet.size, color: overlapColor, active: showOverlapWeekends, onToggle: () => setShowOverlapWeekends((v) => !v) },
+            { key: 'ov-weeknights', label: 'Weeknights', count: relationship.overlapWeeknightSet.size, color: overlapColor, active: showOverlapWeeknights, onToggle: () => setShowOverlapWeeknights((v) => !v) },
+            { key: 'ov-bothoff', label: 'Both off', count: relationship.bothOffSet.size, color: overlapColor, active: showOverlapOffDays, onToggle: () => setShowOverlapOffDays((v) => !v) },
+          ],
+        },
+        {
+          key: 'dates',
+          label: '❤️ Date Options',
+          count: relationship.dateSet.size,
+          color: dateColor,
+          active: showDates,
+          onToggle: () => setShowDates((v) => !v),
+        },
+      )
+    }
+    return items
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    topPicksCount, highlightPicks, weekPicks.size, showWeekPicks, metrics, settings.metricColors, settings.freeSlotCountWeek,
+    rel, partnerName, relationship, partnerOffColor, overlapColor, dateColor,
+    showNotWorking, showOverlap, showOverlapWeekends, showOverlapWeeknights, showOverlapOffDays, showDates,
+  ])
+
+  // Right-rail "Defense" column — status in words, phrased defensively, each with
+  // a contextual verb. The date cadence is promoted to a first-class rhythm line.
+  const defenseRows = useMemo<DefenseRow[]>(() => {
+    const month = format(selectedMonth, 'MMMM')
+    const left = metrics.isCurrent ? ' left' : ''
+    const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
+    const rows: DefenseRow[] = [
+      {
+        key: 'weekend',
+        text: `${metrics.weekendDates.length} free weekend ${plural(metrics.weekendDates.length, 'day', 'days')}${left} in ${month}`,
+        action: {
+          label: metrics.activeKeys.has('weekend') ? 'Hide' : 'Show',
+          active: metrics.activeKeys.has('weekend'),
+          onClick: () => metrics.toggle('weekend'),
+        },
+      },
+      {
+        key: 'evenings',
+        text: `${metrics.eveningDates.length} unbooked ${plural(metrics.eveningDates.length, 'evening', 'evenings')}${left} in ${month}`,
+        action: {
+          label: metrics.activeKeys.has('evenings') ? 'Hide' : 'Show',
+          active: metrics.activeKeys.has('evenings'),
+          onClick: () => metrics.toggle('evenings'),
+        },
+      },
+    ]
+    if (rel) {
+      rows.push({
+        key: 'overlap',
+        icon: '⇄',
+        text: `${relationship.overlapSet.size} ${plural(relationship.overlapSet.size, 'day', 'days')} you're both free ahead`,
+        action: {
+          label: showOverlap ? 'Hide' : 'Show',
+          active: showOverlap,
+          onClick: () => setShowOverlap((v) => !v),
+        },
+      })
+      if (dateNudge) {
+        const cadence = dateNudge.overdue
+          ? dateNudge.daysSince === null
+            ? 'no date yet'
+            : `overdue by ${dateNudge.daysSince - settings.dateCadenceDays}`
+          : dateNudge.dueIn !== null
+            ? `due in ${dateNudge.dueIn}`
+            : 'no cadence set'
+        const lastLabel = dateNudge.last ? relDayLabel(dateNudge.last) : 'none yet'
+        rows.push({
+          key: 'date-rhythm',
+          icon: '❤️',
+          text: `Last date ${lastLabel}`,
+          detail: cadence,
+          action: {
+            label: 'Plan',
+            disabled: !nextDateOption,
+            onClick: () => {
+              if (!nextDateOption) return
+              if (query.active) query.clear()
+              setSelected(nextDateOption)
+            },
+          },
+        })
+      }
+    }
+    return rows
+  }, [
+    selectedMonth, metrics, rel, relationship.overlapSet.size, showOverlap, dateNudge, settings.dateCadenceDays,
+    relDayLabel, nextDateOption, query,
+  ])
+  // "Me & {Partner}" relationship cards — the deprecated/frozen mobile stack only;
+  // desktop reads the same state through the LayersLegend + DefenseRail instead.
+  const relCardsMobile = (
     <RelationshipStats
-      bar={variant === 'bar'}
-      panel={variant === 'panel'}
-      tinted={variant !== 'mobile'}
       partnerName={partnerName}
       partnerOff={relationship.notWorkingSet.size}
       overlapTotal={relationship.overlapSet.size}
@@ -473,9 +637,9 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
       overlapWeeknights={relationship.overlapWeeknightSet.size}
       bothOff={relationship.bothOffSet.size}
       dateOptions={relationship.dateSet.size}
-      partnerOffColor={getColor(settings, 'relationship.partnerOff')}
+      partnerOffColor={partnerOffColor}
       overlapColor={overlapColor}
-      dateColor={getColor(settings, 'relationship.dateMarker')}
+      dateColor={dateColor}
       showNotWorking={showNotWorking}
       showOverlap={showOverlap}
       showOverlapWeekends={showOverlapWeekends}
@@ -495,8 +659,8 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
 
   return (
     <div className="space-y-4 xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-0 xl:flex-col xl:gap-4 xl:space-y-0">
-      {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} topPicks={topPicks} />}
-      {!isDesktop && rel && relCards('mobile')}
+      {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} topPicks={topPicks} />}
+      {!isDesktop && rel && relCardsMobile}
       {bookedMsg && (
         <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
           <span>❤️ {bookedMsg}</span>
@@ -573,9 +737,9 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
               </aside>
               <div className="min-w-0 flex-1 xl:h-full">{calendar}</div>
               <aside className="w-64 shrink-0">
-                <div className="sticky top-0 max-h-full space-y-7 overflow-y-auto px-1">
-                  <MetricsStats {...metrics} colorFor={colorFor} onColor={setColor} panel tinted topPicks={topPicks} />
-                  {rel && relCards('panel')}
+                <div className="sticky top-0 max-h-full space-y-6 overflow-y-auto px-1">
+                  <LayersLegend items={legendItems} />
+                  <DefenseRail rows={defenseRows} />
                 </div>
               </aside>
             </div>

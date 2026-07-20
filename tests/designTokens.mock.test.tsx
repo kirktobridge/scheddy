@@ -64,6 +64,17 @@ describe('AppearancePanel — design tokens', () => {
     expect(getSettings().tokens).toEqual({})
   })
 
+  it('hosts per-metric highlight colors (moved from the Metrics panel in B-25)', async () => {
+    const user = userEvent.setup()
+    renderPanel()
+    expect(screen.getByRole('heading', { name: 'Metric highlight colors' })).toBeTruthy()
+    const field = screen.getByLabelText('Unbooked evenings value') as HTMLInputElement
+    await user.clear(field)
+    await user.type(field, '#00ff00')
+    await user.tab() // blur commits
+    expect(getSettings().metricColors['evenings']).toBe('#00ff00')
+  })
+
   it('applyTokenVars writes overrides to :root and clears them on reset', () => {
     const root = document.documentElement
     applyTokenVars({ ...getSettings(), tokens: { 'accent.primary': '#abcdef', 'radius.lg': '1rem' } })

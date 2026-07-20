@@ -72,6 +72,35 @@ Deviations from plan:
 - This is the surface plans 7 (budget status), 10 (ritual rhythm lines) and
   11 (countdowns, sparklines) land on — build the row pattern here, once.
 
+**Shipped 2026-07-20.** The right rail split into two new components stacked in
+the same `w-64` aside: `LayersLegend` (compact toggle list — picks, week picks,
+evenings, weekend, keyword rules, and the relationship overlays with their
+subsets) drives the same overlay state the stat cards used to; `DefenseRail`
+renders status *rows in words* with a contextual verb each (`DefenseRow` +
+`DefenseAction`, the pattern plans 7/10/11 reuse). Counts read defensively
+("2 free weekend days left in July"); the date cadence is a first-class rhythm
+line ("Last date 2 weeks ago · overdue by 3") with a **Plan** verb that jumps to
+the next date-option day. Per-metric highlight colors moved to Settings →
+Appearance ("Metric highlight colors" section, reusing `TokenField`); the
+`StatCard` 🎨 picker and `MetricsStats.onColor` are deleted.
+
+Design decisions confirmed with the user before building (both AskUserQuestion):
+the layers legend lives **in the right rail above the defense rows** (not a
+canvas-attached legend), and defense rows carry a **contextual verb button**
+(Show/Hide to surface a layer, Plan to act) rather than being toggles themselves.
+
+Deviations from plan:
+- **Legend stayed in the right rail**, not "attached to the canvas" — same
+  column as the defense rows, per the user's choice. Keeps the canvas header to
+  the query mode bar (B-24) alone.
+- **Evenings + weekend appear in both the legend (as toggles) and the defense
+  rail (as defensive status)** — intended dual role (configure vs. report), so
+  the mock-test "page loaded" sentinel moved off `/unbooked evenings/` (now
+  double-matched) to `/Top picks/`.
+- **Mobile (frozen) keeps the old `MetricsStats`/`RelationshipStats` cards**,
+  now without the inline color dots; only the desktop rail was rebuilt. The
+  single-use `relCards('mobile')` collapsed to a `relCardsMobile` element.
+
 ### B-26: canvas persistence (M)
 
 - `days.length === 0` no longer blanks the page: the calendar always

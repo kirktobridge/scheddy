@@ -20,6 +20,20 @@ What changed and why, 1–3 sentences.
 
 ---
 
+## 2026-07-20 — Defense rail: split the stat cards into a legend + status column
+Refs: B-25, plan-14
+
+The desktop right rail's do-everything stat cards (count + toggle + color picker)
+split into a compact `LayersLegend` of overlay toggles above a `DefenseRail` of
+status *rows in words*, each with a contextual verb — Show/Hide to surface a
+layer, Plan to jump to the next date-option day. Counts now read defensively
+("2 free weekend days left in July") and the date cadence is a first-class rhythm
+line instead of a tooltip; per-metric highlight colors moved to Settings →
+Appearance. The row pattern is the surface the vision plans (budgets, rituals,
+countdowns) build on.
+
+---
+
 ## 2026-07-20 — Dissolve Check into a query lens on the canvas
 Refs: B-24, plan-14
 
