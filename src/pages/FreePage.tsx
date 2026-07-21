@@ -36,7 +36,14 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 /** How far back to scan for the most recent past date (cadence nudge). */
 const DATE_LOOKBACK_DAYS = 365
 
-export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) {
+export default function FreePage({
+  refreshTick = 0,
+  onStatus,
+}: {
+  refreshTick?: number
+  /** Reports load/staleness up to the shell's corner refresh control (B-27). */
+  onStatus?: (status: { loading: boolean; stale: boolean }) => void
+}) {
   const [settings] = useSettings()
   /** Shared accent for the "Our Overlap" + "Date Options" controls and overlap bar shading. */
   const overlapColor = getColor(settings, 'relationship.overlap')
@@ -95,9 +102,12 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   // Query layer (B-24): a lens over this canvas — replaced the standalone Check page.
   const query = useQueryMode(nowMs, maxDateMs, settings.windows)
 
-  const { events: rawEvents, loading, error, authRequired, refresh } = useEvents(startMs, endMs)
+  const { events: rawEvents, loading, error, stale, authRequired, refresh } = useEvents(startMs, endMs)
   const handleSignIn = useReauth(refresh)
-  // The Refresh control lives in the nav (App); it bumps refreshTick. Re-fetch and
+  useEffect(() => {
+    onStatus?.({ loading, stale })
+  }, [loading, stale, onStatus])
+  // The Refresh control lives in the corner controls (App); it bumps refreshTick. Re-fetch and
   // reset "now" when it changes, skipping the initial mount (data already loads then).
   const didMountRef = useRef(false)
   useEffect(() => {
@@ -719,7 +729,7 @@ export default function FreePage({ refreshTick = 0 }: { refreshTick?: number }) 
   )
 
   return (
-    <div className="space-y-4 xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-0 xl:flex-col xl:gap-4 xl:space-y-0">
+    <div className="space-y-4 xl:flex xl:h-[calc(100dvh-4.5rem)] xl:min-h-0 xl:flex-col xl:gap-4 xl:space-y-0">
       {!isDesktop && <MetricsStats {...metrics} colorFor={colorFor} topPicks={topPicks} />}
       {!isDesktop && rel && relCardsMobile}
       {bookedMsg && (

@@ -29,7 +29,7 @@ Google Calendar API ── src/api/calendar.ts ── src/hooks/useEvents.ts ─
 | Settings | [src/store/settings.ts](../src/store/settings.ts) | Single `Settings` object via `useSyncExternalStore`; `updateSettings(patch)` persists and notifies. Legacy-shape fixups happen in `loadSettings`. |
 | Engines | [src/lib/](../src/lib/) | Pure functions, no React, no IO — the part that must stay unit-testable. New scheduling logic goes here first. |
 | Hooks | [src/hooks/](../src/hooks/) | Bridge: fetching (`useEvents`), derived state (`useBusy` busy-interval sets, `useRelationshipOverlays` mutual-free/date candidates, `useMetrics`, `useHorizon`), query lens (`useQueryMode` — range/window state over the canvas), environment (`useMediaQuery` — defaults desktop under jsdom). |
-| Pages | [src/pages/](../src/pages/) | Free (main calendar + query layer) and Settings (card grid of panels in [src/pages/settings/](../src/pages/settings/)). Tab switching in [src/App.tsx](../src/App.tsx). The old Check page dissolved into a query lens on the Free canvas (B-24). |
+| Pages | [src/pages/](../src/pages/) | Free (main calendar + query layer) and Settings (card grid of panels in [src/pages/settings/](../src/pages/settings/)). [src/App.tsx](../src/App.tsx) swaps between them and hosts the corner controls (refresh + settings gear); there is no tab nav (B-27). The old Check page dissolved into a query lens on the Free canvas (B-24). |
 | Components | [src/components/](../src/components/) | Presentational; receive engine outputs as props. |
 
 ## Core data flow (Free view)

@@ -22,7 +22,7 @@ const CATEGORIES: { key: CatKey; label: string; icon: string }[] = [
   { key: 'account', label: 'Account', icon: '👤' },
   { key: 'appearance', label: 'Appearance', icon: '🎨' },
   { key: 'calendars', label: 'Calendars', icon: '📅' },
-  { key: 'availability', label: 'Scheduler', icon: '🕐' },
+  { key: 'availability', label: 'Availability', icon: '🕐' },
   { key: 'metrics', label: 'Metrics', icon: '📌' },
   { key: 'relationship', label: 'Relationship', icon: '💑' },
 ]

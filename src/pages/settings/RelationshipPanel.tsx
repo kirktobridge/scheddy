@@ -28,7 +28,7 @@ export default function RelationshipPanel({
           />
         </label>
         <p className="text-xs text-slate-500">
-          Adds "off days", "overlap", and "date" overlays to the Scheduler tab, plus a partner/joint calendar section on
+          Adds "off days", "overlap", and "date" overlays to the calendar, plus a partner/joint calendar section on
           the Calendars page. Overlap and date-candidate settings live under Metrics → Advanced metrics.
         </p>
         {settings.relationshipMode && (

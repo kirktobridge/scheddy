@@ -147,6 +147,31 @@ Deviations from plan:
 - Naming/register pass rides along: drop the "Scheduler" label, headline in
   the plural voice, tame the text-5xl ★ pick overlay.
 
+**Shipped 2026-07-21.** The auto-hiding desktop nav, the mobile bottom tab bar,
+and the `TABS` array are deleted; `App` now renders one in-flow `CornerControls`
+row (new component) in the top-right — a refresh glyph and a settings gear that
+toggles to `×` while Settings is open. The refresh control doubles as the
+staleness indicator: `FreePage` publishes `{loading, stale}` from its main
+`useEvents` through a new optional `onStatus` prop, and the icon pulses amber
+while data is in flight. Naming pass: Settings' "Scheduler" category is now
+"Availability", the relationship blurb says "the calendar" instead of "the
+Scheduler tab", and the ★ pick overlay dropped from `text-5xl` to `text-2xl` at
+80% opacity with a lighter shadow. New `tests/shell.mock.test.tsx` covers the
+gear → Settings → back round trip and the refresh control. Plan 14 is complete.
+
+Deviations from plan:
+- **Corner controls are in-flow, not fixed.** A fixed top-right overlay would
+  have sat on top of the defense rail's first card (and the left rail's heading
+  on the other side), so the cluster is a `justify-end` row above the page
+  content; `main`'s top padding shrank and `FreePage`'s desktop height calc went
+  `100dvh-4rem` → `4.5rem` to pay for it.
+- **The mobile bottom tab bar went too** (not just the desktop nav): the corner
+  gear is width-independent, so the frozen narrow layout keeps a route into
+  Settings without its own chrome. `pb-24` (bottom-bar clearance) became `pb-8`.
+- **No "Scheduler"/"Am I free?" headline to fix** — the canvas headline already
+  reads "When are we free?" since B-24; only the Settings category label and the
+  relationship blurb still carried the old name.
+
 ## Files
 
 - Touch heavily: `src/App.tsx`, `src/pages/FreePage.tsx`,

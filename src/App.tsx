@@ -1,21 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import FreePage from './pages/FreePage'
 import SettingsPage from './pages/SettingsPage'
 import { useSettings } from './store/settings'
 import { applyTokenVars } from './lib/designTokens'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import CornerControls from './components/CornerControls'
 
 type Tab = 'free' | 'settings'
-
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'free', label: 'Scheduler', icon: '🕐' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
-]
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('free')
   const [refreshTick, setRefreshTick] = useState(0)
-  const [navOpen, setNavOpen] = useState(false)
+  // Data status published by FreePage, so the corner refresh control can double
+  // as the staleness indicator (B-27 replaced the nav that used to host it).
+  const [busy, setBusy] = useState(false)
+  const handleStatus = useCallback(
+    ({ loading, stale }: { loading: boolean; stale: boolean }) => setBusy(loading || stale),
+    [],
+  )
   const [settings] = useSettings()
 
   useEffect(() => {
@@ -31,99 +33,22 @@ export default function App() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24 lg:px-8 lg:pb-8 lg:pt-6">
+      <main className="flex-1 overflow-y-auto px-4 pt-2 pb-8 lg:px-8 lg:pt-3">
         <div className="w-full">
+          <CornerControls
+            settingsOpen={tab === 'settings'}
+            onSettings={() => setTab((t) => (t === 'settings' ? 'free' : 'settings'))}
+            onRefresh={() => setRefreshTick((t) => t + 1)}
+            busy={busy}
+          />
           {/* key={tab} remounts the boundary on tab change, so a crash on one
-              tab doesn't strand the others — the surviving nav is the escape. */}
+              tab doesn't strand the other — the corner controls are the escape. */}
           <ErrorBoundary key={tab}>
-            {tab === 'free' && <FreePage refreshTick={refreshTick} />}
+            {tab === 'free' && <FreePage refreshTick={refreshTick} onStatus={handleStatus} />}
             {tab === 'settings' && <SettingsPage />}
           </ErrorBoundary>
         </div>
       </main>
-
-      {/* Desktop: auto-hiding top nav. Hidden by default with a chevron cue
-          attached to its bottom edge; slides down while hovered. */}
-      {/* pointer-events-none so the hidden nav's in-flow height doesn't intercept
-          clicks on the canvas below (e.g. the query mode bar); the nav and its cue
-          re-enable events. Removed wholesale by B-27. */}
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-50 hidden lg:block">
-        <div
-          onMouseEnter={() => setNavOpen(true)}
-          onMouseLeave={() => setNavOpen(false)}
-          className={`relative transition-transform duration-200 ${navOpen ? 'translate-y-0' : '-translate-y-full'}`}
-        >
-          <nav className="pointer-events-auto flex items-center justify-center gap-3 border-b border-slate-300 bg-white/95 px-6 py-6 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/95">
-            <div className="mr-2 text-lg font-bold">🗓️ scheddy</div>
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                  tab === t.id
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                <span className="text-base leading-none">{t.icon}</span>
-                {t.label}
-              </button>
-            ))}
-            {tab === 'free' && (
-              <button
-                onClick={() => setRefreshTick((t) => t + 1)}
-                title="Reload calendars"
-                className="flex items-center gap-2 rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200"
-              >
-                <span className="text-base leading-none">↻</span>
-                Refresh
-              </button>
-            )}
-          </nav>
-          {/* Cue hangs off the nav's bottom edge; when the nav is hidden it's
-              the only part peeking at the top of the viewport. translate-x-16
-              (64px) nudges it onto the calendar's month title (offset right by
-              half the left w-96 / right w-64 rail difference). */}
-          <div className="absolute inset-x-0 top-full flex justify-center">
-            <button
-              type="button"
-              aria-label={navOpen ? 'Hide menu' : 'Show menu'}
-              onClick={() => setNavOpen((o) => !o)}
-              className="pointer-events-auto flex h-3 w-48 translate-x-16 items-center justify-center rounded-b-md border border-t-0 border-slate-300 bg-white/90 text-xs leading-none text-slate-400 shadow-sm backdrop-blur hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-500"
-            >
-              ⌄
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile: frozen bottom tab bar (deprecated narrow layout). */}
-      <nav className="fixed inset-x-0 bottom-0 border-t border-slate-300 bg-white/95 backdrop-blur lg:hidden dark:border-slate-700 dark:bg-slate-800/95">
-        <div className="mx-auto flex max-w-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${
-                tab === t.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'
-              }`}
-            >
-              <span className="text-xl leading-none">{t.icon}</span>
-              {t.label}
-            </button>
-          ))}
-          {tab === 'free' && (
-            <button
-              onClick={() => setRefreshTick((t) => t + 1)}
-              title="Reload calendars"
-              className="flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-slate-500 dark:text-slate-400"
-            >
-              <span className="text-xl leading-none">↻</span>
-              Refresh
-            </button>
-          )}
-        </div>
-      </nav>
     </div>
   )
 }

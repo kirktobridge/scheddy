@@ -336,7 +336,7 @@ export default function FreeCalendar({
                 </span>
               )}
               {highlightPicks && pick && !isSel && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-5xl leading-none text-amber-500 drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)] dark:text-amber-400">
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl leading-none text-amber-500/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)] dark:text-amber-400/80">
                   ★
                 </span>
               )}

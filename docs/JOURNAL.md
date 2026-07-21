@@ -20,6 +20,17 @@ What changed and why, 1–3 sentences.
 
 ---
 
+## 2026-07-21 — Retire the tab nav: quiet corner controls
+Refs: B-27, plan-14
+
+With Check dissolved into the canvas there was nothing left to navigate, so the
+auto-hiding hover nav and the mobile tab bar are gone — replaced by a two-icon
+corner cluster (refresh, settings gear) where the refresh glyph also carries the
+staleness signal. A naming pass dropped the last "Scheduler" labels and tamed the
+oversized ★ pick overlay, completing Plan 14's shell.
+
+---
+
 ## 2026-07-20 — Canvas persistence: always render the map; idle rail offers next moves
 Refs: B-26, plan-14
 
